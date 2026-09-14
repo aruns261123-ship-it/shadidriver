@@ -8,11 +8,7 @@ class VehicleGallery extends StatefulWidget {
   final List<String> imageUrls;
   final double height;
 
-  const VehicleGallery({
-    super.key,
-    required this.imageUrls,
-    this.height = 260,
-  });
+  const VehicleGallery({super.key, required this.imageUrls, this.height = 260});
 
   @override
   State<VehicleGallery> createState() => _VehicleGalleryState();

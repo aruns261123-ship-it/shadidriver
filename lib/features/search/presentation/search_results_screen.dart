@@ -114,9 +114,9 @@ class SearchResultsScreen extends ConsumerWidget {
             if (session.query.seatingCapacities != null)
               ...session.query.seatingCapacities!.map(
                 (cap) => _buildFilterChip('$cap+ Seats', () {
-                  final newCaps =
-                      List<int>.from(session.query.seatingCapacities!)
-                        ..remove(cap);
+                  final newCaps = List<int>.from(
+                    session.query.seatingCapacities!,
+                  )..remove(cap);
                   _updateQuery(
                     ref,
                     session,
@@ -258,7 +258,9 @@ class SearchResultsScreen extends ConsumerWidget {
     List<int>? seatingCapacities,
     List<String>? vehicleCategories,
   }) {
-    ref.read(searchControllerProvider.notifier).updateQuery(
+    ref
+        .read(searchControllerProvider.notifier)
+        .updateQuery(
           session.query.copyWith(
             availableNow: availableNow,
             verifiedChauffeurOnly: verifiedChauffeurOnly,

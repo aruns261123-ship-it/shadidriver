@@ -1,5 +1,5 @@
 import 'pricing_summary.dart';
-import '../../services/domain/entities/service_addon.dart';
+import '../../../../features/services/domain/entities/service_addon.dart';
 
 /// Comprehensive vehicle details domain entity for deep discovery.
 class VehicleDetails {

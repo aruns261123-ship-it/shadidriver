@@ -87,12 +87,7 @@ class MockVehicleRepository implements VehicleRepository {
       ],
       suitabilityInfo:
           'A benchmark of executive luxury. Engineered for smooth ceremonial transitions with silent cabin acoustics and rear executive climate comfort.',
-      suitableCeremonies: [
-        'Baraat',
-        'Groom Entry',
-        'Reception',
-        'Engagement',
-      ],
+      suitableCeremonies: ['Baraat', 'Groom Entry', 'Reception', 'Engagement'],
       amenities: [
         'Dual-Zone Rear AC',
         'Ambient Mood Lighting',
@@ -118,17 +113,18 @@ class MockVehicleRepository implements VehicleRepository {
           name: 'Non-Damaging Fresh Floral Tie',
           description:
               'Artisanal floral accent on hood and side mirrors using soft magnetic clips.',
-          features: ['Fresh Orchids / Roses', 'Paint-Safe Clamps', 'Florist Window'],
+          features: [
+            'Fresh Orchids / Roses',
+            'Paint-Safe Clamps',
+            'Florist Window',
+          ],
           pricing: PricingSummary(
             basePriceCents: 750000,
             billingUnit: 'PACKAGE',
           ),
         ),
       ],
-      pricing: PricingSummary(
-        basePriceCents: 2500000,
-        billingUnit: 'DAY',
-      ),
+      pricing: PricingSummary(basePriceCents: 2500000, billingUnit: 'DAY'),
       chauffeurId: 'd1',
       rating: 4.9,
       reviewCount: 128,
@@ -149,12 +145,7 @@ class MockVehicleRepository implements VehicleRepository {
       ],
       suitabilityInfo:
           'Understated elegance with exceptionally smooth suspension, making it the preferred choice for Vidai departures and VIP airport transfers.',
-      suitableCeremonies: [
-        'Vidai',
-        'Bride Entry',
-        'Airport VIP',
-        'Reception',
-      ],
+      suitableCeremonies: ['Vidai', 'Bride Entry', 'Airport VIP', 'Reception'],
       amenities: [
         'Four-Zone Deluxe Climate Control',
         'Acoustic Glazing Windows',
@@ -175,10 +166,7 @@ class MockVehicleRepository implements VehicleRepository {
           ),
         ),
       ],
-      pricing: PricingSummary(
-        basePriceCents: 2200000,
-        billingUnit: 'DAY',
-      ),
+      pricing: PricingSummary(basePriceCents: 2200000, billingUnit: 'DAY'),
       chauffeurId: 'd2',
       rating: 4.8,
       reviewCount: 95,
@@ -199,11 +187,7 @@ class MockVehicleRepository implements VehicleRepository {
       ],
       suitabilityInfo:
           'Commanding road presence with ample 7-seater room and luggage capacity. Perfect for family logistics, inter-venue shuttling, and Baraat entourage.',
-      suitableCeremonies: [
-        'Guest Transport',
-        'Baraat',
-        'Airport VIP',
-      ],
+      suitableCeremonies: ['Guest Transport', 'Baraat', 'Airport VIP'],
       amenities: [
         'Dual AC with Roof Vents',
         'Spacious 3rd Row Seating',
@@ -211,10 +195,7 @@ class MockVehicleRepository implements VehicleRepository {
         'Drinking Water Storage',
       ],
       ceremonialAddons: [],
-      pricing: PricingSummary(
-        basePriceCents: 1800000,
-        billingUnit: 'DAY',
-      ),
+      pricing: PricingSummary(basePriceCents: 1800000, billingUnit: 'DAY'),
       chauffeurId: 'd3',
       rating: 4.7,
       reviewCount: 210,
@@ -249,10 +230,7 @@ class MockVehicleRepository implements VehicleRepository {
         'Hot Stone Massage Function',
       ],
       ceremonialAddons: [],
-      pricing: PricingSummary(
-        basePriceCents: 5500000,
-        billingUnit: 'DAY',
-      ),
+      pricing: PricingSummary(basePriceCents: 5500000, billingUnit: 'DAY'),
       chauffeurId: 'd1',
       rating: 5.0,
       reviewCount: 45,
@@ -267,26 +245,17 @@ class MockVehicleRepository implements VehicleRepository {
       seatingCapacity: 4,
       transmission: 'MANUAL',
       verificationStatus: 'VERIFIED',
-      galleryUrls: [
-        'assets/images/vehicles/rolls_vintage.jpg',
-      ],
+      galleryUrls: ['assets/images/vehicles/rolls_vintage.jpg'],
       suitabilityInfo:
           'Timeless royal heritage. Guaranteed to make Baraat and photoshoot entries unforgettable. Accompanied by our senior heritage chauffeur.',
-      suitableCeremonies: [
-        'Baraat',
-        'Groom Entry',
-        'Photoshoot',
-      ],
+      suitableCeremonies: ['Baraat', 'Groom Entry', 'Photoshoot'],
       amenities: [
         'Restored Velvet Heritage Upholstery',
         'Ceremonial Flower Garland Mounts',
         'Dedicated Processional Chaperone',
       ],
       ceremonialAddons: [],
-      pricing: PricingSummary(
-        basePriceCents: 8500000,
-        billingUnit: 'PACKAGE',
-      ),
+      pricing: PricingSummary(basePriceCents: 8500000, billingUnit: 'PACKAGE'),
       chauffeurId: 'd4',
       rating: 4.9,
       reviewCount: 32,
@@ -301,15 +270,10 @@ class MockVehicleRepository implements VehicleRepository {
       seatingCapacity: 14,
       transmission: 'MANUAL',
       verificationStatus: 'VERIFIED',
-      galleryUrls: [
-        'assets/images/vehicles/urbania.jpg',
-      ],
+      galleryUrls: ['assets/images/vehicles/urbania.jpg'],
       suitabilityInfo:
           'VIP guest transit with individual luxury reclining seats, individual AC blowers, and generous aisle space for festive family groups.',
-      suitableCeremonies: [
-        'Guest Transport',
-        'Airport VIP',
-      ],
+      suitableCeremonies: ['Guest Transport', 'Airport VIP'],
       amenities: [
         'Individual Reclining Plush Seats',
         'Overhead Luggage Racks',
@@ -317,10 +281,7 @@ class MockVehicleRepository implements VehicleRepository {
         'Microphone & PA System for Family Announcements',
       ],
       ceremonialAddons: [],
-      pricing: PricingSummary(
-        basePriceCents: 1500000,
-        billingUnit: 'DAY',
-      ),
+      pricing: PricingSummary(basePriceCents: 1500000, billingUnit: 'DAY'),
       chauffeurId: 'd5',
       rating: 4.6,
       reviewCount: 88,
@@ -338,15 +299,10 @@ class MockVehicleRepository implements VehicleRepository {
       galleryUrls: [],
       suitabilityInfo:
           'Cost-effective city shuttling for wedding staff and shopping errands.',
-      suitableCeremonies: [
-        'Guest Transport',
-      ],
+      suitableCeremonies: ['Guest Transport'],
       amenities: ['Air Conditioning'],
       ceremonialAddons: [],
-      pricing: PricingSummary(
-        basePriceCents: 800000,
-        billingUnit: 'HOUR',
-      ),
+      pricing: PricingSummary(basePriceCents: 800000, billingUnit: 'HOUR'),
       chauffeurId: 'd6',
       rating: 4.2,
       reviewCount: 150,

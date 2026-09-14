@@ -3,14 +3,13 @@ import '../../../../app/providers/app_providers.dart';
 import '../../domain/entities/vehicle_details.dart';
 
 /// Fetches detailed vehicle specifications and ceremonial suitability by ID.
-final vehicleDetailsProvider =
-    FutureProvider.family<VehicleDetails, String>((ref, vehicleId) async {
+final vehicleDetailsProvider = FutureProvider.family<VehicleDetails, String>((
+  ref,
+  vehicleId,
+) async {
   final repo = ref.watch(vehicleRepositoryProvider);
   final result = await repo.getVehicleDetails(vehicleId);
-  return result.fold(
-    (failure) => throw failure,
-    (details) => details,
-  );
+  return result.fold((failure) => throw failure, (details) => details);
 });
 
 /// Session-scoped shortlist state notifier.
@@ -42,5 +41,6 @@ class ShortlistNotifier extends Notifier<Set<String>> {
   }
 }
 
-final shortlistProvider =
-    NotifierProvider<ShortlistNotifier, Set<String>>(ShortlistNotifier.new);
+final shortlistProvider = NotifierProvider<ShortlistNotifier, Set<String>>(
+  ShortlistNotifier.new,
+);

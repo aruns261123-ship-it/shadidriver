@@ -249,16 +249,18 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
               selected: isSelected,
               label: Text('$cap+'),
               onSelected: (selected) {
-                final current =
-                    List<int>.from(_localQuery.seatingCapacities ?? []);
+                final current = List<int>.from(
+                  _localQuery.seatingCapacities ?? [],
+                );
                 if (selected) {
                   current.add(cap);
                 } else {
                   current.remove(cap);
                 }
                 setState(
-                  () =>
-                      _localQuery = _localQuery.copyWith(seatingCapacities: current),
+                  () => _localQuery = _localQuery.copyWith(
+                    seatingCapacities: current,
+                  ),
                 );
               },
             );
@@ -283,8 +285,9 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                 label: Text('$rating+ ⭐'),
                 selected: isSelected,
                 onSelected: (val) => setState(
-                  () => _localQuery =
-                      _localQuery.copyWith(minRating: val ? rating : null),
+                  () => _localQuery = _localQuery.copyWith(
+                    minRating: val ? rating : null,
+                  ),
                 ),
               ),
             );
