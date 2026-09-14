@@ -82,9 +82,13 @@ class MockAuthRepository implements AuthRepository {
 
     // MOCK: Log session ID (safe — it's a temporary dev identifier, not a credential)
     // ignore: avoid_print
-    print('[MOCK AUTH] OTP session created: $sessionId for role: ${role.displayLabel}');
+    print(
+      '[MOCK AUTH] OTP session created: $sessionId for role: ${role.displayLabel}',
+    );
     // ignore: avoid_print
-    print('[MOCK AUTH] Use OTP: $_universalOtp or role-specific: ${_roleOtpCodes[role]}');
+    print(
+      '[MOCK AUTH] Use OTP: $_universalOtp or role-specific: ${_roleOtpCodes[role]}',
+    );
 
     return Result.success(sessionId);
   }
@@ -211,7 +215,8 @@ class MockAuthRepository implements AuthRepository {
     final maskedPhone = '+91 ${raw.substring(0, 5)} XXXXX';
 
     return AuthSession(
-      userId: 'mock_${otpSession.role.storageKey}_${DateTime.now().millisecondsSinceEpoch}',
+      userId:
+          'mock_${otpSession.role.storageKey}_${DateTime.now().millisecondsSinceEpoch}',
       phone: maskedPhone,
       role: otpSession.role,
       displayName: 'Mock ${otpSession.role.displayLabel}',

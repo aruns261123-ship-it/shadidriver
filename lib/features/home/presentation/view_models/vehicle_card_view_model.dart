@@ -1,0 +1,51 @@
+import '../../../../core/utils/currency_formatter.dart';
+import '../../../vehicles/domain/entities/vehicle_summary.dart';
+
+/// UI-specific presentation model for a Vehicle Card.
+/// Bridges domain entities to high-fidelity UI requirements.
+class VehicleCardViewModel {
+  final String id;
+  final String title;
+  final String subtitle;
+  final String? imageUrl;
+  final String ratingText;
+  final String reviewCountText;
+  final String distanceText;
+  final String priceText;
+  final String priceUnit;
+  final bool hasVerifiedChauffeur;
+  final bool isVerifiedVehicle;
+  final bool isAvailable;
+
+  const VehicleCardViewModel({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    this.imageUrl,
+    required this.ratingText,
+    required this.reviewCountText,
+    required this.distanceText,
+    required this.priceText,
+    required this.priceUnit,
+    required this.hasVerifiedChauffeur,
+    required this.isVerifiedVehicle,
+    required this.isAvailable,
+  });
+
+  factory VehicleCardViewModel.fromEntity(VehicleSummary entity) {
+    return VehicleCardViewModel(
+      id: entity.id,
+      title: '${entity.make} ${entity.model}',
+      subtitle: '${entity.year} • ${entity.vehicleClass}',
+      imageUrl: entity.imageUrl,
+      ratingText: entity.rating.toStringAsFixed(1),
+      reviewCountText: '(${entity.reviewCount})',
+      distanceText: entity.distanceKm != null ? '${entity.distanceKm} km' : '',
+      priceText: CurrencyFormatter.formatPaise(entity.pricing.basePriceCents),
+      priceUnit: entity.pricing.formattedUnit,
+      hasVerifiedChauffeur: entity.hasVerifiedChauffeur,
+      isVerifiedVehicle: entity.verificationStatus == 'VERIFIED',
+      isAvailable: true, // Mock availability
+    );
+  }
+}

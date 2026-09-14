@@ -23,17 +23,17 @@ enum AccountStatus {
 
   /// Stable storage key used when persisting account status.
   String get storageKey => switch (this) {
-        AccountStatus.active => 'active',
-        AccountStatus.profileIncomplete => 'profile_incomplete',
-        AccountStatus.pendingVerification => 'pending_verification',
-        AccountStatus.suspended => 'suspended',
-      };
+    AccountStatus.active => 'active',
+    AccountStatus.profileIncomplete => 'profile_incomplete',
+    AccountStatus.pendingVerification => 'pending_verification',
+    AccountStatus.suspended => 'suspended',
+  };
 
   /// Deserialize from a storage key string.
   static AccountStatus fromStorageKey(String? key) => switch (key) {
-        'profile_incomplete' => AccountStatus.profileIncomplete,
-        'pending_verification' => AccountStatus.pendingVerification,
-        'suspended' => AccountStatus.suspended,
-        _ => AccountStatus.active, // Safe default
-      };
+    'profile_incomplete' => AccountStatus.profileIncomplete,
+    'pending_verification' => AccountStatus.pendingVerification,
+    'suspended' => AccountStatus.suspended,
+    _ => AccountStatus.active, // Safe default
+  };
 }

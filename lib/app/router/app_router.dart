@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/auth_placeholder_screen.dart';
 import '../../features/drivers/presentation/driver_home_placeholder_screen.dart';
-import '../../features/home/presentation/customer_home_placeholder_screen.dart';
+import '../../features/home/presentation/customer_home_screen.dart';
+import '../../features/home/presentation/customer_home_shell.dart';
+import '../../features/home/presentation/customer_tabs_placeholder.dart';
 import '../../features/home/presentation/splash_screen.dart';
 import '../../features/profile/presentation/admin_placeholder_screen.dart';
 import 'route_guards.dart';
@@ -11,6 +13,8 @@ import 'route_paths.dart';
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'root',
 );
+final GlobalKey<NavigatorState> _customerShellNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'customerShell');
 
 /// Creates the centralized [GoRouter] instance.
 GoRouter createShadiRouter({
@@ -38,10 +42,41 @@ GoRouter createShadiRouter({
         name: 'auth',
         builder: (context, state) => const AuthPlaceholderScreen(),
       ),
-      GoRoute(
-        path: RoutePaths.customer,
-        name: 'customer',
-        builder: (context, state) => const CustomerHomePlaceholderScreen(),
+      // Customer Portal with Shell for Bottom Navigation
+      ShellRoute(
+        navigatorKey: _customerShellNavigatorKey,
+        builder: (context, state, child) => CustomerHomeShell(child: child),
+        routes: [
+          GoRoute(
+            path: RoutePaths.customer,
+            redirect: (_, _) => RoutePaths.customerHome,
+          ),
+          GoRoute(
+            path: RoutePaths.customerHome,
+            name: 'customerHome',
+            builder: (context, state) => const CustomerHomeScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.customerSearch,
+            name: 'customerSearch',
+            builder: (context, state) => const CustomerSearchPlaceholder(),
+          ),
+          GoRoute(
+            path: RoutePaths.customerBookings,
+            name: 'customerBookings',
+            builder: (context, state) => const CustomerBookingsPlaceholder(),
+          ),
+          GoRoute(
+            path: RoutePaths.customerMessages,
+            name: 'customerMessages',
+            builder: (context, state) => const CustomerMessagesPlaceholder(),
+          ),
+          GoRoute(
+            path: RoutePaths.customerProfile,
+            name: 'customerProfile',
+            builder: (context, state) => const CustomerProfilePlaceholder(),
+          ),
+        ],
       ),
       GoRoute(
         path: RoutePaths.driver,

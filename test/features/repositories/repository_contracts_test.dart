@@ -1,64 +1,62 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadidriver/core/result/result.dart';
 import 'package:shadidriver/features/auth/domain/entities/auth_session.dart';
+import 'package:shadidriver/features/auth/domain/entities/user_role.dart';
+import 'package:shadidriver/features/auth/domain/entities/account_status.dart';
 import 'package:shadidriver/features/auth/domain/repositories/auth_repository.dart';
 import 'package:shadidriver/features/bookings/domain/entities/booking_summary.dart';
 import 'package:shadidriver/features/bookings/domain/repositories/booking_repository.dart';
 
 class FakeAuthRepository implements AuthRepository {
   @override
-  Future<Result<String>> requestPhoneOtp(
-    String phoneNumber,
-    String role,
-  ) async {
+  Future<Result<String>> requestOtp({
+    required String phoneNumber,
+    required UserRole role,
+  }) async {
     return const Result.success('session_test_999');
   }
 
   @override
-  Future<Result<AuthSession>> verifyPhoneOtp({
-    required String sessionId,
+  Future<Result<AuthSession>> verifyOtp({
+    required String otpSessionId,
     required String otpCode,
-    required String deviceId,
   }) async {
-    return const Result.success(
+    return Result.success(
       AuthSession(
         userId: 'usr_1',
-        phoneNumber: '+919999999999',
-        role: 'CUSTOMER',
-        accessToken: 'mock_jwt',
-        refreshToken: 'mock_rt',
-        isProfileComplete: true,
+        phone: '+91 99999 XXXXX',
+        role: UserRole.customer,
+        accountStatus: AccountStatus.active,
+        issuedAt: DateTime.now(),
       ),
     );
   }
 
   @override
-  Future<Result<AuthSession>> getCurrentSession() async {
-    return const Result.success(
+  Future<Result<AuthSession?>> restoreSession() async {
+    return Result.success(
       AuthSession(
         userId: 'usr_1',
-        phoneNumber: '+919999999999',
-        role: 'CUSTOMER',
-        accessToken: 'mock_jwt',
-        refreshToken: 'mock_rt',
-        isProfileComplete: true,
+        phone: '+91 99999 XXXXX',
+        role: UserRole.customer,
+        accountStatus: AccountStatus.active,
+        issuedAt: DateTime.now(),
       ),
     );
   }
 
   @override
-  Future<Result<void>> logout() async => const Result.success(null);
+  Future<Result<void>> signOut() async => const Result.success(null);
 
   @override
   Future<Result<AuthSession>> refreshSession() async {
-    return const Result.success(
+    return Result.success(
       AuthSession(
         userId: 'usr_1',
-        phoneNumber: '+919999999999',
-        role: 'CUSTOMER',
-        accessToken: 'mock_jwt_refreshed',
-        refreshToken: 'mock_rt_2',
-        isProfileComplete: true,
+        phone: '+91 99999 XXXXX',
+        role: UserRole.customer,
+        accountStatus: AccountStatus.active,
+        issuedAt: DateTime.now(),
       ),
     );
   }
@@ -126,19 +124,21 @@ void main() {
       'FakeAuthRepository implements contract and yields typed results',
       () async {
         final repo = FakeAuthRepository();
-        final otpRes = await repo.requestPhoneOtp('+919876543210', 'CUSTOMER');
+        final otpRes = await repo.requestOtp(
+          phoneNumber: '+919876543210',
+          role: UserRole.customer,
+        );
 
         expect(otpRes.isSuccess, isTrue);
         expect(otpRes.dataOrNull, equals('session_test_999'));
 
-        final verifyRes = await repo.verifyPhoneOtp(
-          sessionId: 'session_test_999',
+        final verifyRes = await repo.verifyOtp(
+          otpSessionId: 'session_test_999',
           otpCode: '123456',
-          deviceId: 'dev_1',
         );
 
         expect(verifyRes.isSuccess, isTrue);
-        expect(verifyRes.dataOrNull?.role, equals('CUSTOMER'));
+        expect(verifyRes.dataOrNull?.role, equals(UserRole.customer));
       },
     );
 

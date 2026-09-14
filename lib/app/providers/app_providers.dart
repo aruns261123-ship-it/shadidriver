@@ -12,6 +12,12 @@ import '../../features/drivers/domain/repositories/driver_repository.dart';
 import '../../features/notifications/domain/repositories/notification_repository.dart';
 import '../../features/payments/domain/repositories/payment_repository.dart';
 import '../../features/vehicles/domain/repositories/vehicle_repository.dart';
+import '../../features/services/domain/repositories/service_category_repository.dart';
+import '../../features/services/domain/repositories/service_addon_repository.dart';
+import '../../features/home/data/mock_repositories.dart';
+import '../../features/vehicles/domain/entities/vehicle_summary.dart';
+import '../../features/services/domain/entities/service_category.dart';
+import '../../features/services/domain/entities/service_addon.dart';
 import '../router/app_router.dart';
 
 // ---------------------------------------------------------------------------
@@ -65,15 +71,21 @@ final bookingRepositoryProvider = Provider<BookingRepository>((ref) {
 });
 
 final driverRepositoryProvider = Provider<DriverRepository>((ref) {
-  throw UnimplementedError(
-    'DriverRepository implementation will be provided in Phase 2',
-  );
+  return MockDriverRepository();
 });
 
 final vehicleRepositoryProvider = Provider<VehicleRepository>((ref) {
-  throw UnimplementedError(
-    'VehicleRepository implementation will be provided in Phase 2',
-  );
+  return MockVehicleRepository();
+});
+
+final serviceCategoryRepositoryProvider = Provider<ServiceCategoryRepository>((
+  ref,
+) {
+  return MockServiceCategoryRepository();
+});
+
+final serviceAddonRepositoryProvider = Provider<ServiceAddonRepository>((ref) {
+  return MockServiceAddonRepository();
 });
 
 final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
@@ -86,4 +98,33 @@ final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
   throw UnimplementedError(
     'NotificationRepository implementation will be provided in Phase 6',
   );
+});
+
+// ---------------------------------------------------------------------------
+// Home Feature State Providers
+// ---------------------------------------------------------------------------
+
+final featuredVehiclesProvider = FutureProvider<List<VehicleSummary>>((
+  ref,
+) async {
+  final repo = ref.watch(vehicleRepositoryProvider);
+  final result = await repo.getFeaturedVehicles();
+  if (result.isSuccess) return result.dataOrNull!;
+  throw result.failureOrNull!;
+});
+
+final serviceCategoriesProvider = FutureProvider<List<ServiceCategory>>((
+  ref,
+) async {
+  final repo = ref.watch(serviceCategoryRepositoryProvider);
+  final result = await repo.getCategories();
+  if (result.isSuccess) return result.dataOrNull!;
+  throw result.failureOrNull!;
+});
+
+final serviceAddonsProvider = FutureProvider<List<ServiceAddon>>((ref) async {
+  final repo = ref.watch(serviceAddonRepositoryProvider);
+  final result = await repo.getAddons();
+  if (result.isSuccess) return result.dataOrNull!;
+  throw result.failureOrNull!;
 });

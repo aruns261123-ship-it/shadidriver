@@ -14,7 +14,6 @@ abstract final class AppConstants {
   static const String keyAccountStatus = 'shadi_account_status';
   static const String keySessionIssued = 'shadi_session_issued';
 
-
   // Header Keys
   static const String headerAuthorization = 'Authorization';
   static const String headerIdempotencyKey = 'Idempotency-Key';
