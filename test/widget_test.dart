@@ -1,30 +1,27 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:shadidriver/main.dart';
+import 'package:shadidriver/app/app.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('ShadiDriverApp smoke test — app shell initializes without errors', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: ShadiDriverApp()));
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // pumpAndSettle drives all pending timers to completion, including:
+    //   • GoRouter's async redirect (resolves /splash route)
+    //   • SplashScreen's 800 ms Future.delayed navigation timer
+    // Without this, teardown fails with:
+    //   "A Timer is still pending even after the widget tree was disposed."
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // A Scaffold is present on every app screen (splash, customer, driver, admin).
+    // Asserting on widget type rather than display text avoids coupling the test
+    // to translatable strings and survives future screen redesigns.
+    expect(find.byType(Scaffold), findsAtLeastNWidgets(1));
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // No uncaught exceptions during the startup sequence.
+    expect(tester.takeException(), isNull);
   });
 }
