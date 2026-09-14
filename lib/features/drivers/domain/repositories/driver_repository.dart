@@ -5,6 +5,8 @@ import '../entities/driver_profile.dart';
 abstract interface class DriverRepository {
   Future<Result<DriverProfile>> getProfile();
 
+  Future<Result<DriverProfile>> getDriverById(String driverId);
+
   Future<Result<void>> updateOnlineStatus(bool isOnline);
 
   Future<Result<void>> submitPreTripChecklist({
