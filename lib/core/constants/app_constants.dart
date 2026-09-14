@@ -9,6 +9,11 @@ abstract final class AppConstants {
   static const String keyUserRole = 'shadi_user_role';
   static const String keyUserId = 'shadi_user_id';
   static const String keyDeviceId = 'shadi_device_id';
+  static const String keyPhone = 'shadi_phone';
+  static const String keyDisplayName = 'shadi_display_name';
+  static const String keyAccountStatus = 'shadi_account_status';
+  static const String keySessionIssued = 'shadi_session_issued';
+
 
   // Header Keys
   static const String headerAuthorization = 'Authorization';
