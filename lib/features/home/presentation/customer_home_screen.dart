@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/shadi_section_header.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../core/widgets/shadi_error_view.dart';
 import '../../../app/providers/app_providers.dart';
+import '../../../app/router/route_paths.dart';
+import '../../search/domain/entities/search_query.dart';
+import '../../search/presentation/controllers/search_controller.dart';
 import 'widgets/shadi_search_card.dart';
 import 'widgets/shadi_service_category_card.dart';
 import 'widgets/shadi_urgent_dispatch_card.dart';
@@ -55,7 +59,19 @@ class CustomerHomeScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    ShadiSearchCard(onSearch: () {}),
+                    ShadiSearchCard(
+                      onSearch: () {
+                        ref
+                            .read(searchControllerProvider.notifier)
+                            .updateQuery(
+                              const VehicleSearchQuery(
+                                pickupLocation: 'Delhi NCR',
+                                occasionId: 'Baraat',
+                              ),
+                            );
+                        context.push(RoutePaths.customerSearchResults);
+                      },
+                    ),
 
                     const SizedBox(height: 32),
 
@@ -193,7 +209,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                             )
                           : const SizedBox.shrink(),
                       loading: () => const SizedBox.shrink(),
-                      error: (_, __) => const SizedBox.shrink(),
+                      error: (_, _) => const SizedBox.shrink(),
                     ),
 
                     const SizedBox(height: 40),

@@ -8,6 +8,9 @@ import '../../services/domain/repositories/service_category_repository.dart';
 import '../../services/domain/repositories/service_addon_repository.dart';
 import '../../drivers/domain/entities/driver_profile.dart';
 import '../../drivers/domain/repositories/driver_repository.dart';
+import '../../search/domain/entities/search_query.dart';
+import '../../search/domain/entities/search_sort.dart';
+import '../../search/domain/engines/vehicle_search_engine.dart';
 
 class MockVehicleRepository implements VehicleRepository {
   @override
@@ -30,6 +33,22 @@ class MockVehicleRepository implements VehicleRepository {
     return Result.success(vehicle);
   }
 
+  @override
+  Future<Result<List<VehicleSummary>>> searchVehicles({
+    required VehicleSearchQuery query,
+    required SearchSort sort,
+  }) async {
+    // Artificial delay to simulate network
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    final results = VehicleSearchEngine.search(
+      vehicles: _mockVehicles,
+      query: query,
+      sort: sort,
+    );
+    return Result.success(results);
+  }
+
   final List<VehicleSummary> _mockVehicles = [
     VehicleSummary(
       id: 'v1',
@@ -44,8 +63,11 @@ class MockVehicleRepository implements VehicleRepository {
       reviewCount: 128,
       hasVerifiedChauffeur: true,
       distanceKm: 2.5,
+      transmission: 'AUTOMATIC',
+      amenities: ['AC', 'WiFi', 'Water', 'Charger'],
+      isAvailableNow: true,
       pricing: const PricingSummary(
-        basePriceCents: 2500000, // 25,000 INR
+        basePriceCents: 2500000,
         billingUnit: 'DAY',
       ),
     ),
@@ -62,8 +84,11 @@ class MockVehicleRepository implements VehicleRepository {
       reviewCount: 95,
       hasVerifiedChauffeur: true,
       distanceKm: 4.2,
+      transmission: 'AUTOMATIC',
+      amenities: ['AC', 'Water', 'Charger'],
+      isAvailableNow: false,
       pricing: const PricingSummary(
-        basePriceCents: 2200000, // 22,000 INR
+        basePriceCents: 2200000,
         billingUnit: 'DAY',
       ),
     ),
@@ -80,9 +105,96 @@ class MockVehicleRepository implements VehicleRepository {
       reviewCount: 210,
       hasVerifiedChauffeur: true,
       distanceKm: 1.8,
+      transmission: 'AUTOMATIC',
+      amenities: ['AC', 'Water', 'WiFi'],
+      isAvailableNow: true,
       pricing: const PricingSummary(
-        basePriceCents: 1800000, // 18,000 INR
+        basePriceCents: 1800000,
         billingUnit: 'DAY',
+      ),
+    ),
+    VehicleSummary(
+      id: 'v4',
+      make: 'Mercedes-Benz',
+      model: 'S-Class',
+      year: 2026,
+      vehicleClass: 'Luxury Sedan',
+      registrationNumber: 'DL 02 SS 0001',
+      seatingCapacity: 4,
+      verificationStatus: 'VERIFIED',
+      rating: 5.0,
+      reviewCount: 45,
+      hasVerifiedChauffeur: true,
+      distanceKm: 5.5,
+      transmission: 'AUTOMATIC',
+      amenities: ['AC', 'WiFi', 'Water', 'Charger', 'Champagne Cooler'],
+      isAvailableNow: true,
+      pricing: const PricingSummary(
+        basePriceCents: 5500000,
+        billingUnit: 'DAY',
+      ),
+    ),
+    VehicleSummary(
+      id: 'v5',
+      make: 'Vintage',
+      model: 'Rolls Royce Silver Cloud',
+      year: 1960,
+      vehicleClass: 'Vintage',
+      registrationNumber: 'VINT 001',
+      seatingCapacity: 4,
+      verificationStatus: 'VERIFIED',
+      rating: 4.9,
+      reviewCount: 32,
+      hasVerifiedChauffeur: true,
+      distanceKm: 8.0,
+      transmission: 'MANUAL',
+      amenities: ['AC', 'Luxury Upholstery'],
+      isAvailableNow: false,
+      pricing: const PricingSummary(
+        basePriceCents: 8500000,
+        billingUnit: 'PACKAGE',
+      ),
+    ),
+    VehicleSummary(
+      id: 'v6',
+      make: 'Force',
+      model: 'Urbania',
+      year: 2025,
+      vehicleClass: 'Urbania / Van',
+      registrationNumber: 'MH 01 UR 9999',
+      seatingCapacity: 14,
+      verificationStatus: 'VERIFIED',
+      rating: 4.6,
+      reviewCount: 88,
+      hasVerifiedChauffeur: true,
+      distanceKm: 3.0,
+      transmission: 'MANUAL',
+      amenities: ['AC', 'WiFi', 'Pushback Seats'],
+      isAvailableNow: true,
+      pricing: const PricingSummary(
+        basePriceCents: 1500000,
+        billingUnit: 'DAY',
+      ),
+    ),
+    VehicleSummary(
+      id: 'v7',
+      make: 'Maruti',
+      model: 'Ertiga',
+      year: 2023,
+      vehicleClass: 'Premium MPV',
+      registrationNumber: 'RJ 14 ET 1212',
+      seatingCapacity: 6,
+      verificationStatus: 'PENDING',
+      rating: 4.2,
+      reviewCount: 150,
+      hasVerifiedChauffeur: false,
+      distanceKm: 1.2,
+      transmission: 'MANUAL',
+      amenities: ['AC'],
+      isAvailableNow: true,
+      pricing: const PricingSummary(
+        basePriceCents: 800000,
+        billingUnit: 'HOUR',
       ),
     ),
   ];

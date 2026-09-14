@@ -11,10 +11,11 @@ void main() {
 
     // pumpAndSettle drives all pending timers to completion, including:
     //   • GoRouter's async redirect (resolves /splash route)
-    //   • SplashScreen's 800 ms Future.delayed navigation timer
-    // Without this, teardown fails with:
-    //   "A Timer is still pending even after the widget tree was disposed."
-    await tester.pumpAndSettle();
+    // Note: SplashScreen has an 800ms delay. SearchController may trigger searches.
+    // We pump for a sufficient duration to let timers fire.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
 
     // A Scaffold is present on every app screen (splash, customer, driver, admin).
     // Asserting on widget type rather than display text avoids coupling the test

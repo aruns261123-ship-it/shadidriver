@@ -16,6 +16,9 @@ class VehicleSummary {
   final bool hasVerifiedChauffeur;
   final PricingSummary pricing;
   final double? distanceKm;
+  final String? transmission; // 'AUTOMATIC', 'MANUAL'
+  final List<String> amenities;
+  final bool isAvailableNow;
 
   const VehicleSummary({
     required this.id,
@@ -32,5 +35,8 @@ class VehicleSummary {
     this.hasVerifiedChauffeur = false,
     required this.pricing,
     this.distanceKm,
+    this.transmission,
+    this.amenities = const [],
+    this.isAvailableNow = false,
   });
 }

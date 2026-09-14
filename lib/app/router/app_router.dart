@@ -5,6 +5,8 @@ import '../../features/drivers/presentation/driver_home_placeholder_screen.dart'
 import '../../features/home/presentation/customer_home_screen.dart';
 import '../../features/home/presentation/customer_home_shell.dart';
 import '../../features/home/presentation/customer_tabs_placeholder.dart';
+import '../../features/search/presentation/search_screen.dart';
+import '../../features/search/presentation/search_results_screen.dart';
 import '../../features/home/presentation/splash_screen.dart';
 import '../../features/profile/presentation/admin_placeholder_screen.dart';
 import 'route_guards.dart';
@@ -59,7 +61,12 @@ GoRouter createShadiRouter({
           GoRoute(
             path: RoutePaths.customerSearch,
             name: 'customerSearch',
-            builder: (context, state) => const CustomerSearchPlaceholder(),
+            builder: (context, state) => const SearchScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.customerSearchResults,
+            name: 'customerSearchResults',
+            builder: (context, state) => const SearchResultsScreen(),
           ),
           GoRoute(
             path: RoutePaths.customerBookings,
