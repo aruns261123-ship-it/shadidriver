@@ -116,7 +116,7 @@ class _VehicleGalleryState extends State<VehicleGallery> {
           ? Image.network(
               url,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _buildFallback(
+              errorBuilder: (context, error, stackTrace) => _buildFallback(
                 icon: Icons.broken_image_rounded,
                 label: 'Preview Unavailable',
               ),
@@ -135,7 +135,7 @@ class _VehicleGalleryState extends State<VehicleGallery> {
           : Image.asset(
               url,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _buildFallback(
+              errorBuilder: (context, error, stackTrace) => _buildFallback(
                 icon: Icons.directions_car_rounded,
                 label: 'Ceremonial Luxury Asset',
               ),

@@ -7,6 +7,9 @@ import '../../features/home/presentation/customer_home_shell.dart';
 import '../../features/home/presentation/customer_tabs_placeholder.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/search/presentation/search_results_screen.dart';
+import '../../features/vehicles/presentation/vehicle_details_screen.dart';
+import '../../features/drivers/presentation/chauffeur_profile_screen.dart';
+import '../../features/bookings/presentation/booking_entry_placeholder_screen.dart';
 import '../../features/home/presentation/splash_screen.dart';
 import '../../features/profile/presentation/admin_placeholder_screen.dart';
 import 'route_guards.dart';
@@ -82,6 +85,27 @@ GoRouter createShadiRouter({
             path: RoutePaths.customerProfile,
             name: 'customerProfile',
             builder: (context, state) => const CustomerProfilePlaceholder(),
+          ),
+          GoRoute(
+            path: RoutePaths.customerVehicleDetails,
+            name: 'customerVehicleDetails',
+            builder: (context, state) => VehicleDetailsScreen(
+              vehicleId: state.pathParameters['vehicleId'] ?? '',
+            ),
+          ),
+          GoRoute(
+            path: RoutePaths.customerChauffeurProfile,
+            name: 'customerChauffeurProfile',
+            builder: (context, state) => ChauffeurProfileScreen(
+              chauffeurId: state.pathParameters['chauffeurId'] ?? '',
+            ),
+          ),
+          GoRoute(
+            path: RoutePaths.customerBookingCreate,
+            name: 'customerBookingCreate',
+            builder: (context, state) => BookingEntryPlaceholderScreen(
+              vehicleId: state.pathParameters['vehicleId'] ?? '',
+            ),
           ),
         ],
       ),

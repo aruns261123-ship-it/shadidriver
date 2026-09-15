@@ -143,7 +143,7 @@ class ChauffeurPreviewCard extends ConsumerWidget {
         padding: EdgeInsets.all(20),
         child: ShadiLoadingIndicator(size: 24),
       ),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (err, stack) => const SizedBox.shrink(),
     );
   }
 }

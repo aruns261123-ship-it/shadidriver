@@ -135,7 +135,13 @@ class CustomerHomeScreen extends ConsumerWidget {
                         viewModel: VehicleCardViewModel.fromEntity(
                           vehicles[index],
                         ),
-                        onTap: () {},
+                        onTap: () {
+                          context.push(
+                            RoutePaths.customerVehicleDetailsPath(
+                              vehicles[index].id,
+                            ),
+                          );
+                        },
                       ),
                     ),
                     childCount: vehicles.length,
@@ -205,7 +211,13 @@ class CustomerHomeScreen extends ConsumerWidget {
                               viewModel: VehicleCardViewModel.fromEntity(
                                 vehicles.last,
                               ),
-                              onTap: () {},
+                              onTap: () {
+                                context.push(
+                                  RoutePaths.customerVehicleDetailsPath(
+                                    vehicles.last.id,
+                                  ),
+                                );
+                              },
                             )
                           : const SizedBox.shrink(),
                       loading: () => const SizedBox.shrink(),

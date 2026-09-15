@@ -11,6 +11,18 @@ abstract final class RoutePaths {
   static const String customerMessages = '/customer/messages';
   static const String customerProfile = '/customer/profile';
   static const String customerSearchResults = '/customer/search/results';
+  static const String customerVehicleDetails = '/customer/vehicles/:vehicleId';
+  static const String customerChauffeurProfile =
+      '/customer/chauffeurs/:chauffeurId';
+  static const String customerBookingCreate =
+      '/customer/bookings/create/:vehicleId';
+
+  static String customerVehicleDetailsPath(String vehicleId) =>
+      '/customer/vehicles/$vehicleId';
+  static String customerChauffeurProfilePath(String chauffeurId) =>
+      '/customer/chauffeurs/$chauffeurId';
+  static String customerBookingCreatePath(String vehicleId) =>
+      '/customer/bookings/create/$vehicleId';
 
   // Driver Portal
   static const String driver = '/driver';

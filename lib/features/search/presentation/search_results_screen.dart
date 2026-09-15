@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shadidriver/app/router/route_paths.dart';
 import 'package:shadidriver/core/theme/app_colors.dart';
 import 'package:shadidriver/core/theme/app_typography.dart';
 import 'package:shadidriver/core/widgets/shadi_loading_indicator.dart';
@@ -202,7 +204,11 @@ class SearchResultsScreen extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: 16),
               child: ShadiVehicleCard(
                 viewModel: VehicleCardViewModel.fromEntity(vehicle),
-                onTap: () {},
+                onTap: () {
+                  context.push(
+                    RoutePaths.customerVehicleDetailsPath(vehicle.id),
+                  );
+                },
               ),
             );
           },
