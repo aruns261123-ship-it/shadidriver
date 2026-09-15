@@ -5,6 +5,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../core/widgets/shadi_card.dart';
 import '../../../../core/widgets/shadi_primary_button.dart';
+import '../../../../core/widgets/shadi_secondary_button.dart';
 import '../../../../core/widgets/shadi_status_badge.dart';
 import '../../domain/entities/booking_draft.dart';
 
@@ -12,11 +13,13 @@ import '../../domain/entities/booking_draft.dart';
 class BookingDraftSummaryCard extends StatelessWidget {
   final BookingDraft draft;
   final VoidCallback onDismiss;
+  final VoidCallback? onReview;
 
   const BookingDraftSummaryCard({
     super.key,
     required this.draft,
     required this.onDismiss,
+    this.onReview,
   });
 
   @override
@@ -166,7 +169,16 @@ class BookingDraftSummaryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          ShadiPrimaryButton(text: 'Return to Home', onPressed: onDismiss),
+          if (onReview != null) ...[
+            ShadiPrimaryButton(
+              text: 'Review & Submit Booking',
+              onPressed: onReview,
+            ),
+            const SizedBox(height: 10),
+            ShadiSecondaryButton(text: 'Return to Home', onPressed: onDismiss),
+          ] else ...[
+            ShadiPrimaryButton(text: 'Return to Home', onPressed: onDismiss),
+          ],
         ],
       ),
     );

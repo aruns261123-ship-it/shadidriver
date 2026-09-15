@@ -1,5 +1,7 @@
 import '../../../../core/result/result.dart';
 import '../entities/booking_draft.dart';
+import '../entities/booking_submission_request.dart';
+import '../entities/booking_submission_result.dart';
 import '../entities/booking_summary.dart';
 
 /// Pure Dart domain contract for booking lifecycle and draft operations.
@@ -12,6 +14,18 @@ abstract interface class BookingRepository {
 
   /// Updates or saves changes to an in-progress draft.
   Future<Result<void>> saveBookingDraft(BookingDraft draft);
+
+  /// Submits customer booking intent with idempotency protection (Milestone 4B).
+  ///
+  /// Returns server-authoritative [BookingSubmissionResult] in `requested` status.
+  Future<Result<BookingSubmissionResult>> submitBooking(
+    BookingSubmissionRequest request,
+  );
+
+  /// Retrieves a previous submission result by booking ID.
+  Future<Result<BookingSubmissionResult?>> getSubmissionResult(
+    String bookingId,
+  );
 
   /// Fetches an authoritative booking record by ID.
   Future<Result<BookingSummary>> getBookingById(String bookingId);

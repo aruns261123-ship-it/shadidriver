@@ -130,6 +130,11 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
               child: BookingDraftSummaryCard(
                 draft: draftState.savedDraft!,
                 onDismiss: () => context.go(RoutePaths.customerHome),
+                onReview: () => context.push(
+                  RoutePaths.customerBookingReviewPath(
+                    draftState.savedDraft!.id,
+                  ),
+                ),
               ),
             );
           }

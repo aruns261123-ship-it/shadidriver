@@ -16,6 +16,10 @@ abstract final class RoutePaths {
       '/customer/chauffeurs/:chauffeurId';
   static const String customerBookingCreate =
       '/customer/bookings/create/:vehicleId';
+  static const String customerBookingReview =
+      '/customer/bookings/review/:draftId';
+  static const String customerBookingResult =
+      '/customer/bookings/result/:bookingId';
 
   static String customerVehicleDetailsPath(String vehicleId) =>
       '/customer/vehicles/$vehicleId';
@@ -23,6 +27,10 @@ abstract final class RoutePaths {
       '/customer/chauffeurs/$chauffeurId';
   static String customerBookingCreatePath(String vehicleId) =>
       '/customer/bookings/create/$vehicleId';
+  static String customerBookingReviewPath(String draftId) =>
+      '/customer/bookings/review/$draftId';
+  static String customerBookingResultPath(String bookingId) =>
+      '/customer/bookings/result/$bookingId';
 
   // Driver Portal
   static const String driver = '/driver';

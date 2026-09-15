@@ -10,6 +10,8 @@ import '../../features/search/presentation/search_results_screen.dart';
 import '../../features/vehicles/presentation/vehicle_details_screen.dart';
 import '../../features/drivers/presentation/chauffeur_profile_screen.dart';
 import '../../features/bookings/presentation/booking_entry_screen.dart';
+import '../../features/bookings/presentation/booking_review_screen.dart';
+import '../../features/bookings/presentation/booking_result_screen.dart';
 import '../../features/home/presentation/splash_screen.dart';
 import '../../features/profile/presentation/admin_placeholder_screen.dart';
 import 'route_guards.dart';
@@ -47,7 +49,6 @@ GoRouter createShadiRouter({
         name: 'auth',
         builder: (context, state) => const AuthPlaceholderScreen(),
       ),
-      // Customer Portal with Shell for Bottom Navigation
       ShellRoute(
         navigatorKey: _customerShellNavigatorKey,
         builder: (context, state, child) => CustomerHomeShell(child: child),
@@ -105,6 +106,20 @@ GoRouter createShadiRouter({
             name: 'customerBookingCreate',
             builder: (context, state) => BookingEntryScreen(
               vehicleId: state.pathParameters['vehicleId'] ?? '',
+            ),
+          ),
+          GoRoute(
+            path: RoutePaths.customerBookingReview,
+            name: 'customerBookingReview',
+            builder: (context, state) => BookingReviewScreen(
+              draftId: state.pathParameters['draftId'] ?? '',
+            ),
+          ),
+          GoRoute(
+            path: RoutePaths.customerBookingResult,
+            name: 'customerBookingResult',
+            builder: (context, state) => BookingResultScreen(
+              bookingId: state.pathParameters['bookingId'] ?? '',
             ),
           ),
         ],

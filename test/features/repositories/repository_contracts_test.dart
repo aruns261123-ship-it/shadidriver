@@ -5,6 +5,9 @@ import 'package:shadidriver/features/auth/domain/entities/user_role.dart';
 import 'package:shadidriver/features/auth/domain/entities/account_status.dart';
 import 'package:shadidriver/features/auth/domain/repositories/auth_repository.dart';
 import 'package:shadidriver/features/bookings/domain/entities/booking_draft.dart';
+import 'package:shadidriver/features/bookings/domain/entities/booking_status.dart';
+import 'package:shadidriver/features/bookings/domain/entities/booking_submission_request.dart';
+import 'package:shadidriver/features/bookings/domain/entities/booking_submission_result.dart';
 import 'package:shadidriver/features/bookings/domain/entities/booking_summary.dart';
 import 'package:shadidriver/features/bookings/domain/repositories/booking_repository.dart';
 
@@ -136,6 +139,46 @@ class FakeBookingRepository implements BookingRepository {
     required String bookingId,
     required String reason,
   }) async => const Result.success(null);
+
+  final Map<String, BookingSubmissionResult> _submissions = {};
+
+  @override
+  Future<Result<BookingSubmissionResult>> submitBooking(
+    BookingSubmissionRequest request,
+  ) async {
+    final res = BookingSubmissionResult(
+      bookingId: 'bk_test_1',
+      bookingReference: 'SD-2026-0001',
+      status: BookingStatus.requested,
+      submittedAt: DateTime.now(),
+      vehicleId: request.vehicleId,
+      vehicleName: request.vehicleName,
+      vehicleClass: request.vehicleClass,
+      chauffeurId: request.chauffeurId,
+      ceremonyType: request.ceremonyType,
+      ceremonialAttire: request.ceremonialAttire,
+      eventDate: request.eventDate,
+      durationHours: request.durationHours,
+      pickupAddress: request.pickupAddress,
+      destinationAddress: request.destinationAddress,
+      primaryContactName: request.primaryContactName,
+      primaryContactPhone: request.primaryContactPhone,
+      estimatedTotalPaise: request.estimatedTotalPaise,
+      advanceTokenPaise: request.advanceTokenPaise,
+      advanceTokenLabel: request.advanceTokenLabel,
+      nextStepMessage: 'Test submission received.',
+      isIdempotentReplay: false,
+    );
+    _submissions[res.bookingId] = res;
+    return Result.success(res);
+  }
+
+  @override
+  Future<Result<BookingSubmissionResult?>> getSubmissionResult(
+    String bookingId,
+  ) async {
+    return Result.success(_submissions[bookingId]);
+  }
 }
 
 void main() {
@@ -195,5 +238,42 @@ void main() {
       expect(getRes.isSuccess, isTrue);
       expect(getRes.dataOrNull?.vehicleName, equals('Mercedes-Benz E-Class'));
     });
+
+    test(
+      'FakeBookingRepository submits booking intent and returns submission result',
+      () async {
+        final repo = FakeBookingRepository();
+        final draft =
+            BookingDraft.initial(
+              vehicleId: 'v_test',
+              vehicleName: 'Mercedes-Benz E-Class',
+              vehicleClass: 'Luxury Sedan',
+              chauffeurId: 'd_test',
+              basePricePaise: 3000000,
+              estimatedTotalPaise: 3000000,
+              advanceTokenPaise: 600000,
+            ).copyWith(
+              pickupAddress: 'The Oberoi, New Delhi',
+              destinationAddress: 'Grand Imperial Banquets',
+              primaryContactName: 'Vikram Malhotra',
+              primaryContactPhone: '9810012345',
+            );
+
+        final request = BookingSubmissionRequest.fromDraft(
+          draft,
+          idempotencyKey: 'idem_test_key_001',
+        );
+
+        final submitRes = await repo.submitBooking(request);
+        expect(submitRes.isSuccess, isTrue);
+        expect(submitRes.dataOrNull?.bookingId, equals('bk_test_1'));
+        expect(submitRes.dataOrNull?.bookingReference, equals('SD-2026-0001'));
+        expect(submitRes.dataOrNull?.status, equals(BookingStatus.requested));
+
+        final resultRes = await repo.getSubmissionResult('bk_test_1');
+        expect(resultRes.isSuccess, isTrue);
+        expect(resultRes.dataOrNull?.bookingReference, equals('SD-2026-0001'));
+      },
+    );
   });
 }

@@ -1,13 +1,21 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/result/result.dart';
 import '../domain/entities/booking_draft.dart';
+import '../domain/entities/booking_status.dart';
+import '../domain/entities/booking_submission_request.dart';
+import '../domain/entities/booking_submission_result.dart';
 import '../domain/entities/booking_summary.dart';
 import '../domain/repositories/booking_repository.dart';
 
-/// In-memory mock implementation of [BookingRepository] for Milestone 4A.
+/// In-memory mock implementation of [BookingRepository] for Milestones 4A & 4B.
+///
+/// Simulates server-authoritative submission intent and idempotent key handling.
 class MockBookingRepository implements BookingRepository {
   final Map<String, BookingDraft> _drafts = {};
   final Map<String, BookingSummary> _bookings = {};
+  final Map<String, BookingSubmissionResult> _idempotentSubmissions = {};
+  final Map<String, BookingSubmissionResult> _submissionResults = {};
+  int _referenceCounter = 101;
 
   MockBookingRepository() {
     _seedMockBookings();
@@ -31,9 +39,7 @@ class MockBookingRepository implements BookingRepository {
 
   @override
   Future<Result<BookingDraft>> createBookingDraft(BookingDraft draft) async {
-    // Artificial small delay to simulate network call
-    await Future.delayed(const Duration(milliseconds: 200));
-
+    await Future.delayed(const Duration(milliseconds: 150));
     final saved = draft.copyWith(status: BookingDraftStatus.saved);
     _drafts[saved.id] = saved;
     return Result.success(saved);
@@ -51,6 +57,124 @@ class MockBookingRepository implements BookingRepository {
     await Future.delayed(const Duration(milliseconds: 100));
     _drafts[draft.id] = draft;
     return const Result.success(null);
+  }
+
+  @override
+  Future<Result<BookingSubmissionResult>> submitBooking(
+    BookingSubmissionRequest request,
+  ) async {
+    // Artificial latency to simulate server communication
+    await Future.delayed(const Duration(milliseconds: 250));
+
+    // 1. Idempotency Check: if identical key was submitted, return cached result with replay flag
+    if (_idempotentSubmissions.containsKey(request.idempotencyKey)) {
+      final existing = _idempotentSubmissions[request.idempotencyKey]!;
+      final replayResult = BookingSubmissionResult(
+        bookingId: existing.bookingId,
+        bookingReference: existing.bookingReference,
+        status: existing.status,
+        submittedAt: existing.submittedAt,
+        vehicleId: existing.vehicleId,
+        vehicleName: existing.vehicleName,
+        vehicleClass: existing.vehicleClass,
+        chauffeurId: existing.chauffeurId,
+        ceremonyType: existing.ceremonyType,
+        ceremonialAttire: existing.ceremonialAttire,
+        eventDate: existing.eventDate,
+        durationHours: existing.durationHours,
+        pickupAddress: existing.pickupAddress,
+        destinationAddress: existing.destinationAddress,
+        primaryContactName: existing.primaryContactName,
+        primaryContactPhone: existing.primaryContactPhone,
+        estimatedTotalPaise: existing.estimatedTotalPaise,
+        advanceTokenPaise: existing.advanceTokenPaise,
+        advanceTokenLabel: existing.advanceTokenLabel,
+        nextStepMessage: existing.nextStepMessage,
+        isIdempotentReplay: true,
+      );
+      return Result.success(replayResult);
+    }
+
+    // 2. Validate request
+    if (!request.isValid) {
+      return Result.failure(
+        const ValidationFailure(
+          'Incomplete ceremonial booking request. Please check required fields.',
+        ),
+      );
+    }
+
+    // 3. Create server-authoritative booking result in REQUESTED state
+    final bookingId =
+        'bk_${request.vehicleId}_${DateTime.now().millisecondsSinceEpoch}';
+    final refCode = 'SD-2026-${_referenceCounter.toString().padLeft(4, '0')}';
+    _referenceCounter++;
+
+    final submissionResult = BookingSubmissionResult(
+      bookingId: bookingId,
+      bookingReference: refCode,
+      status: BookingStatus.requested,
+      submittedAt: DateTime.now(),
+      vehicleId: request.vehicleId,
+      vehicleName: request.vehicleName,
+      vehicleClass: request.vehicleClass,
+      chauffeurId: request.chauffeurId,
+      ceremonyType: request.ceremonyType,
+      ceremonialAttire: request.ceremonialAttire,
+      eventDate: request.eventDate,
+      durationHours: request.durationHours,
+      pickupAddress: request.pickupAddress,
+      destinationAddress: request.destinationAddress,
+      primaryContactName: request.primaryContactName,
+      primaryContactPhone: request.primaryContactPhone,
+      estimatedTotalPaise: request.estimatedTotalPaise,
+      advanceTokenPaise: request.advanceTokenPaise,
+      advanceTokenLabel: request.advanceTokenLabel,
+      nextStepMessage:
+          'Your ceremonial reservation request has been received. Our operations team is confirming chauffeur allocation. You will receive notification once confirmed.',
+      isIdempotentReplay: false,
+    );
+
+    // 4. Cache idempotency record and result
+    _idempotentSubmissions[request.idempotencyKey] = submissionResult;
+    _submissionResults[bookingId] = submissionResult;
+
+    // 5. Store booking summary for customer bookings list
+    final summary = BookingSummary(
+      id: bookingId,
+      reference: refCode,
+      serviceCategory: request.ceremonyType,
+      status: 'REQUESTED',
+      eventStartTime: DateTime(
+        request.eventDate.year,
+        request.eventDate.month,
+        request.eventDate.day,
+        request.startTimeHour,
+        request.startTimeMinute,
+      ),
+      eventEndTime: DateTime(
+        request.eventDate.year,
+        request.eventDate.month,
+        request.eventDate.day,
+        request.startTimeHour + request.durationHours,
+        request.startTimeMinute,
+      ),
+      pickupAddress: request.pickupAddress,
+      totalAmountCents: request.estimatedTotalPaise,
+      advanceTokenCents: request.advanceTokenPaise,
+      version: 1,
+    );
+    _bookings[bookingId] = summary;
+
+    return Result.success(submissionResult);
+  }
+
+  @override
+  Future<Result<BookingSubmissionResult?>> getSubmissionResult(
+    String bookingId,
+  ) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return Result.success(_submissionResults[bookingId]);
   }
 
   @override
