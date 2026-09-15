@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/router/route_paths.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/shadi_empty_state.dart';
@@ -56,10 +58,33 @@ class CustomerProfilePlaceholder extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('My Profile')),
       body: Center(
-        child: Text(
-          'Profile Management Under Development',
-          style: AppTypography.titleMedium.copyWith(
-            color: AppColors.textSecondaryLight,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Profile Management Under Development',
+                style: AppTypography.titleMedium.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                key: const Key('switch_to_driver_portal_btn'),
+                onPressed: () => context.go(RoutePaths.driver),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryBurgundy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                ),
+                icon: const Icon(Icons.directions_car_rounded),
+                label: const Text('Switch to Driver Console'),
+              ),
+            ],
           ),
         ),
       ),

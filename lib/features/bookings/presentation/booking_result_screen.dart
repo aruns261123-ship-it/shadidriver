@@ -13,6 +13,7 @@ import '../../../../core/widgets/shadi_error_view.dart';
 import '../../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../../core/widgets/shadi_primary_button.dart';
 import '../../../../core/widgets/shadi_secondary_button.dart';
+import '../domain/entities/booking_status.dart';
 import '../domain/entities/booking_submission_result.dart';
 
 /// Provider fetching submission result by booking ID.
@@ -130,7 +131,9 @@ class BookingResultScreen extends ConsumerWidget {
                 const SizedBox(height: 4),
 
                 Text(
-                  'Booking Request Received • Awaiting Confirmation',
+                  result.status == BookingStatus.driverAccepted
+                      ? 'Chauffeur Confirmed • Ceremonial Chauffeur Assigned'
+                      : 'Booking Request Received • Awaiting Confirmation',
                   style: AppTypography.labelMedium.copyWith(
                     color: AppColors.textSecondaryLight,
                   ),
@@ -244,6 +247,14 @@ class BookingResultScreen extends ConsumerWidget {
                       _buildInfoRow('Destination', result.destinationAddress),
                       const SizedBox(height: 8),
                       _buildInfoRow('Contact', result.primaryContactName),
+                      if (result.status == BookingStatus.driverAccepted &&
+                          result.chauffeurId.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _buildInfoRow(
+                          'Assigned Chauffeur',
+                          'Confirmed (ID: ${result.chauffeurId})',
+                        ),
+                      ],
                     ],
                   ),
                 ),

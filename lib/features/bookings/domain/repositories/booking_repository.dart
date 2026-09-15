@@ -1,4 +1,5 @@
 import '../../../../core/result/result.dart';
+import '../../../drivers/domain/entities/driver_decline_reason.dart';
 import '../entities/booking_draft.dart';
 import '../entities/booking_submission_request.dart';
 import '../entities/booking_submission_result.dart';
@@ -49,5 +50,32 @@ abstract interface class BookingRepository {
   Future<Result<void>> cancelBooking({
     required String bookingId,
     required String reason,
+  });
+
+  /// Retrieves pending booking requests in REQUESTED status eligible for [driverId].
+  Future<Result<List<BookingSubmissionResult>>> getDriverBookingRequests({
+    required String driverId,
+  });
+
+  /// Retrieves booking request details for a chauffeur review.
+  Future<Result<BookingSubmissionResult>> getDriverBookingDetails({
+    required String bookingId,
+    required String driverId,
+  });
+
+  /// Driver accepts a ceremonial booking offer. Enforces concurrency protection.
+  ///
+  /// Fails with [ConflictFailure] if the booking has already been accepted by another chauffeur.
+  Future<Result<BookingSubmissionResult>> acceptBooking({
+    required String bookingId,
+    required String driverId,
+  });
+
+  /// Driver declines a ceremonial booking offer with a mandatory reason.
+  Future<Result<void>> declineBooking({
+    required String bookingId,
+    required String driverId,
+    required DriverDeclineReason reason,
+    String? notes,
   });
 }

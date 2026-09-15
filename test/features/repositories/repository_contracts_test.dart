@@ -10,6 +10,8 @@ import 'package:shadidriver/features/bookings/domain/entities/booking_submission
 import 'package:shadidriver/features/bookings/domain/entities/booking_submission_result.dart';
 import 'package:shadidriver/features/bookings/domain/entities/booking_summary.dart';
 import 'package:shadidriver/features/bookings/domain/repositories/booking_repository.dart';
+import 'package:shadidriver/features/drivers/domain/entities/driver_decline_reason.dart';
+import 'package:shadidriver/core/errors/failures.dart';
 
 class FakeAuthRepository implements AuthRepository {
   @override
@@ -179,6 +181,68 @@ class FakeBookingRepository implements BookingRepository {
   ) async {
     return Result.success(_submissions[bookingId]);
   }
+
+  @override
+  Future<Result<List<BookingSubmissionResult>>> getDriverBookingRequests({
+    required String driverId,
+  }) async {
+    return Result.success(_submissions.values.toList());
+  }
+
+  @override
+  Future<Result<BookingSubmissionResult>> getDriverBookingDetails({
+    required String bookingId,
+    required String driverId,
+  }) async {
+    final s = _submissions[bookingId];
+    if (s != null) return Result.success(s);
+    return Result.failure(const NotFoundFailure('Not found'));
+  }
+
+  @override
+  Future<Result<BookingSubmissionResult>> acceptBooking({
+    required String bookingId,
+    required String driverId,
+  }) async {
+    final s = _submissions[bookingId];
+    if (s != null) {
+      final accepted = BookingSubmissionResult(
+        bookingId: s.bookingId,
+        bookingReference: s.bookingReference,
+        status: BookingStatus.driverAccepted,
+        submittedAt: s.submittedAt,
+        vehicleId: s.vehicleId,
+        vehicleName: s.vehicleName,
+        vehicleClass: s.vehicleClass,
+        chauffeurId: driverId,
+        ceremonyType: s.ceremonyType,
+        ceremonialAttire: s.ceremonialAttire,
+        eventDate: s.eventDate,
+        durationHours: s.durationHours,
+        pickupAddress: s.pickupAddress,
+        destinationAddress: s.destinationAddress,
+        primaryContactName: s.primaryContactName,
+        primaryContactPhone: s.primaryContactPhone,
+        estimatedTotalPaise: s.estimatedTotalPaise,
+        advanceTokenPaise: s.advanceTokenPaise,
+        advanceTokenLabel: s.advanceTokenLabel,
+        nextStepMessage: 'Driver accepted',
+      );
+      _submissions[bookingId] = accepted;
+      return Result.success(accepted);
+    }
+    return Result.failure(const NotFoundFailure('Not found'));
+  }
+
+  @override
+  Future<Result<void>> declineBooking({
+    required String bookingId,
+    required String driverId,
+    required DriverDeclineReason reason,
+    String? notes,
+  }) async {
+    return const Result.success(null);
+  }
 }
 
 void main() {
@@ -273,6 +337,56 @@ void main() {
         final resultRes = await repo.getSubmissionResult('bk_test_1');
         expect(resultRes.isSuccess, isTrue);
         expect(resultRes.dataOrNull?.bookingReference, equals('SD-2026-0001'));
+      },
+    );
+
+    test(
+      'FakeBookingRepository accepts and declines driver booking request',
+      () async {
+        final repo = FakeBookingRepository();
+        final draft =
+            BookingDraft.initial(
+              vehicleId: 'v_test',
+              vehicleName: 'Mercedes-Benz E-Class',
+              vehicleClass: 'Luxury Sedan',
+              chauffeurId: 'd_test',
+              basePricePaise: 3000000,
+              estimatedTotalPaise: 3000000,
+              advanceTokenPaise: 600000,
+            ).copyWith(
+              pickupAddress: 'The Oberoi, New Delhi',
+              destinationAddress: 'Grand Imperial Banquets',
+              primaryContactName: 'Vikram Malhotra',
+              primaryContactPhone: '9810012345',
+            );
+
+        final request = BookingSubmissionRequest.fromDraft(
+          draft,
+          idempotencyKey: 'idem_test_key_002',
+        );
+
+        await repo.submitBooking(request);
+
+        final requestsRes = await repo.getDriverBookingRequests(driverId: 'd1');
+        expect(requestsRes.isSuccess, isTrue);
+        expect(requestsRes.dataOrNull?.length, equals(1));
+
+        final acceptRes = await repo.acceptBooking(
+          bookingId: 'bk_test_1',
+          driverId: 'd1',
+        );
+        expect(acceptRes.isSuccess, isTrue);
+        expect(
+          acceptRes.dataOrNull?.status,
+          equals(BookingStatus.driverAccepted),
+        );
+
+        final declineRes = await repo.declineBooking(
+          bookingId: 'bk_test_1',
+          driverId: 'd1',
+          reason: DriverDeclineReason.timingConflict,
+        );
+        expect(declineRes.isSuccess, isTrue);
       },
     );
   });

@@ -1,4 +1,5 @@
 import '../../../../core/result/result.dart';
+import '../entities/driver_duty_status.dart';
 import '../entities/driver_profile.dart';
 
 /// Pure Dart domain contract for chauffeur profile and roster operations.
@@ -6,6 +7,13 @@ abstract interface class DriverRepository {
   Future<Result<DriverProfile>> getProfile();
 
   Future<Result<DriverProfile>> getDriverById(String driverId);
+
+  Future<Result<DriverDutyStatus>> getDutyStatus(String driverId);
+
+  Future<Result<void>> updateDutyStatus({
+    required String driverId,
+    required DriverDutyStatus status,
+  });
 
   Future<Result<void>> updateOnlineStatus(bool isOnline);
 

@@ -64,4 +64,7 @@ abstract interface class BookingPricingPolicy {
 
   /// Associated advance payment policy.
   AdvancePaymentPolicy get advancePaymentPolicy;
+
+  /// Computes estimated driver earnings in paise from the total booking amount.
+  int calculateDriverEarningsPaise(int totalPaise);
 }

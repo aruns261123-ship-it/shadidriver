@@ -1,5 +1,6 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/result/result.dart';
+import '../../drivers/domain/entities/driver_decline_reason.dart';
 import '../domain/entities/booking_draft.dart';
 import '../domain/entities/booking_status.dart';
 import '../domain/entities/booking_submission_request.dart';
@@ -7,14 +8,16 @@ import '../domain/entities/booking_submission_result.dart';
 import '../domain/entities/booking_summary.dart';
 import '../domain/repositories/booking_repository.dart';
 
-/// In-memory mock implementation of [BookingRepository] for Milestones 4A & 4B.
+/// In-memory mock implementation of [BookingRepository] for Milestones 4A, 4B & 5.
 ///
-/// Simulates server-authoritative submission intent and idempotent key handling.
+/// Simulates server-authoritative submission intent, idempotent key handling,
+/// and deterministic chauffeur concurrency locking.
 class MockBookingRepository implements BookingRepository {
   final Map<String, BookingDraft> _drafts = {};
   final Map<String, BookingSummary> _bookings = {};
   final Map<String, BookingSubmissionResult> _idempotentSubmissions = {};
   final Map<String, BookingSubmissionResult> _submissionResults = {};
+  final Map<String, Set<String>> _driverDeclines = {};
   int _referenceCounter = 101;
 
   MockBookingRepository() {
@@ -35,6 +38,46 @@ class MockBookingRepository implements BookingRepository {
       version: 2,
     );
     _bookings[b1.id] = b1;
+
+    // Seeded booking in REQUESTED state for Driver Console testing
+    final req1 = BookingSubmissionResult(
+      bookingId: 'bk_mock_req_1',
+      bookingReference: 'SD-2026-0100',
+      status: BookingStatus.requested,
+      submittedAt: DateTime(2026, 9, 15, 10, 30),
+      vehicleId: 'v1',
+      vehicleName: 'BMW 5 Series',
+      vehicleClass: 'Luxury Sedan',
+      chauffeurId: 'd1',
+      ceremonyType: 'Baraat',
+      ceremonialAttire: 'Royal Bandhgala & Gold Safa',
+      eventDate: DateTime(2026, 11, 20),
+      durationHours: 8,
+      pickupAddress: 'The Oberoi Hotel, New Delhi',
+      destinationAddress: 'Grand Imperial Banquets, MG Road',
+      primaryContactName: 'Vikram Malhotra',
+      primaryContactPhone: '9810012345',
+      estimatedTotalPaise: 2500000,
+      advanceTokenPaise: 500000,
+      advanceTokenLabel: 'Advance Token (20%)',
+      nextStepMessage:
+          'Your ceremonial reservation request has been received. Our operations team is confirming chauffeur allocation.',
+    );
+    _submissionResults[req1.bookingId] = req1;
+
+    final summaryReq1 = BookingSummary(
+      id: req1.bookingId,
+      reference: req1.bookingReference,
+      serviceCategory: req1.ceremonyType,
+      status: 'REQUESTED',
+      eventStartTime: DateTime(2026, 11, 20, 16, 0),
+      eventEndTime: DateTime(2026, 11, 20, 24, 0),
+      pickupAddress: req1.pickupAddress,
+      totalAmountCents: req1.estimatedTotalPaise,
+      advanceTokenCents: req1.advanceTokenPaise,
+      version: 1,
+    );
+    _bookings[req1.bookingId] = summaryReq1;
   }
 
   @override
@@ -267,6 +310,128 @@ class MockBookingRepository implements BookingRepository {
       version: booking.version + 1,
     );
     _bookings[bookingId] = updated;
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<List<BookingSubmissionResult>>> getDriverBookingRequests({
+    required String driverId,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    final declined = _driverDeclines[driverId] ?? <String>{};
+    final requests = _submissionResults.values
+        .where(
+          (r) =>
+              r.status == BookingStatus.requested &&
+              !declined.contains(r.bookingId),
+        )
+        .toList();
+    return Result.success(requests);
+  }
+
+  @override
+  Future<Result<BookingSubmissionResult>> getDriverBookingDetails({
+    required String bookingId,
+    required String driverId,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    final result = _submissionResults[bookingId];
+    if (result == null) {
+      return Result.failure(
+        NotFoundFailure('Booking request not found for ID: $bookingId'),
+      );
+    }
+    return Result.success(result);
+  }
+
+  @override
+  Future<Result<BookingSubmissionResult>> acceptBooking({
+    required String bookingId,
+    required String driverId,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    final existing = _submissionResults[bookingId];
+    if (existing == null) {
+      return Result.failure(
+        NotFoundFailure('Booking request not found for ID: $bookingId'),
+      );
+    }
+
+    // Server-Authoritative Concurrency Invariant:
+    // Only ONE driver can accept a given booking. If another driver already accepted,
+    // or if the booking is not in REQUESTED status, reject with ConflictFailure.
+    if (existing.status != BookingStatus.requested) {
+      return Result.failure(
+        const ConflictFailure(
+          'This ceremonial reservation is no longer available. It has already been accepted by another chauffeur.',
+        ),
+      );
+    }
+
+    // Atomically transition status to DRIVER_ACCEPTED and bind chauffeur
+    final acceptedResult = BookingSubmissionResult(
+      bookingId: existing.bookingId,
+      bookingReference: existing.bookingReference,
+      status: BookingStatus.driverAccepted,
+      submittedAt: existing.submittedAt,
+      vehicleId: existing.vehicleId,
+      vehicleName: existing.vehicleName,
+      vehicleClass: existing.vehicleClass,
+      chauffeurId: driverId,
+      ceremonyType: existing.ceremonyType,
+      ceremonialAttire: existing.ceremonialAttire,
+      eventDate: existing.eventDate,
+      durationHours: existing.durationHours,
+      pickupAddress: existing.pickupAddress,
+      destinationAddress: existing.destinationAddress,
+      primaryContactName: existing.primaryContactName,
+      primaryContactPhone: existing.primaryContactPhone,
+      estimatedTotalPaise: existing.estimatedTotalPaise,
+      advanceTokenPaise: existing.advanceTokenPaise,
+      advanceTokenLabel: existing.advanceTokenLabel,
+      nextStepMessage:
+          'Chauffeur offer confirmed. Customer will proceed with advance token lock.',
+      isIdempotentReplay: false,
+    );
+
+    _submissionResults[bookingId] = acceptedResult;
+
+    // Update synchronized booking summary
+    final existingSummary = _bookings[bookingId];
+    if (existingSummary != null) {
+      _bookings[bookingId] = BookingSummary(
+        id: existingSummary.id,
+        reference: existingSummary.reference,
+        serviceCategory: existingSummary.serviceCategory,
+        status: 'DRIVER_ACCEPTED',
+        eventStartTime: existingSummary.eventStartTime,
+        eventEndTime: existingSummary.eventEndTime,
+        pickupAddress: existingSummary.pickupAddress,
+        totalAmountCents: existingSummary.totalAmountCents,
+        advanceTokenCents: existingSummary.advanceTokenCents,
+        version: existingSummary.version + 1,
+      );
+    }
+
+    return Result.success(acceptedResult);
+  }
+
+  @override
+  Future<Result<void>> declineBooking({
+    required String bookingId,
+    required String driverId,
+    required DriverDeclineReason reason,
+    String? notes,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    final existing = _submissionResults[bookingId];
+    if (existing == null) {
+      return Result.failure(
+        NotFoundFailure('Booking request not found for ID: $bookingId'),
+      );
+    }
+
+    _driverDeclines.putIfAbsent(driverId, () => <String>{}).add(bookingId);
     return const Result.success(null);
   }
 }

@@ -74,4 +74,12 @@ class DevelopmentBookingPricingPolicy implements BookingPricingPolicy {
       advanceTokenLabel: advancePaymentPolicy.advanceTokenLabel,
     );
   }
+
+  /// Net chauffeur payout share (provisional 80% net of platform fee).
+  final double driverPayoutShare = 0.80;
+
+  @override
+  int calculateDriverEarningsPaise(int totalPaise) {
+    return (totalPaise * driverPayoutShare).round();
+  }
 }

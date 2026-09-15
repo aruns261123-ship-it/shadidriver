@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/auth_placeholder_screen.dart';
-import '../../features/drivers/presentation/driver_home_placeholder_screen.dart';
+import '../../features/drivers/presentation/driver_booking_request_screen.dart';
+import '../../features/drivers/presentation/driver_dashboard_screen.dart';
 import '../../features/home/presentation/customer_home_screen.dart';
 import '../../features/home/presentation/customer_home_shell.dart';
 import '../../features/home/presentation/customer_tabs_placeholder.dart';
@@ -127,7 +128,16 @@ GoRouter createShadiRouter({
       GoRoute(
         path: RoutePaths.driver,
         name: 'driver',
-        builder: (context, state) => const DriverHomePlaceholderScreen(),
+        builder: (context, state) => const DriverDashboardScreen(),
+        routes: [
+          GoRoute(
+            path: 'requests/:bookingId',
+            name: 'driverRequestDetails',
+            builder: (context, state) => DriverBookingRequestScreen(
+              bookingId: state.pathParameters['bookingId'] ?? '',
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: RoutePaths.admin,

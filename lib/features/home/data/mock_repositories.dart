@@ -8,6 +8,7 @@ import '../../services/domain/entities/service_category.dart';
 import '../../services/domain/entities/service_addon.dart';
 import '../../services/domain/repositories/service_category_repository.dart';
 import '../../services/domain/repositories/service_addon_repository.dart';
+import '../../drivers/domain/entities/driver_duty_status.dart';
 import '../../drivers/domain/entities/driver_profile.dart';
 import '../../drivers/domain/repositories/driver_repository.dart';
 import '../../reviews/domain/entities/review_summary.dart';
@@ -528,9 +529,37 @@ class MockDriverRepository implements DriverRepository {
     );
   }
 
+  static final Map<String, DriverDutyStatus> _dutyStatuses = {
+    'd1': DriverDutyStatus.available,
+    'd2': DriverDutyStatus.available,
+    'd3': DriverDutyStatus.available,
+    'd4': DriverDutyStatus.offline,
+    'd5': DriverDutyStatus.busy,
+    'd6': DriverDutyStatus.offline,
+  };
+
   @override
-  Future<Result<void>> updateOnlineStatus(bool isOnline) async =>
-      const Result.success(null);
+  Future<Result<DriverDutyStatus>> getDutyStatus(String driverId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    final status = _dutyStatuses[driverId] ?? DriverDutyStatus.available;
+    return Result.success(status);
+  }
+
+  @override
+  Future<Result<void>> updateDutyStatus({
+    required String driverId,
+    required DriverDutyStatus status,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    _dutyStatuses[driverId] = status;
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<void>> updateOnlineStatus(bool isOnline) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return const Result.success(null);
+  }
 
   @override
   Future<Result<void>> submitPreTripChecklist({

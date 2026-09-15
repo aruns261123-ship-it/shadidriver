@@ -29,7 +29,7 @@ class CustomerHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: _buildAppBar(),
+      appBar: _buildAppBar(context),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(featuredVehiclesProvider);
@@ -235,7 +235,7 @@ class CustomerHomeScreen extends ConsumerWidget {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0,
@@ -277,15 +277,19 @@ class CustomerHomeScreen extends ConsumerWidget {
           ),
           onPressed: () {},
         ),
-        const Padding(
-          padding: EdgeInsets.only(right: 16, left: 8),
-          child: CircleAvatar(
-            radius: 18,
-            backgroundColor: AppColors.secondarySurface,
-            child: Icon(
-              Icons.person_rounded,
-              color: AppColors.primaryBurgundy,
-              size: 20,
+        Padding(
+          padding: const EdgeInsets.only(right: 16, left: 8),
+          child: GestureDetector(
+            key: const Key('driver_portal_shortcut_btn'),
+            onTap: () => context.go(RoutePaths.driver),
+            child: const CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.secondarySurface,
+              child: Icon(
+                Icons.directions_car_rounded,
+                color: AppColors.primaryBurgundy,
+                size: 20,
+              ),
             ),
           ),
         ),
