@@ -170,7 +170,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         Text('Ceremony / Occasion', style: AppTypography.labelSmall),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _selectedOccasion,
+          initialValue: _selectedOccasion,
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white,

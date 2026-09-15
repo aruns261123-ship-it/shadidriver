@@ -4,6 +4,7 @@ import 'package:shadidriver/features/auth/domain/entities/auth_session.dart';
 import 'package:shadidriver/features/auth/domain/entities/user_role.dart';
 import 'package:shadidriver/features/auth/domain/entities/account_status.dart';
 import 'package:shadidriver/features/auth/domain/repositories/auth_repository.dart';
+import 'package:shadidriver/features/bookings/domain/entities/booking_draft.dart';
 import 'package:shadidriver/features/bookings/domain/entities/booking_summary.dart';
 import 'package:shadidriver/features/bookings/domain/repositories/booking_repository.dart';
 
@@ -63,6 +64,25 @@ class FakeAuthRepository implements AuthRepository {
 }
 
 class FakeBookingRepository implements BookingRepository {
+  final Map<String, BookingDraft> _drafts = {};
+
+  @override
+  Future<Result<BookingDraft>> createBookingDraft(BookingDraft draft) async {
+    _drafts[draft.id] = draft;
+    return Result.success(draft);
+  }
+
+  @override
+  Future<Result<BookingDraft?>> getBookingDraft(String draftId) async {
+    return Result.success(_drafts[draftId]);
+  }
+
+  @override
+  Future<Result<void>> saveBookingDraft(BookingDraft draft) async {
+    _drafts[draft.id] = draft;
+    return const Result.success(null);
+  }
+
   @override
   Future<Result<BookingSummary>> getBookingById(String bookingId) async {
     return Result.success(
@@ -153,6 +173,27 @@ void main() {
       expect(transRes.isSuccess, isTrue);
       expect(transRes.dataOrNull?.status, equals('DRIVER_ARRIVING'));
       expect(transRes.dataOrNull?.version, equals(2));
+    });
+
+    test('FakeBookingRepository creates and retrieves booking draft', () async {
+      final repo = FakeBookingRepository();
+      final initialDraft = BookingDraft.initial(
+        vehicleId: 'v_test',
+        vehicleName: 'Mercedes-Benz E-Class',
+        vehicleClass: 'Luxury Sedan',
+        chauffeurId: 'd_test',
+        basePricePaise: 3000000,
+        estimatedTotalPaise: 3000000,
+        advanceTokenPaise: 600000,
+      );
+
+      final createRes = await repo.createBookingDraft(initialDraft);
+      expect(createRes.isSuccess, isTrue);
+      expect(createRes.dataOrNull?.vehicleId, equals('v_test'));
+
+      final getRes = await repo.getBookingDraft(initialDraft.id);
+      expect(getRes.isSuccess, isTrue);
+      expect(getRes.dataOrNull?.vehicleName, equals('Mercedes-Benz E-Class'));
     });
   });
 }

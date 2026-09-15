@@ -9,7 +9,7 @@ import '../../features/search/presentation/search_screen.dart';
 import '../../features/search/presentation/search_results_screen.dart';
 import '../../features/vehicles/presentation/vehicle_details_screen.dart';
 import '../../features/drivers/presentation/chauffeur_profile_screen.dart';
-import '../../features/bookings/presentation/booking_entry_placeholder_screen.dart';
+import '../../features/bookings/presentation/booking_entry_screen.dart';
 import '../../features/home/presentation/splash_screen.dart';
 import '../../features/profile/presentation/admin_placeholder_screen.dart';
 import 'route_guards.dart';
@@ -103,7 +103,7 @@ GoRouter createShadiRouter({
           GoRoute(
             path: RoutePaths.customerBookingCreate,
             name: 'customerBookingCreate',
-            builder: (context, state) => BookingEntryPlaceholderScreen(
+            builder: (context, state) => BookingEntryScreen(
               vehicleId: state.pathParameters['vehicleId'] ?? '',
             ),
           ),

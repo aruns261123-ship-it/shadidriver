@@ -8,6 +8,8 @@ import '../../core/security/flutter_secure_storage_impl.dart';
 import '../../core/security/secure_storage_service.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/bookings/domain/repositories/booking_repository.dart';
+import '../../features/bookings/domain/policies/booking_pricing_policy.dart';
+import '../../features/bookings/data/mock_booking_pricing_policy.dart';
 import '../../features/drivers/domain/repositories/driver_repository.dart';
 import '../../features/notifications/domain/repositories/notification_repository.dart';
 import '../../features/payments/domain/repositories/payment_repository.dart';
@@ -15,6 +17,7 @@ import '../../features/vehicles/domain/repositories/vehicle_repository.dart';
 import '../../features/services/domain/repositories/service_category_repository.dart';
 import '../../features/services/domain/repositories/service_addon_repository.dart';
 import '../../features/home/data/mock_repositories.dart';
+import '../../features/bookings/data/mock_booking_repository.dart';
 import '../../features/vehicles/domain/entities/vehicle_summary.dart';
 import '../../features/services/domain/entities/service_category.dart';
 import '../../features/services/domain/entities/service_addon.dart';
@@ -55,6 +58,21 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 // ---------------------------------------------------------------------------
+// Pricing & Policy Providers (Provisional development policies)
+// ---------------------------------------------------------------------------
+
+/// Provisional development advance payment policy provider.
+final advancePaymentPolicyProvider = Provider<AdvancePaymentPolicy>((ref) {
+  return const DevelopmentAdvancePaymentPolicy();
+});
+
+/// Provisional development booking pricing policy provider.
+final bookingPricingPolicyProvider = Provider<BookingPricingPolicy>((ref) {
+  final advancePolicy = ref.watch(advancePaymentPolicyProvider);
+  return DevelopmentBookingPricingPolicy(advancePaymentPolicy: advancePolicy);
+});
+
+// ---------------------------------------------------------------------------
 // Domain Repository Providers (Interfaces declared, implementations injected)
 // ---------------------------------------------------------------------------
 
@@ -65,9 +83,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 final bookingRepositoryProvider = Provider<BookingRepository>((ref) {
-  throw UnimplementedError(
-    'BookingRepository implementation will be provided in Phase 4',
-  );
+  return MockBookingRepository();
 });
 
 final driverRepositoryProvider = Provider<DriverRepository>((ref) {

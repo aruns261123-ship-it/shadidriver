@@ -169,7 +169,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
         SwitchListTile(
           title: const Text('Verified Chauffeurs Only'),
           value: _localQuery.verifiedChauffeurOnly,
-          activeColor: AppColors.primaryBurgundy,
+          activeThumbColor: AppColors.primaryBurgundy,
           onChanged: (val) => setState(
             () =>
                 _localQuery = _localQuery.copyWith(verifiedChauffeurOnly: val),
@@ -178,7 +178,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
         SwitchListTile(
           title: const Text('Verified Vehicles Only'),
           value: _localQuery.verifiedVehicleOnly,
-          activeColor: AppColors.primaryBurgundy,
+          activeThumbColor: AppColors.primaryBurgundy,
           onChanged: (val) => setState(
             () => _localQuery = _localQuery.copyWith(verifiedVehicleOnly: val),
           ),
@@ -227,7 +227,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
         'Show only nearby drivers ready for immediate dispatch',
       ),
       value: _localQuery.availableNow,
-      activeColor: AppColors.urgentSaffron,
+      activeThumbColor: AppColors.urgentSaffron,
       onChanged: (val) =>
           setState(() => _localQuery = _localQuery.copyWith(availableNow: val)),
     );
