@@ -32,6 +32,15 @@ final class AuthSession {
     required this.issuedAt,
   });
 
+  /// Factory representing an unauthenticated, cleared session state.
+  factory AuthSession.unauthenticated() => AuthSession(
+    userId: '',
+    phone: '',
+    role: UserRole.customer,
+    accountStatus: AccountStatus.suspended,
+    issuedAt: DateTime.fromMillisecondsSinceEpoch(0),
+  );
+
   /// Whether the user's profile is considered complete enough for feature access.
   bool get isProfileComplete =>
       accountStatus != AccountStatus.profileIncomplete;

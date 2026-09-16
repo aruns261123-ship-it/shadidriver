@@ -17,13 +17,6 @@ class DriverHomePlaceholderScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chauffeur Portal'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.swap_horiz_rounded),
-            tooltip: 'Switch Portal',
-            onPressed: () => context.go(RoutePaths.customer),
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -56,8 +49,8 @@ class DriverHomePlaceholderScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 ShadiPrimaryButton(
-                  text: 'Return to Customer View',
-                  onPressed: () => context.go(RoutePaths.customer),
+                  text: 'Chauffeur Profile & Credentials',
+                  onPressed: () => context.push(RoutePaths.driverProfile),
                 ),
               ],
             ),

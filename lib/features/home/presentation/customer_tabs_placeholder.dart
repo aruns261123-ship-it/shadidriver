@@ -71,8 +71,8 @@ class CustomerProfilePlaceholder extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                key: const Key('switch_to_driver_portal_btn'),
-                onPressed: () => context.go(RoutePaths.driver),
+                key: const Key('view_customer_profile_btn'),
+                onPressed: () => context.go(RoutePaths.customerProfile),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryBurgundy,
                   foregroundColor: Colors.white,
@@ -81,8 +81,8 @@ class CustomerProfilePlaceholder extends StatelessWidget {
                     vertical: 12,
                   ),
                 ),
-                icon: const Icon(Icons.directions_car_rounded),
-                label: const Text('Switch to Driver Console'),
+                icon: const Icon(Icons.person_rounded),
+                label: const Text('Open Account Center'),
               ),
             ],
           ),

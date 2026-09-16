@@ -36,15 +36,19 @@ final GlobalKey<NavigatorState> _customerShellNavigatorKey =
 GoRouter createShadiRouter({
   String initialLocation = RoutePaths.splash,
   RouteGuard routeGuard = const ShadiRouteGuard(),
+  bool Function()? isAuthenticated,
+  String? Function()? userRole,
+  Listenable? refreshListenable,
 }) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: initialLocation,
+    refreshListenable: refreshListenable,
     redirect: (BuildContext context, GoRouterState state) async {
       return await routeGuard.evaluateRedirect(
         targetLocation: state.matchedLocation,
-        isAuthenticated: false,
-        userRole: null,
+        isAuthenticated: isAuthenticated?.call() ?? false,
+        userRole: userRole?.call(),
       );
     },
     routes: [

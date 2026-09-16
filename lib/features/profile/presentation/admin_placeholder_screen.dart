@@ -23,11 +23,6 @@ class AdminPlaceholderScreen extends StatelessWidget {
             tooltip: 'Admin Profile & Security',
             onPressed: () => context.push(RoutePaths.adminProfile),
           ),
-          IconButton(
-            icon: const Icon(Icons.swap_horiz_rounded),
-            tooltip: 'Switch Portal',
-            onPressed: () => context.go(RoutePaths.customer),
-          ),
         ],
       ),
       body: ListView(
@@ -63,11 +58,6 @@ class AdminPlaceholderScreen extends StatelessWidget {
                 ShadiPrimaryButton(
                   text: 'Admin Profile & Security Credentials',
                   onPressed: () => context.push(RoutePaths.adminProfile),
-                ),
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: () => context.go(RoutePaths.customer),
-                  child: const Center(child: Text('Return to Customer View')),
                 ),
               ],
             ),

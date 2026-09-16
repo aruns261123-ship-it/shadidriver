@@ -12,6 +12,7 @@ import '../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../core/widgets/shadi_status_badge.dart';
 import 'controllers/customer_profile_controller.dart';
 import 'controllers/saved_addresses_controller.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
 
 /// Customer Account Center Screen.
 ///
@@ -46,16 +47,6 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.swap_horiz_rounded,
-              color: AppColors.primaryBurgundy,
-            ),
-            tooltip: 'Switch to Driver Portal',
-            onPressed: () => context.go(RoutePaths.driver),
-          ),
-        ],
       ),
       body: profileState.isLoading
           ? const Center(
@@ -133,28 +124,22 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
 
                 const SizedBox(height: 20),
 
-                // 4. Portal Switchers & Logout
+                // 4. Account Actions
                 _buildSectionHeader('Account Actions'),
                 const SizedBox(height: 10),
                 _buildMenuCard([
                   _MenuItem(
-                    icon: Icons.directions_car_rounded,
-                    title: 'Switch to Chauffeur Console',
-                    subtitle: 'Access driver dispatches and trips',
-                    onTap: () => context.go(RoutePaths.driver),
-                  ),
-                  _MenuItem(
-                    icon: Icons.admin_panel_settings_rounded,
-                    title: 'Admin Operations Console',
-                    subtitle: 'Fleet verification and control room',
-                    onTap: () => context.go(RoutePaths.admin),
+                    icon: Icons.edit_rounded,
+                    title: 'Edit Royal Profile',
+                    subtitle: 'Update full name, contact information, and city',
+                    onTap: () => context.push(RoutePaths.customerProfileEdit),
                   ),
                   _MenuItem(
                     icon: Icons.logout_rounded,
                     title: 'Sign Out',
-                    subtitle: 'End your current session securely',
+                    subtitle: 'End your current ceremonial session securely',
                     titleColor: AppColors.errorRed,
-                    onTap: () => _showLogoutDialog(context),
+                    onTap: () => _showLogoutDialog(context, ref),
                   ),
                 ]),
 
@@ -205,7 +190,7 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
                           ),
                         ),
                         const ShadiStatusBadge(
-                          status: 'PATRON',
+                          status: 'CUSTOMER',
                           color: AppColors.warmGold,
                         ),
                       ],
@@ -358,7 +343,7 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -376,9 +361,12 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
               backgroundColor: AppColors.primaryBurgundy,
               foregroundColor: Colors.white,
             ),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              context.go(RoutePaths.customerHome);
+              await ref.read(authControllerProvider.notifier).signOut();
+              if (context.mounted) {
+                context.go(RoutePaths.auth);
+              }
             },
             child: const Text('Sign Out'),
           ),

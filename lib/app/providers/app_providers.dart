@@ -47,7 +47,9 @@ import '../../features/reviews/domain/repositories/review_repository.dart';
 import '../../features/reviews/data/mock_review_repository.dart';
 import '../../features/trips/domain/repositories/trip_repository.dart';
 import '../../features/trips/data/mock_trip_repository.dart';
+import 'package:flutter/foundation.dart';
 import '../router/app_router.dart';
+import '../router/route_guards.dart';
 
 // ---------------------------------------------------------------------------
 // Core Infrastructure Providers
@@ -78,9 +80,34 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient(config: config, logger: logger, secureStorage: storage);
 });
 
+/// Listenable notifier that triggers GoRouter redirect re-evaluation
+/// whenever the active session changes.
+class _RouterSessionNotifier extends ChangeNotifier {
+  _RouterSessionNotifier(Ref ref) {
+    ref.listen<AuthSession>(activeSessionProvider, (prev, next) => notifyListeners());
+  }
+}
+
 /// Centralized GoRouter provider.
 final routerProvider = Provider<GoRouter>((ref) {
-  return createShadiRouter();
+  final sessionNotifier = _RouterSessionNotifier(ref);
+  ref.onDispose(sessionNotifier.dispose);
+
+  return createShadiRouter(
+    routeGuard: const ShadiRouteGuard(enforceAuth: false),
+    refreshListenable: sessionNotifier,
+    isAuthenticated: () {
+      final session = ref.read(activeSessionProvider);
+      return session.userId.isNotEmpty && session.canAccessFeatures;
+    },
+    userRole: () {
+      final session = ref.read(activeSessionProvider);
+      if (session.userId.isNotEmpty && session.canAccessFeatures) {
+        return session.role.name;
+      }
+      return null;
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------

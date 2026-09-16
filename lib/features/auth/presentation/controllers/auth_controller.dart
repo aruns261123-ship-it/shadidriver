@@ -135,6 +135,8 @@ class AuthController extends StateNotifier<AuthState> {
     await _authRepository.signOut();
     await _secureStorage.delete('auth_token');
     await _secureStorage.delete('refresh_token');
+    _ref.read(activeSessionProvider.notifier).state =
+        AuthSession.unauthenticated();
     state = const Unauthenticated();
   }
 

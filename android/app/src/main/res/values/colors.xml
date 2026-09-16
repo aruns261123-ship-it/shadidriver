@@ -2,4 +2,5 @@
 <resources>
     <color name="splash_burgundy">#2C0A15</color>
     <color name="champagne_gold">#D4AF37</color>
+    <color name="ic_launcher_background">#480D16</color>
 </resources>

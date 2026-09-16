@@ -69,14 +69,6 @@ class DriverDashboardScreen extends ConsumerWidget {
             tooltip: 'Chauffeur Profile',
             onPressed: () => context.push(RoutePaths.driverProfile),
           ),
-          IconButton(
-            icon: const Icon(
-              Icons.swap_horiz_rounded,
-              color: AppColors.primaryBurgundy,
-            ),
-            tooltip: 'Switch to Customer View',
-            onPressed: () => context.go(RoutePaths.customerHome),
-          ),
         ],
       ),
       body: RefreshIndicator(

@@ -11,6 +11,7 @@ import '../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../core/widgets/shadi_status_badge.dart';
 import '../../../core/widgets/shadi_text_field.dart';
 import 'controllers/admin_profile_controller.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
 
 /// Administrator Account & Profile Center Screen.
 ///
@@ -26,24 +27,28 @@ class AdminAccountCenterScreen extends ConsumerWidget {
     String currentName,
     String currentPhone,
   ) {
-    final nameCtrl = TextEditingController(text: currentName);
-    final phoneCtrl = TextEditingController(text: currentPhone);
+    final nameController = TextEditingController(text: currentName);
+    final phoneController = TextEditingController(text: currentPhone);
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(
-          'Update Contact Info',
-          style: AppTypography.titleMedium.copyWith(
-            color: AppColors.primaryBurgundy,
-          ),
-        ),
+        title: const Text('Edit Contact Information'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ShadiTextField(label: 'Full Name', controller: nameCtrl),
-            const SizedBox(height: 12),
-            ShadiTextField(label: 'Mobile Number', controller: phoneCtrl),
+            ShadiTextField(
+              controller: nameController,
+              label: 'Full Name',
+              hint: 'Enter full name',
+            ),
+            const SizedBox(height: 16),
+            ShadiTextField(
+              controller: phoneController,
+              label: 'Phone Number',
+              hint: '+91 98765 XXXXX',
+              keyboardType: TextInputType.phone,
+            ),
           ],
         ),
         actions: [
@@ -54,17 +59,16 @@ class AdminAccountCenterScreen extends ConsumerWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryBurgundy,
+              foregroundColor: Colors.white,
             ),
-            onPressed: () async {
-              if (nameCtrl.text.trim().isNotEmpty) {
-                await controller.updateContactInfo(
-                  fullName: nameCtrl.text.trim(),
-                  phone: phoneCtrl.text.trim(),
-                );
-                if (ctx.mounted) Navigator.pop(ctx);
-              }
+            onPressed: () {
+              controller.updateContactInfo(
+                fullName: nameController.text.trim(),
+                phone: phoneController.text.trim(),
+              );
+              Navigator.pop(ctx);
             },
-            child: const Text('Update', style: TextStyle(color: Colors.white)),
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -97,16 +101,6 @@ class AdminAccountCenterScreen extends ConsumerWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.swap_horiz_rounded,
-              color: AppColors.primaryBurgundy,
-            ),
-            tooltip: 'Return to Customer View',
-            onPressed: () => context.go(RoutePaths.customerHome),
-          ),
-        ],
       ),
       body: state.isLoading
           ? const Center(
@@ -318,6 +312,23 @@ class AdminAccountCenterScreen extends ConsumerWidget {
                       ),
                       ListTile(
                         leading: const Icon(
+                          Icons.support_agent_rounded,
+                          color: AppColors.primaryBurgundy,
+                        ),
+                        title: const Text('System & Security Help Desk'),
+                        subtitle: const Text(
+                          '24/7 technical incident and protocol response',
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () {},
+                      ),
+                      const Divider(
+                        height: 1,
+                        indent: 60,
+                        color: AppColors.borderLight,
+                      ),
+                      ListTile(
+                        leading: const Icon(
                           Icons.logout_rounded,
                           color: AppColors.errorRed,
                         ),
@@ -331,7 +342,7 @@ class AdminAccountCenterScreen extends ConsumerWidget {
                         subtitle: const Text(
                           'Lock control room and end administrative session',
                         ),
-                        onTap: () => context.go(RoutePaths.customerHome),
+                        onTap: () => _showAdminSignOutDialog(context, ref),
                       ),
                     ],
                   ),
@@ -340,6 +351,38 @@ class AdminAccountCenterScreen extends ConsumerWidget {
                 const SizedBox(height: 32),
               ],
             ),
+    );
+  }
+
+  void _showAdminSignOutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign Out of Operations Console'),
+        content: const Text(
+          'Are you sure you want to lock the control room and end your administrative session?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBurgundy,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(authControllerProvider.notifier).signOut();
+              if (context.mounted) {
+                context.go(RoutePaths.auth);
+              }
+            },
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
     );
   }
 }

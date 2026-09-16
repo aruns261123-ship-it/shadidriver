@@ -10,6 +10,7 @@ import '../../../core/widgets/shadi_error_view.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../core/widgets/shadi_status_badge.dart';
 import 'controllers/driver_profile_controller.dart';
+import '../../auth/presentation/controllers/auth_controller.dart';
 
 /// Chauffeur Account & Profile Center Screen.
 ///
@@ -46,16 +47,6 @@ class DriverAccountCenterScreen extends ConsumerWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.swap_horiz_rounded,
-              color: AppColors.primaryBurgundy,
-            ),
-            tooltip: 'Switch to Customer View',
-            onPressed: () => context.go(RoutePaths.customerHome),
-          ),
-        ],
       ),
       body: state.isLoading
           ? const Center(
@@ -133,11 +124,17 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                     onTap: () {},
                   ),
                   _MenuItem(
+                    icon: Icons.support_agent_rounded,
+                    title: 'Chauffeur Support Desk',
+                    subtitle: 'Direct emergency line to operations control room',
+                    onTap: () {},
+                  ),
+                  _MenuItem(
                     icon: Icons.logout_rounded,
                     title: 'Sign Out of Chauffeur Console',
-                    subtitle: 'Go offline and end duty session',
+                    subtitle: 'Go offline and end duty session securely',
                     titleColor: AppColors.errorRed,
-                    onTap: () => context.go(RoutePaths.customerHome),
+                    onTap: () => _showDriverSignOutDialog(context, ref),
                   ),
                 ]),
 
@@ -196,12 +193,24 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'Chauffeur ID: ${profile.id} • ${profile.experienceYears} Years Exp',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textSecondaryLight,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        const ShadiStatusBadge(
+                          status: 'CHAUFFEUR',
+                          color: AppColors.warmGold,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'ID: ${profile.id} • ${profile.experienceYears} Years Exp',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textSecondaryLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -467,6 +476,38 @@ class DriverAccountCenterScreen extends ConsumerWidget {
             ],
           );
         }).toList(),
+      ),
+    );
+  }
+
+  void _showDriverSignOutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign Out of Chauffeur Console'),
+        content: const Text(
+          'Are you sure you want to go offline and end your chauffeur duty session?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBurgundy,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(authControllerProvider.notifier).signOut();
+              if (context.mounted) {
+                context.go(RoutePaths.auth);
+              }
+            },
+            child: const Text('Sign Out'),
+          ),
+        ],
       ),
     );
   }

@@ -119,14 +119,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
             tooltip: 'Admin Profile & Security',
             onPressed: () => context.push(RoutePaths.adminProfile),
           ),
-          IconButton(
-            icon: const Icon(
-              Icons.swap_horiz_rounded,
-              color: AppColors.primaryBurgundy,
-            ),
-            tooltip: 'Switch to Customer View',
-            onPressed: () => context.go(RoutePaths.customer),
-          ),
         ],
         bottom: TabBar(
           controller: _tabController,
