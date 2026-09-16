@@ -27,8 +27,9 @@ class BookingSubmissionResult {
   final String chauffeurId;
   final String ceremonyType;
   final String ceremonialAttire;
-  final DateTime eventDate;
-  final int durationHours;
+  final DateTime serviceStartDateTime;
+  final DateTime serviceEndDateTime;
+  final double? routeDistanceKm;
   final String pickupAddress;
   final String destinationAddress;
   final String primaryContactName;
@@ -56,8 +57,9 @@ class BookingSubmissionResult {
     required this.chauffeurId,
     required this.ceremonyType,
     required this.ceremonialAttire,
-    required this.eventDate,
-    required this.durationHours,
+    required this.serviceStartDateTime,
+    required this.serviceEndDateTime,
+    this.routeDistanceKm,
     required this.pickupAddress,
     required this.destinationAddress,
     required this.primaryContactName,
@@ -68,6 +70,25 @@ class BookingSubmissionResult {
     required this.nextStepMessage,
     this.isIdempotentReplay = false,
   });
+
+  // --- Convenience & Backwards-Compatible Getters ---
+  DateTime get eventDate => DateTime(
+    serviceStartDateTime.year,
+    serviceStartDateTime.month,
+    serviceStartDateTime.day,
+  );
+  int get durationHours =>
+      serviceEndDateTime.difference(serviceStartDateTime).inHours;
+  bool get isOvernight =>
+      serviceEndDateTime.day != serviceStartDateTime.day || durationHours >= 12;
+
+  String get formattedDuration {
+    final hrs = durationHours;
+    if (isOvernight) {
+      return '$hrs hrs (Overnight)';
+    }
+    return '$hrs hrs';
+  }
 
   @override
   bool operator ==(Object other) =>

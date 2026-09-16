@@ -9,10 +9,12 @@ abstract interface class RouteGuard {
   });
 }
 
-/// Default architecture-ready route guard implementation for Phase 0.
-/// Does not block routes during foundation phase, but provides the evaluation hook.
+/// Default architecture-ready route guard implementation.
+/// Evaluates access permissions during route transitions.
 class ShadiRouteGuard implements RouteGuard {
-  const ShadiRouteGuard();
+  final bool enforceAuth;
+
+  const ShadiRouteGuard({this.enforceAuth = false});
 
   @override
   Future<String?> evaluateRedirect({
@@ -20,7 +22,33 @@ class ShadiRouteGuard implements RouteGuard {
     required bool isAuthenticated,
     required String? userRole,
   }) async {
-    // Architecture hook ready for Phase 1 session enforcement
+    if (!enforceAuth) {
+      return null;
+    }
+
+    // Unauthenticated access to protected routes
+    if (!isAuthenticated &&
+        targetLocation != '/auth' &&
+        targetLocation != '/splash') {
+      return '/auth';
+    }
+
+    // Admin routes require admin role
+    if (targetLocation.startsWith('/admin')) {
+      final isAdmin =
+          userRole == 'operationsAdmin' ||
+          userRole == 'verificationAdmin' ||
+          userRole == 'financeAdmin' ||
+          userRole == 'superAdmin';
+      if (!isAdmin) return '/customer';
+    }
+
+    // Driver routes require driver role
+    if (targetLocation.startsWith('/driver')) {
+      final isDriver = userRole == 'driver' || userRole == 'fleetOwner';
+      if (!isDriver) return '/customer';
+    }
+
     return null;
   }
 }

@@ -79,16 +79,11 @@ void main() {
         await tester.pumpAndSettle();
 
         // -----------------------------------------------------------
-        // Step 1: Date & Time Selection
+        // Step 1: Service Timing & Duration
         // -----------------------------------------------------------
-        expect(find.text('2. Date & Time Selection'), findsOneWidget);
-        expect(find.text('Ceremony Date'), findsOneWidget);
-        expect(find.text('Chauffeur Arrival Time'), findsOneWidget);
-
-        // Select '12 Hours\n(Full Day)'
-        await tester.ensureVisible(find.text('12 Hours\n(Full Day)'));
-        await tester.tap(find.text('12 Hours\n(Full Day)'));
-        await tester.pumpAndSettle();
+        expect(find.text('2. Service Timing & Duration'), findsOneWidget);
+        expect(find.text('Service Start'), findsOneWidget);
+        expect(find.text('Service End'), findsOneWidget);
 
         // Tap Continue
         await tester.tap(find.text('Continue'));
@@ -181,7 +176,7 @@ void main() {
       await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
-      expect(find.text('2. Date & Time Selection'), findsOneWidget);
+      expect(find.text('2. Service Timing & Duration'), findsOneWidget);
       expect(find.text('Back'), findsOneWidget);
 
       // Tap Back

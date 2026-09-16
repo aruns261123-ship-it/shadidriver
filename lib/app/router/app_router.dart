@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../features/auth/presentation/auth_placeholder_screen.dart';
+import '../../features/auth/presentation/login_screen.dart';
+import '../../features/drivers/presentation/driver_active_trip_screen.dart';
 import '../../features/drivers/presentation/driver_booking_request_screen.dart';
 import '../../features/drivers/presentation/driver_dashboard_screen.dart';
 import '../../features/home/presentation/customer_home_screen.dart';
@@ -13,8 +14,9 @@ import '../../features/drivers/presentation/chauffeur_profile_screen.dart';
 import '../../features/bookings/presentation/booking_entry_screen.dart';
 import '../../features/bookings/presentation/booking_review_screen.dart';
 import '../../features/bookings/presentation/booking_result_screen.dart';
+import '../../features/bookings/presentation/customer_bookings_screen.dart';
 import '../../features/home/presentation/splash_screen.dart';
-import '../../features/profile/presentation/admin_placeholder_screen.dart';
+import '../../features/profile/presentation/admin_dashboard_screen.dart';
 import '../../features/profile/presentation/customer_account_center_screen.dart';
 import '../../features/profile/presentation/customer_edit_profile_screen.dart';
 import '../../features/profile/presentation/saved_addresses_screen.dart';
@@ -54,7 +56,7 @@ GoRouter createShadiRouter({
       GoRoute(
         path: RoutePaths.auth,
         name: 'auth',
-        builder: (context, state) => const AuthPlaceholderScreen(),
+        builder: (context, state) => const LoginScreen(),
       ),
       ShellRoute(
         navigatorKey: _customerShellNavigatorKey,
@@ -82,7 +84,7 @@ GoRouter createShadiRouter({
           GoRoute(
             path: RoutePaths.customerBookings,
             name: 'customerBookings',
-            builder: (context, state) => const CustomerBookingsPlaceholder(),
+            builder: (context, state) => const CustomerBookingsScreen(),
           ),
           GoRoute(
             path: RoutePaths.customerMessages,
@@ -165,12 +167,19 @@ GoRouter createShadiRouter({
               bookingId: state.pathParameters['bookingId'] ?? '',
             ),
           ),
+          GoRoute(
+            path: 'active-trip/:bookingId',
+            name: 'driverActiveTrip',
+            builder: (context, state) => DriverActiveTripScreen(
+              bookingId: state.pathParameters['bookingId'] ?? '',
+            ),
+          ),
         ],
       ),
       GoRoute(
         path: RoutePaths.admin,
         name: 'admin',
-        builder: (context, state) => const AdminPlaceholderScreen(),
+        builder: (context, state) => const AdminDashboardScreen(),
         routes: [
           GoRoute(
             path: 'profile',

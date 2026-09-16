@@ -8,6 +8,7 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/shadi_card.dart';
 import '../../../core/widgets/shadi_empty_state.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
+import '../../../core/widgets/shadi_primary_button.dart';
 import '../../../core/widgets/shadi_section_header.dart';
 import '../../../core/widgets/shadi_status_badge.dart';
 import '../domain/entities/driver_booking_offer.dart';
@@ -52,6 +53,16 @@ class DriverDashboardScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(
+              Icons.navigation_rounded,
+              color: AppColors.primaryBurgundy,
+            ),
+            tooltip: 'Active Trip Console',
+            onPressed: () => context.push(
+              RoutePaths.driverActiveTripPath('bk_mock_req_1'),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(
               Icons.account_circle_outlined,
               color: AppColors.primaryBurgundy,
             ),
@@ -82,7 +93,12 @@ class DriverDashboardScreen extends ConsumerWidget {
             // 2. Status Explanation Banner
             _buildStatusBanner(context, state.dutyStatus, controller),
 
-            const SizedBox(height: 24),
+            if (state.dutyStatus == DriverDutyStatus.busy) ...[
+              const SizedBox(height: 16),
+              _buildActiveTripCard(context),
+            ],
+
+            const SizedBox(height: 20),
 
             // 3. Section Header for Requests
             ShadiSectionHeader(
@@ -124,6 +140,71 @@ class DriverDashboardScreen extends ConsumerWidget {
             const SizedBox(height: 32),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildActiveTripCard(BuildContext context) {
+    return ShadiCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.navigation_rounded,
+                    color: AppColors.warmGold,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Active Assignment',
+                    style: AppTypography.titleSmall.copyWith(
+                      color: AppColors.primaryBurgundy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.champagneGold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'SD-2026-0100',
+                  style: AppTypography.labelSmall.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryBurgundy,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Baraat Ceremony • BMW 5 Series • The Oberoi Hotel',
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textPrimaryLight,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ShadiPrimaryButton(
+              text: 'Open Trip Console',
+              onPressed: () => context.push(
+                RoutePaths.driverActiveTripPath('bk_mock_req_1'),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

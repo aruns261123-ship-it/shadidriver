@@ -11,9 +11,11 @@ enum BookingDraftStatus {
 
 /// Immutable domain model representing a customer booking draft and event details.
 ///
-/// Strictly adheres to the Milestone 4A specification:
+/// Strictly adheres to the Milestone 4A & Phase 1 specifications:
 /// - Event / Ceremony
-/// - Date / Time
+/// - Explicit Service Start (Date + Time) & End (Date + Time)
+/// - Calculated Duration & Overnight Support
+/// - Route Distance (km) via abstraction
 /// - Pickup / Destination
 /// - Passenger Details
 ///
@@ -33,10 +35,10 @@ class BookingDraft {
   final String ceremonialAttire;
   final String specialInstructions;
 
-  // 2. Date & Time
-  final DateTime eventDate;
-  final TimeOfDay startTime;
-  final int durationHours;
+  // 2. Service Timing & Duration
+  final DateTime serviceStartDateTime;
+  final DateTime serviceEndDateTime;
+  final double? routeDistanceKm;
 
   // 3. Pickup & Destination
   final String city;
@@ -69,9 +71,9 @@ class BookingDraft {
     required this.ceremonyType,
     required this.ceremonialAttire,
     this.specialInstructions = '',
-    required this.eventDate,
-    required this.startTime,
-    this.durationHours = 8,
+    required this.serviceStartDateTime,
+    required this.serviceEndDateTime,
+    this.routeDistanceKm,
     required this.city,
     required this.pickupAddress,
     required this.destinationAddress,
@@ -91,9 +93,6 @@ class BookingDraft {
   });
 
   /// Factory creating an initial empty draft for a specific vehicle with explicit pricing values.
-  ///
-  /// NOTE: Monetary values ([basePricePaise], [estimatedTotalPaise], [advanceTokenPaise])
-  /// are supplied directly by an external pricing/policy abstraction, not computed here.
   factory BookingDraft.initial({
     required String vehicleId,
     required String vehicleName,
@@ -105,14 +104,30 @@ class BookingDraft {
     String advanceTokenLabel = 'Advance Token',
     String ceremonyType = 'Baraat',
     String ceremonialAttire = 'Royal Bandhgala & Gold Safa',
-    int durationHours = 8,
-    String city = 'Delhi NCR',
-    int passengerCount = 2,
+    DateTime? serviceStartDateTime,
+    DateTime? serviceEndDateTime,
     DateTime? eventDate,
     TimeOfDay? startTime,
+    int durationHours = 8,
+    double? routeDistanceKm,
+    String city = 'Delhi NCR',
+    int passengerCount = 2,
   }) {
     final now = DateTime.now();
-    final defaultDate = eventDate ?? DateTime(now.year, now.month, now.day + 7);
+    final effectiveStart =
+        serviceStartDateTime ??
+        (eventDate != null
+            ? DateTime(
+                eventDate.year,
+                eventDate.month,
+                eventDate.day,
+                startTime?.hour ?? 16,
+                startTime?.minute ?? 0,
+              )
+            : DateTime(now.year, now.month, now.day + 7, 16, 0));
+    final effectiveEnd =
+        serviceEndDateTime ??
+        effectiveStart.add(Duration(hours: durationHours));
 
     return BookingDraft(
       id: 'draft_${vehicleId}_${now.millisecondsSinceEpoch}',
@@ -123,9 +138,9 @@ class BookingDraft {
       ceremonyType: ceremonyType,
       ceremonialAttire: ceremonialAttire,
       specialInstructions: '',
-      eventDate: defaultDate,
-      startTime: startTime ?? const TimeOfDay(hour: 16, minute: 0), // 4:00 PM
-      durationHours: durationHours,
+      serviceStartDateTime: effectiveStart,
+      serviceEndDateTime: effectiveEnd,
+      routeDistanceKm: routeDistanceKm,
       city: city,
       pickupAddress: '',
       destinationAddress: '',
@@ -145,26 +160,66 @@ class BookingDraft {
     );
   }
 
-  /// Calculates start DateTime.
-  DateTime get startDateTime => DateTime(
-    eventDate.year,
-    eventDate.month,
-    eventDate.day,
-    startTime.hour,
-    startTime.minute,
+  // --- Convenience & Backwards-Compatible Getters ---
+  DateTime get eventDate => DateTime(
+    serviceStartDateTime.year,
+    serviceStartDateTime.month,
+    serviceStartDateTime.day,
   );
+  TimeOfDay get startTime => TimeOfDay(
+    hour: serviceStartDateTime.hour,
+    minute: serviceStartDateTime.minute,
+  );
+  TimeOfDay get endTime => TimeOfDay(
+    hour: serviceEndDateTime.hour,
+    minute: serviceEndDateTime.minute,
+  );
+  DateTime get startDateTime => serviceStartDateTime;
+  DateTime get endDateTime => serviceEndDateTime;
 
-  /// Calculates end DateTime based on start time and duration.
-  DateTime get endDateTime => startDateTime.add(Duration(hours: durationHours));
+  /// Calculated service duration in hours.
+  int get durationHours =>
+      serviceEndDateTime.difference(serviceStartDateTime).inHours;
+
+  /// Calculated service duration in minutes.
+  int get durationMinutes =>
+      serviceEndDateTime.difference(serviceStartDateTime).inMinutes;
+
+  /// True when service spans across calendar days (e.g. 8:00 PM to 7:00 AM next day).
+  bool get isOvernight {
+    if (serviceEndDateTime.year != serviceStartDateTime.year ||
+        serviceEndDateTime.month != serviceStartDateTime.month ||
+        serviceEndDateTime.day != serviceStartDateTime.day) {
+      return true;
+    }
+    return durationHours >= 12;
+  }
+
+  /// Formatted duration label (e.g. "11 hours (Overnight)" or "8 hours").
+  String get formattedDuration {
+    final hrs = durationHours;
+    if (isOvernight) {
+      return '$hrs hrs (Overnight)';
+    }
+    return '$hrs hrs';
+  }
 
   /// Validates Section 1: Event & Ceremony
   bool get isCeremonyValid =>
       ceremonyType.trim().isNotEmpty && ceremonialAttire.trim().isNotEmpty;
 
   /// Validates Section 2: Date & Time
-  bool get isDateTimeValid =>
-      durationHours >= 2 &&
-      eventDate.isAfter(DateTime.now().subtract(const Duration(days: 1)));
+  /// Invariants:
+  /// - End must be strictly after start
+  /// - Duration must be positive (minimum 1 hour)
+  /// - Start must not be in the past (tolerates today)
+  bool get isDateTimeValid {
+    if (!serviceEndDateTime.isAfter(serviceStartDateTime)) return false;
+    final diff = serviceEndDateTime.difference(serviceStartDateTime);
+    if (diff.inMinutes < 60) return false;
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    return serviceStartDateTime.isAfter(yesterday);
+  }
 
   /// Validates Section 3: Pickup & Destination
   bool get isLocationsValid =>
@@ -198,9 +253,12 @@ class BookingDraft {
     String? ceremonyType,
     String? ceremonialAttire,
     String? specialInstructions,
+    DateTime? serviceStartDateTime,
+    DateTime? serviceEndDateTime,
     DateTime? eventDate,
     TimeOfDay? startTime,
     int? durationHours,
+    double? routeDistanceKm,
     String? city,
     String? pickupAddress,
     String? destinationAddress,
@@ -218,6 +276,25 @@ class BookingDraft {
     DateTime? createdAt,
     BookingDraftStatus? status,
   }) {
+    DateTime effectiveStart = serviceStartDateTime ?? this.serviceStartDateTime;
+    if (serviceStartDateTime == null &&
+        (eventDate != null || startTime != null)) {
+      final baseDate = eventDate ?? this.eventDate;
+      final baseTime = startTime ?? this.startTime;
+      effectiveStart = DateTime(
+        baseDate.year,
+        baseDate.month,
+        baseDate.day,
+        baseTime.hour,
+        baseTime.minute,
+      );
+    }
+
+    DateTime effectiveEnd = serviceEndDateTime ?? this.serviceEndDateTime;
+    if (serviceEndDateTime == null && durationHours != null) {
+      effectiveEnd = effectiveStart.add(Duration(hours: durationHours));
+    }
+
     return BookingDraft(
       id: id ?? this.id,
       vehicleId: vehicleId ?? this.vehicleId,
@@ -227,9 +304,9 @@ class BookingDraft {
       ceremonyType: ceremonyType ?? this.ceremonyType,
       ceremonialAttire: ceremonialAttire ?? this.ceremonialAttire,
       specialInstructions: specialInstructions ?? this.specialInstructions,
-      eventDate: eventDate ?? this.eventDate,
-      startTime: startTime ?? this.startTime,
-      durationHours: durationHours ?? this.durationHours,
+      serviceStartDateTime: effectiveStart,
+      serviceEndDateTime: effectiveEnd,
+      routeDistanceKm: routeDistanceKm ?? this.routeDistanceKm,
       city: city ?? this.city,
       pickupAddress: pickupAddress ?? this.pickupAddress,
       destinationAddress: destinationAddress ?? this.destinationAddress,
@@ -257,8 +334,9 @@ class BookingDraft {
           other.id == id &&
           other.vehicleId == vehicleId &&
           other.ceremonyType == ceremonyType &&
-          other.eventDate == eventDate &&
-          other.durationHours == durationHours &&
+          other.serviceStartDateTime == serviceStartDateTime &&
+          other.serviceEndDateTime == serviceEndDateTime &&
+          other.routeDistanceKm == routeDistanceKm &&
           other.pickupAddress == pickupAddress &&
           other.destinationAddress == destinationAddress &&
           other.primaryContactName == primaryContactName &&
@@ -274,8 +352,9 @@ class BookingDraft {
     id,
     vehicleId,
     ceremonyType,
-    eventDate,
-    durationHours,
+    serviceStartDateTime,
+    serviceEndDateTime,
+    routeDistanceKm,
     pickupAddress,
     destinationAddress,
     primaryContactName,

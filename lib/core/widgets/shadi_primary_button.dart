@@ -58,11 +58,14 @@ class ShadiPrimaryButton extends StatelessWidget {
                     Icon(icon, size: 20, color: AppColors.champagneGold),
                     const SizedBox(width: 8),
                   ],
-                  Text(
-                    text,
-                    style: AppTypography.labelLarge.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: Text(
+                      text,
+                      style: AppTypography.labelLarge.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],

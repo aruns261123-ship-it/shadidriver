@@ -580,13 +580,15 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
     BookingDraftState draftState,
     BookingDraftController controller,
   ) {
-    final durations = [4, 8, 12];
+    final start = draftState.draft.serviceStartDateTime;
+    final end = draftState.draft.serviceEndDateTime;
+    final isOvernight = draftState.draft.isOvernight;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '2. Date & Time Selection',
+          '2. Service Timing & Duration',
           style: AppTypography.titleMedium.copyWith(
             color: AppColors.primaryBurgundy,
             fontWeight: FontWeight.w700,
@@ -594,7 +596,7 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Set your wedding date, pickup time, and expected ceremonial duration.',
+          'Specify exact start and end times. Overnight wedding bookings across midnight are fully supported.',
           style: AppTypography.bodySmall.copyWith(
             color: AppColors.textSecondaryLight,
           ),
@@ -606,199 +608,486 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Date Picker Tile
-              Text('Ceremony Date', style: AppTypography.labelMedium),
+              // 1. Service Start
+              Text('Service Start', style: AppTypography.labelMedium),
               const SizedBox(height: 8),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: draftState.draft.eventDate,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                    builder: (context, child) {
-                      return Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: const ColorScheme.light(
-                            primary: AppColors.primaryBurgundy,
-                            onPrimary: Colors.white,
-                            onSurface: AppColors.textPrimaryLight,
-                          ),
-                        ),
-                        child: child!,
-                      );
-                    },
-                  );
-                  if (picked != null) {
-                    controller.updateDateTime(
-                      date: picked,
-                      startTime: draftState.draft.startTime,
-                      durationHours: draftState.draft.durationHours,
-                    );
-                  }
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.borderLight),
-                    borderRadius: BorderRadius.circular(10),
-                    color: Colors.white,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_month_rounded,
-                        color: AppColors.warmGold,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          DateFormatter.formatCeremonyDate(
-                            draftState.draft.eventDate,
-                          ),
-                          style: AppTypography.titleSmall.copyWith(
-                            color: AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.arrow_drop_down,
-                        color: AppColors.textSecondaryLight,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Time Picker Tile
-              Text('Chauffeur Arrival Time', style: AppTypography.labelMedium),
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: () async {
-                  final picked = await showTimePicker(
-                    context: context,
-                    initialTime: draftState.draft.startTime,
-                    builder: (context, child) {
-                      return Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: const ColorScheme.light(
-                            primary: AppColors.primaryBurgundy,
-                            onPrimary: Colors.white,
-                            onSurface: AppColors.textPrimaryLight,
-                          ),
-                        ),
-                        child: child!,
-                      );
-                    },
-                  );
-                  if (picked != null) {
-                    controller.updateDateTime(
-                      date: draftState.draft.eventDate,
-                      startTime: picked,
-                      durationHours: draftState.draft.durationHours,
-                    );
-                  }
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.borderLight),
-                    borderRadius: BorderRadius.circular(10),
-                    color: Colors.white,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.access_time_rounded,
-                        color: AppColors.warmGold,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          draftState.draft.startTime.format(context),
-                          style: AppTypography.titleSmall.copyWith(
-                            color: AppColors.textPrimaryLight,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.arrow_drop_down,
-                        color: AppColors.textSecondaryLight,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Duration Selector
-              Text('Service Duration', style: AppTypography.labelMedium),
-              const SizedBox(height: 10),
               Row(
-                children: durations.map((d) {
-                  final isSelected = draftState.draft.durationHours == d;
-                  final label = switch (d) {
-                    4 => '4 Hours\n(Short)',
-                    8 => '8 Hours\n(Standard)',
-                    12 => '12 Hours\n(Full Day)',
-                    _ => '$d Hours',
-                  };
-
-                  return Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      child: InkWell(
-                        onTap: () {
-                          controller.updateDateTime(
-                            date: draftState.draft.eventDate,
-                            startTime: draftState.draft.startTime,
-                            durationHours: d,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: InkWell(
+                      onTap: () async {
+                        final pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: start,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365),
+                          ),
+                          builder: (context, child) => Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: const ColorScheme.light(
+                                primary: AppColors.primaryBurgundy,
+                                onPrimary: Colors.white,
+                                onSurface: AppColors.textPrimaryLight,
+                              ),
+                            ),
+                            child: child!,
+                          ),
+                        );
+                        if (pickedDate != null) {
+                          final newStart = DateTime(
+                            pickedDate.year,
+                            pickedDate.month,
+                            pickedDate.day,
+                            start.hour,
+                            start.minute,
                           );
-                        },
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.primaryBurgundy
-                                : AppColors.secondarySurface,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppColors.primaryBurgundy
-                                  : AppColors.borderLight,
+                          // Adjust end to preserve duration if end is before new start
+                          DateTime newEnd = end;
+                          if (!newEnd.isAfter(newStart)) {
+                            newEnd = newStart.add(
+                              Duration(
+                                hours: draftState.draft.durationHours > 0
+                                    ? draftState.draft.durationHours
+                                    : 8,
+                              ),
+                            );
+                          }
+                          controller.updateServiceTiming(
+                            startDateTime: newStart,
+                            endDateTime: newEnd,
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.borderLight),
+                          borderRadius: BorderRadius.circular(10),
+                          color: Colors.white,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_month_rounded,
+                              color: AppColors.warmGold,
+                              size: 20,
                             ),
-                          ),
-                          child: Text(
-                            label,
-                            textAlign: TextAlign.center,
-                            style: AppTypography.labelSmall.copyWith(
-                              color: isSelected
-                                  ? Colors.white
-                                  : AppColors.textPrimaryLight,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                DateFormatter.formatCeremonyDate(start),
+                                style: AppTypography.bodySmall.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                     ),
-                  );
-                }).toList(),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      onTap: () async {
+                        final pickedTime = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay(
+                            hour: start.hour,
+                            minute: start.minute,
+                          ),
+                        );
+                        if (pickedTime != null) {
+                          final newStart = DateTime(
+                            start.year,
+                            start.month,
+                            start.day,
+                            pickedTime.hour,
+                            pickedTime.minute,
+                          );
+                          DateTime newEnd = end;
+                          if (!newEnd.isAfter(newStart)) {
+                            newEnd = newStart.add(
+                              Duration(
+                                hours: draftState.draft.durationHours > 0
+                                    ? draftState.draft.durationHours
+                                    : 8,
+                              ),
+                            );
+                          }
+                          controller.updateServiceTiming(
+                            startDateTime: newStart,
+                            endDateTime: newEnd,
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.borderLight),
+                          borderRadius: BorderRadius.circular(10),
+                          color: Colors.white,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.access_time_rounded,
+                              color: AppColors.warmGold,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
+                                style: AppTypography.bodySmall.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // 2. Service End
+              Text('Service End', style: AppTypography.labelMedium),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: InkWell(
+                      onTap: () async {
+                        final pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: end,
+                          firstDate: start,
+                          lastDate: start.add(const Duration(days: 30)),
+                          builder: (context, child) => Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: const ColorScheme.light(
+                                primary: AppColors.primaryBurgundy,
+                                onPrimary: Colors.white,
+                                onSurface: AppColors.textPrimaryLight,
+                              ),
+                            ),
+                            child: child!,
+                          ),
+                        );
+                        if (pickedDate != null) {
+                          final newEnd = DateTime(
+                            pickedDate.year,
+                            pickedDate.month,
+                            pickedDate.day,
+                            end.hour,
+                            end.minute,
+                          );
+                          controller.updateServiceTiming(
+                            startDateTime: start,
+                            endDateTime: newEnd,
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.borderLight),
+                          borderRadius: BorderRadius.circular(10),
+                          color: Colors.white,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.event_available_rounded,
+                              color: AppColors.warmGold,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                DateFormatter.formatCeremonyDate(end),
+                                style: AppTypography.bodySmall.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      onTap: () async {
+                        final pickedTime = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay(
+                            hour: end.hour,
+                            minute: end.minute,
+                          ),
+                        );
+                        if (pickedTime != null) {
+                          final newEnd = DateTime(
+                            end.year,
+                            end.month,
+                            end.day,
+                            pickedTime.hour,
+                            pickedTime.minute,
+                          );
+                          controller.updateServiceTiming(
+                            startDateTime: start,
+                            endDateTime: newEnd,
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.borderLight),
+                          borderRadius: BorderRadius.circular(10),
+                          color: Colors.white,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.access_time_rounded,
+                              color: AppColors.warmGold,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
+                                style: AppTypography.bodySmall.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // 3. Calculated Duration & Overnight Badge
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isOvernight
+                      ? AppColors.champagneGold.withValues(alpha: 0.15)
+                      : AppColors.secondarySurface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isOvernight
+                        ? AppColors.warmGold
+                        : AppColors.borderLight,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isOvernight
+                                  ? Icons.nightlight_round
+                                  : Icons.schedule_rounded,
+                              color: isOvernight
+                                  ? AppColors.warmGold
+                                  : AppColors.primaryBurgundy,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Calculated Duration:',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.textSecondaryLight,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          draftState.draft.formattedDuration,
+                          style: AppTypography.titleSmall.copyWith(
+                            color: AppColors.primaryBurgundy,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (isOvernight) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.info_outline,
+                            size: 14,
+                            color: AppColors.warmGold,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Overnight ceremonial booking spanning across midnight. Continuous chauffeur standby included.',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.primaryBurgundy,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 4. Quick Ceremonial Timing Presets
+              Text('Ceremony Presets', style: AppTypography.labelMedium),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ActionChip(
+                    avatar: const Icon(
+                      Icons.nightlife_rounded,
+                      size: 16,
+                      color: AppColors.primaryBurgundy,
+                    ),
+                    label: const Text('Baraat Overnight (8 PM → 7 AM)'),
+                    onPressed: () {
+                      final s = DateTime(
+                        start.year,
+                        start.month,
+                        start.day,
+                        20,
+                        0,
+                      );
+                      final nextDay = s.add(const Duration(days: 1));
+                      final e = DateTime(
+                        nextDay.year,
+                        nextDay.month,
+                        nextDay.day,
+                        7,
+                        0,
+                      );
+                      controller.updateServiceTiming(
+                        startDateTime: s,
+                        endDateTime: e,
+                      );
+                    },
+                  ),
+                  ActionChip(
+                    avatar: const Icon(
+                      Icons.celebration_rounded,
+                      size: 16,
+                      color: AppColors.primaryBurgundy,
+                    ),
+                    label: const Text('Evening Reception (4 PM → 12 AM)'),
+                    onPressed: () {
+                      final s = DateTime(
+                        start.year,
+                        start.month,
+                        start.day,
+                        16,
+                        0,
+                      );
+                      final e = DateTime(
+                        start.year,
+                        start.month,
+                        start.day,
+                        24,
+                        0,
+                      );
+                      controller.updateServiceTiming(
+                        startDateTime: s,
+                        endDateTime: e,
+                      );
+                    },
+                  ),
+                  ActionChip(
+                    avatar: const Icon(
+                      Icons.wb_sunny_rounded,
+                      size: 16,
+                      color: AppColors.primaryBurgundy,
+                    ),
+                    label: const Text('Day Wedding (8 AM → 6 PM)'),
+                    onPressed: () {
+                      final s = DateTime(
+                        start.year,
+                        start.month,
+                        start.day,
+                        8,
+                        0,
+                      );
+                      final e = DateTime(
+                        start.year,
+                        start.month,
+                        start.day,
+                        18,
+                        0,
+                      );
+                      controller.updateServiceTiming(
+                        startDateTime: s,
+                        endDateTime: e,
+                      );
+                    },
+                  ),
+                  ActionChip(
+                    avatar: const Icon(
+                      Icons.timelapse_rounded,
+                      size: 16,
+                      color: AppColors.primaryBurgundy,
+                    ),
+                    label: const Text('Short Ceremony (4 Hours)'),
+                    onPressed: () {
+                      final s = DateTime(
+                        start.year,
+                        start.month,
+                        start.day,
+                        16,
+                        0,
+                      );
+                      final e = s.add(const Duration(hours: 4));
+                      controller.updateServiceTiming(
+                        startDateTime: s,
+                        endDateTime: e,
+                      );
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
@@ -981,6 +1270,52 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                   );
                 },
               ),
+              if (draftState.draft.routeDistanceKm != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.champagneGold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.warmGold.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.route_rounded,
+                        color: AppColors.warmGold,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Estimated Route Distance',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.textSecondaryLight,
+                              ),
+                            ),
+                            Text(
+                              '${draftState.draft.routeDistanceKm!.toStringAsFixed(1)} km (approximate ceremony route)',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.primaryBurgundy,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),

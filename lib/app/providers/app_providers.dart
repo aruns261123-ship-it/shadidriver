@@ -34,6 +34,19 @@ import '../../features/profile/data/mock_admin_profile_repository.dart';
 import '../../features/auth/domain/entities/auth_session.dart';
 import '../../features/auth/domain/entities/user_role.dart';
 import '../../features/auth/domain/entities/account_status.dart';
+import '../../features/auth/data/mock_auth_repository.dart';
+import '../../features/bookings/domain/services/route_distance_service.dart';
+import '../../features/bookings/data/mock_route_distance_service.dart';
+import '../../features/payments/data/mock_payment_repository.dart';
+import '../../features/notifications/data/mock_notification_repository.dart';
+import '../../features/urgent_dispatch/domain/repositories/urgent_dispatch_repository.dart';
+import '../../features/urgent_dispatch/data/mock_urgent_dispatch_repository.dart';
+import '../../features/support/domain/repositories/support_repository.dart';
+import '../../features/support/data/mock_support_repository.dart';
+import '../../features/reviews/domain/repositories/review_repository.dart';
+import '../../features/reviews/data/mock_review_repository.dart';
+import '../../features/trips/domain/repositories/trip_repository.dart';
+import '../../features/trips/data/mock_trip_repository.dart';
 import '../router/app_router.dart';
 
 // ---------------------------------------------------------------------------
@@ -90,9 +103,11 @@ final bookingPricingPolicyProvider = Provider<BookingPricingPolicy>((ref) {
 // ---------------------------------------------------------------------------
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  throw UnimplementedError(
-    'AuthRepository implementation will be provided in Phase 1',
-  );
+  return MockAuthRepository();
+});
+
+final routeDistanceServiceProvider = Provider<RouteDistanceService>((ref) {
+  return const MockRouteDistanceService();
 });
 
 final bookingRepositoryProvider = Provider<BookingRepository>((ref) {
@@ -118,15 +133,29 @@ final serviceAddonRepositoryProvider = Provider<ServiceAddonRepository>((ref) {
 });
 
 final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
-  throw UnimplementedError(
-    'PaymentRepository implementation will be provided in Phase 5',
-  );
+  return MockPaymentRepository();
 });
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
-  throw UnimplementedError(
-    'NotificationRepository implementation will be provided in Phase 6',
-  );
+  return MockNotificationRepository();
+});
+
+final urgentDispatchRepositoryProvider = Provider<UrgentDispatchRepository>((
+  ref,
+) {
+  return MockUrgentDispatchRepository();
+});
+
+final supportRepositoryProvider = Provider<SupportRepository>((ref) {
+  return MockSupportRepository();
+});
+
+final reviewRepositoryProvider = Provider<ReviewRepository>((ref) {
+  return MockReviewRepository();
+});
+
+final tripRepositoryProvider = Provider<TripRepository>((ref) {
+  return MockTripRepository();
 });
 
 final profilePhotoServiceProvider = Provider<ProfilePhotoService>((ref) {

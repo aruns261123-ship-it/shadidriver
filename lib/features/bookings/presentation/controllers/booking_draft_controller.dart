@@ -5,6 +5,7 @@ import '../../../vehicles/domain/entities/vehicle_details.dart';
 import '../../domain/entities/booking_draft.dart';
 import '../../domain/policies/booking_pricing_policy.dart';
 import '../../domain/repositories/booking_repository.dart';
+import '../../domain/services/route_distance_service.dart';
 
 /// State object representing the active draft creation flow.
 class BookingDraftState {
@@ -43,16 +44,15 @@ class BookingDraftState {
 }
 
 /// Controller managing customer booking draft updates, step transitions, and persistence.
-///
-/// Consumes [BookingPricingPolicy] to obtain duration-based fare estimates and
-/// advance deposit requirements rather than calculating commercial terms locally.
 class BookingDraftController extends StateNotifier<BookingDraftState> {
   final BookingRepository bookingRepository;
   final BookingPricingPolicy pricingPolicy;
+  final RouteDistanceService? routeDistanceService;
 
   BookingDraftController({
     required this.bookingRepository,
     required this.pricingPolicy,
+    this.routeDistanceService,
     required VehicleDetails vehicle,
   }) : super(
          _createInitialState(vehicle: vehicle, pricingPolicy: pricingPolicy),
@@ -99,12 +99,14 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
     );
   }
 
-  /// Updates Section 2: Date & Time, delegating pricing to [BookingPricingPolicy].
-  void updateDateTime({
-    required DateTime date,
-    required TimeOfDay startTime,
-    required int durationHours,
+  /// Updates Section 2 with explicit start and end DateTimes (supporting overnight bookings).
+  void updateServiceTiming({
+    required DateTime startDateTime,
+    required DateTime endDateTime,
   }) {
+    final diffHours = endDateTime.difference(startDateTime).inHours;
+    final durationHours = diffHours > 0 ? diffHours : 1;
+
     final pricing = pricingPolicy.calculatePricing(
       basePricePaise: state.draft.basePricePaise,
       durationHours: durationHours,
@@ -112,9 +114,8 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
 
     state = state.copyWith(
       draft: state.draft.copyWith(
-        eventDate: date,
-        startTime: startTime,
-        durationHours: durationHours,
+        serviceStartDateTime: startDateTime,
+        serviceEndDateTime: endDateTime,
         estimatedTotalPaise: pricing.estimatedTotalPaise,
         advanceTokenPaise: pricing.advanceTokenPaise,
         advanceTokenLabel: pricing.advanceTokenLabel,
@@ -123,14 +124,44 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
     );
   }
 
-  /// Updates Section 3: Pickup & Destination
-  void updateLocations({
+  /// Backwards-compatible Section 2 updater using date, time, and hours.
+  void updateDateTime({
+    required DateTime date,
+    required TimeOfDay startTime,
+    required int durationHours,
+  }) {
+    final start = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      startTime.hour,
+      startTime.minute,
+    );
+    final end = start.add(Duration(hours: durationHours));
+    updateServiceTiming(startDateTime: start, endDateTime: end);
+  }
+
+  /// Updates Section 3: Pickup & Destination, calculating route distance if service available.
+  Future<void> updateLocations({
     required String city,
     required String pickupAddress,
     required String destinationAddress,
     String venueName = '',
     String landmark = '',
-  }) {
+  }) async {
+    double? distance = state.draft.routeDistanceKm;
+    if (routeDistanceService != null &&
+        pickupAddress.trim().isNotEmpty &&
+        destinationAddress.trim().isNotEmpty) {
+      try {
+        distance = await routeDistanceService!.estimateDistanceKm(
+          pickupAddress: pickupAddress,
+          destinationAddress: destinationAddress,
+          city: city,
+        );
+      } catch (_) {}
+    }
+
     state = state.copyWith(
       draft: state.draft.copyWith(
         city: city,
@@ -138,6 +169,7 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
         destinationAddress: destinationAddress,
         venueName: venueName,
         landmark: landmark,
+        routeDistanceKm: distance,
       ),
       clearError: true,
     );
@@ -182,7 +214,8 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
       case 1:
         if (!state.draft.isDateTimeValid) {
           state = state.copyWith(
-            errorMessage: 'Please select a valid ceremony date and duration.',
+            errorMessage:
+                'Please select a valid ceremony start & end time (minimum 1 hour duration).',
           );
           return false;
         }
@@ -265,9 +298,11 @@ final bookingDraftControllerProvider =
     >((ref, vehicle) {
       final bookingRepo = ref.watch(bookingRepositoryProvider);
       final pricingPolicy = ref.watch(bookingPricingPolicyProvider);
+      final routeDistanceService = ref.watch(routeDistanceServiceProvider);
       return BookingDraftController(
         bookingRepository: bookingRepo,
         pricingPolicy: pricingPolicy,
+        routeDistanceService: routeDistanceService,
         vehicle: vehicle,
       );
     });

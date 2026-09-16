@@ -77,8 +77,15 @@ class BookingDraftSummaryCard extends StatelessWidget {
           // Date & Time
           _buildRow(
             'Date & Timing',
-            '${DateFormatter.formatCeremonyDate(draft.eventDate)} at ${draft.startTime.format(context)} (${draft.durationHours} hrs)',
+            '${DateFormatter.formatCeremonyDate(draft.serviceStartDateTime)} at ${draft.startTime.format(context)} → ${DateFormatter.formatCeremonyDate(draft.serviceEndDateTime)} at ${draft.endTime.format(context)} (${draft.formattedDuration})',
           ),
+          if (draft.routeDistanceKm != null) ...[
+            const SizedBox(height: 8),
+            _buildRow(
+              'Route Distance',
+              '~${draft.routeDistanceKm!.toStringAsFixed(1)} km (Est.)',
+            ),
+          ],
           const SizedBox(height: 8),
 
           // Locations

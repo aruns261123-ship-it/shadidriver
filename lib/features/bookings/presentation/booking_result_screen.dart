@@ -238,9 +238,16 @@ class BookingResultScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       _buildInfoRow(
-                        'Date & Time',
-                        '${DateFormatter.formatCeremonyDate(result.eventDate)} (${result.durationHours} hrs)',
+                        'Date & Timing',
+                        '${DateFormatter.formatCeremonyDate(result.serviceStartDateTime)} at ${result.serviceStartDateTime.hour.toString().padLeft(2, '0')}:${result.serviceStartDateTime.minute.toString().padLeft(2, '0')} → ${DateFormatter.formatCeremonyDate(result.serviceEndDateTime)} at ${result.serviceEndDateTime.hour.toString().padLeft(2, '0')}:${result.serviceEndDateTime.minute.toString().padLeft(2, '0')} (${result.formattedDuration})',
                       ),
+                      if (result.routeDistanceKm != null) ...[
+                        const SizedBox(height: 8),
+                        _buildInfoRow(
+                          'Estimated Route',
+                          '~${result.routeDistanceKm!.toStringAsFixed(1)} km (Client Est.)',
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       _buildInfoRow('Pickup', result.pickupAddress),
                       const SizedBox(height: 8),

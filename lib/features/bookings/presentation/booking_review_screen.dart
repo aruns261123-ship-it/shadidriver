@@ -267,18 +267,23 @@ class BookingReviewScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         _buildReviewRow(
-                          icon: Icons.calendar_today_rounded,
-                          label: 'Date',
-                          value: DateFormatter.formatCeremonyDate(
-                            draft.eventDate,
-                          ),
+                          icon: Icons.play_circle_outline_rounded,
+                          label: 'Service Start',
+                          value:
+                              '${DateFormatter.formatCeremonyDate(draft.serviceStartDateTime)} at ${draft.startTime.format(context)}',
                         ),
                         const SizedBox(height: 8),
                         _buildReviewRow(
-                          icon: Icons.access_time_rounded,
-                          label: 'Chauffeur Arrival',
+                          icon: Icons.stop_circle_outlined,
+                          label: 'Service End',
                           value:
-                              '${draft.startTime.format(context)} (${draft.durationHours} hrs)',
+                              '${DateFormatter.formatCeremonyDate(draft.serviceEndDateTime)} at ${draft.endTime.format(context)}',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildReviewRow(
+                          icon: Icons.timelapse_rounded,
+                          label: 'Duration',
+                          value: draft.formattedDuration,
                         ),
                       ],
                     ),
@@ -331,6 +336,15 @@ class BookingReviewScreen extends ConsumerWidget {
                             icon: Icons.flag_rounded,
                             label: 'Landmark',
                             value: draft.landmark,
+                          ),
+                        ],
+                        if (draft.routeDistanceKm != null) ...[
+                          const SizedBox(height: 8),
+                          _buildReviewRow(
+                            icon: Icons.alt_route_rounded,
+                            label: 'Route Distance',
+                            value:
+                                '~${draft.routeDistanceKm!.toStringAsFixed(1)} km (Client Est.)',
                           ),
                         ],
                       ],

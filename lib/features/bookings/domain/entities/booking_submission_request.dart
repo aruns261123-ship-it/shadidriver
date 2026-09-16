@@ -19,11 +19,10 @@ class BookingSubmissionRequest {
   final String ceremonialAttire;
   final String specialInstructions;
 
-  // Date & Timing
-  final DateTime eventDate;
-  final int startTimeHour;
-  final int startTimeMinute;
-  final int durationHours;
+  // Service Timing & Route Distance
+  final DateTime serviceStartDateTime;
+  final DateTime serviceEndDateTime;
+  final double? routeDistanceKm;
 
   // Route & Locations
   final String city;
@@ -56,10 +55,9 @@ class BookingSubmissionRequest {
     required this.ceremonyType,
     required this.ceremonialAttire,
     this.specialInstructions = '',
-    required this.eventDate,
-    required this.startTimeHour,
-    required this.startTimeMinute,
-    required this.durationHours,
+    required this.serviceStartDateTime,
+    required this.serviceEndDateTime,
+    this.routeDistanceKm,
     required this.city,
     required this.pickupAddress,
     required this.destinationAddress,
@@ -76,6 +74,19 @@ class BookingSubmissionRequest {
     required this.idempotencyKey,
   });
 
+  // --- Convenience Getters ---
+  DateTime get eventDate => DateTime(
+    serviceStartDateTime.year,
+    serviceStartDateTime.month,
+    serviceStartDateTime.day,
+  );
+  int get startTimeHour => serviceStartDateTime.hour;
+  int get startTimeMinute => serviceStartDateTime.minute;
+  int get durationHours =>
+      serviceEndDateTime.difference(serviceStartDateTime).inHours;
+  bool get isOvernight =>
+      serviceEndDateTime.day != serviceStartDateTime.day || durationHours >= 12;
+
   /// Factory creating submission request from a validated [BookingDraft].
   factory BookingSubmissionRequest.fromDraft(
     BookingDraft draft, {
@@ -90,10 +101,9 @@ class BookingSubmissionRequest {
       ceremonyType: draft.ceremonyType,
       ceremonialAttire: draft.ceremonialAttire,
       specialInstructions: draft.specialInstructions,
-      eventDate: draft.eventDate,
-      startTimeHour: draft.startTime.hour,
-      startTimeMinute: draft.startTime.minute,
-      durationHours: draft.durationHours,
+      serviceStartDateTime: draft.serviceStartDateTime,
+      serviceEndDateTime: draft.serviceEndDateTime,
+      routeDistanceKm: draft.routeDistanceKm,
       city: draft.city,
       pickupAddress: draft.pickupAddress,
       destinationAddress: draft.destinationAddress,
@@ -116,6 +126,9 @@ class BookingSubmissionRequest {
     final hasVehicle = vehicleId.trim().isNotEmpty;
     final hasCeremony =
         ceremonyType.trim().isNotEmpty && ceremonialAttire.trim().isNotEmpty;
+    final hasTiming =
+        serviceEndDateTime.isAfter(serviceStartDateTime) &&
+        serviceEndDateTime.difference(serviceStartDateTime).inMinutes >= 60;
     final hasLocations =
         city.trim().isNotEmpty &&
         pickupAddress.trim().isNotEmpty &&
@@ -128,6 +141,7 @@ class BookingSubmissionRequest {
 
     return hasVehicle &&
         hasCeremony &&
+        hasTiming &&
         hasLocations &&
         hasContact &&
         hasPricing &&

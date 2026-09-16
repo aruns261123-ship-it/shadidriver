@@ -41,9 +41,12 @@ abstract final class RoutePaths {
   static const String driverProfile = '/driver/profile';
   static const String driverProfileEdit = '/driver/profile/edit';
   static const String driverRequestDetails = '/driver/requests/:bookingId';
+  static const String driverActiveTrip = '/driver/active-trip/:bookingId';
 
   static String driverRequestDetailsPath(String bookingId) =>
       '/driver/requests/$bookingId';
+  static String driverActiveTripPath(String bookingId) =>
+      '/driver/active-trip/$bookingId';
 
   // Admin Portal
   static const String admin = '/admin';

@@ -80,10 +80,8 @@ void main() {
         chauffeurId: 'd1',
         ceremonyType: 'Baraat',
         ceremonialAttire: 'Bandhgala',
-        eventDate: DateTime(2026, 11, 20),
-        startTimeHour: 16,
-        startTimeMinute: 0,
-        durationHours: 8,
+        serviceStartDateTime: DateTime(2026, 11, 20, 16, 0),
+        serviceEndDateTime: DateTime(2026, 11, 21, 0, 0),
         city: 'Delhi NCR',
         pickupAddress: '', // Invalid
         destinationAddress: '',
@@ -101,6 +99,7 @@ void main() {
 
     test('BookingSubmissionResult value equality works correctly', () {
       final now = DateTime.now();
+      final end = now.add(const Duration(hours: 8));
       final res1 = BookingSubmissionResult(
         bookingId: 'bk_1',
         bookingReference: 'SD-2026-0001',
@@ -112,8 +111,8 @@ void main() {
         chauffeurId: 'd1',
         ceremonyType: 'Baraat',
         ceremonialAttire: 'Bandhgala',
-        eventDate: now,
-        durationHours: 8,
+        serviceStartDateTime: now,
+        serviceEndDateTime: end,
         pickupAddress: 'Pickup',
         destinationAddress: 'Destination',
         primaryContactName: 'Contact',
@@ -134,8 +133,8 @@ void main() {
         chauffeurId: 'd1',
         ceremonyType: 'Baraat',
         ceremonialAttire: 'Bandhgala',
-        eventDate: now,
-        durationHours: 8,
+        serviceStartDateTime: now,
+        serviceEndDateTime: end,
         pickupAddress: 'Pickup',
         destinationAddress: 'Destination',
         primaryContactName: 'Contact',

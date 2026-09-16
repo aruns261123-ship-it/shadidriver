@@ -11,11 +11,10 @@ void main() {
 
     // pumpAndSettle drives all pending timers to completion, including:
     //   • GoRouter's async redirect (resolves /splash route)
-    // Note: SplashScreen has an 800ms delay. SearchController may trigger searches.
+    // Note: SplashScreen has a 1200ms delay. SearchController may trigger searches.
     // We pump for a sufficient duration to let timers fire.
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
 
     // A Scaffold is present on every app screen (splash, customer, driver, admin).
     // Asserting on widget type rather than display text avoids coupling the test

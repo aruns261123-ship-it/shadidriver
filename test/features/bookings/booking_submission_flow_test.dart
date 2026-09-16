@@ -54,8 +54,8 @@ void main() {
         await tester.tap(find.text('Continue'));
         await tester.pumpAndSettle();
 
-        // 3. Step 1 (Date/Time): Tap Continue
-        expect(find.text('2. Date & Time Selection'), findsOneWidget);
+        // 3. Step 1 (Timing & Duration): Tap Continue
+        expect(find.text('2. Service Timing & Duration'), findsOneWidget);
         await tester.tap(find.text('Continue'));
         await tester.pumpAndSettle();
 
