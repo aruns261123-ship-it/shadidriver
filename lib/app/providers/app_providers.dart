@@ -21,6 +21,19 @@ import '../../features/bookings/data/mock_booking_repository.dart';
 import '../../features/vehicles/domain/entities/vehicle_summary.dart';
 import '../../features/services/domain/entities/service_category.dart';
 import '../../features/services/domain/entities/service_addon.dart';
+import '../../features/profile/domain/services/profile_photo_service.dart';
+import '../../features/profile/data/mock_profile_photo_service.dart';
+import '../../features/profile/domain/repositories/saved_addresses_repository.dart';
+import '../../features/profile/data/mock_saved_addresses_repository.dart';
+import '../../features/profile/domain/repositories/customer_profile_repository.dart';
+import '../../features/profile/data/mock_customer_profile_repository.dart';
+import '../../features/drivers/domain/repositories/driver_profile_repository.dart';
+import '../../features/drivers/data/mock_driver_profile_repository.dart';
+import '../../features/profile/domain/repositories/admin_profile_repository.dart';
+import '../../features/profile/data/mock_admin_profile_repository.dart';
+import '../../features/auth/domain/entities/auth_session.dart';
+import '../../features/auth/domain/entities/user_role.dart';
+import '../../features/auth/domain/entities/account_status.dart';
 import '../router/app_router.dart';
 
 // ---------------------------------------------------------------------------
@@ -113,6 +126,43 @@ final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
   throw UnimplementedError(
     'NotificationRepository implementation will be provided in Phase 6',
+  );
+});
+
+final profilePhotoServiceProvider = Provider<ProfilePhotoService>((ref) {
+  return MockProfilePhotoService();
+});
+
+final savedAddressesRepositoryProvider = Provider<SavedAddressesRepository>((
+  ref,
+) {
+  return MockSavedAddressesRepository();
+});
+
+final customerProfileRepositoryProvider = Provider<CustomerProfileRepository>((
+  ref,
+) {
+  return MockCustomerProfileRepository();
+});
+
+final driverProfileRepositoryProvider = Provider<DriverProfileRepository>((
+  ref,
+) {
+  return MockDriverProfileRepository();
+});
+
+final adminProfileRepositoryProvider = Provider<AdminProfileRepository>((ref) {
+  return MockAdminProfileRepository();
+});
+
+final activeSessionProvider = StateProvider<AuthSession>((ref) {
+  return AuthSession(
+    userId: 'cust_101',
+    phone: '+91 98765 43210',
+    role: UserRole.customer,
+    displayName: 'Aditya Singhal',
+    accountStatus: AccountStatus.active,
+    issuedAt: DateTime.now(),
   );
 });
 

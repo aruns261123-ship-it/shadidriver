@@ -32,8 +32,14 @@ abstract final class RoutePaths {
   static String customerBookingResultPath(String bookingId) =>
       '/customer/bookings/result/$bookingId';
 
+  // Customer Profile & Addresses
+  static const String customerProfileEdit = '/customer/profile/edit';
+  static const String customerAddresses = '/customer/addresses';
+
   // Driver Portal
   static const String driver = '/driver';
+  static const String driverProfile = '/driver/profile';
+  static const String driverProfileEdit = '/driver/profile/edit';
   static const String driverRequestDetails = '/driver/requests/:bookingId';
 
   static String driverRequestDetailsPath(String bookingId) =>
@@ -41,4 +47,5 @@ abstract final class RoutePaths {
 
   // Admin Portal
   static const String admin = '/admin';
+  static const String adminProfile = '/admin/profile';
 }

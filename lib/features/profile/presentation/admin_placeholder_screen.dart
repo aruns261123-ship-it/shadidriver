@@ -19,6 +19,11 @@ class AdminPlaceholderScreen extends StatelessWidget {
         title: const Text('Admin Operations Control'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'Admin Profile & Security',
+            onPressed: () => context.push(RoutePaths.adminProfile),
+          ),
+          IconButton(
             icon: const Icon(Icons.swap_horiz_rounded),
             tooltip: 'Switch Portal',
             onPressed: () => context.go(RoutePaths.customer),
@@ -56,8 +61,13 @@ class AdminPlaceholderScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 ShadiPrimaryButton(
-                  text: 'Return to Customer View',
+                  text: 'Admin Profile & Security Credentials',
+                  onPressed: () => context.push(RoutePaths.adminProfile),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
                   onPressed: () => context.go(RoutePaths.customer),
+                  child: const Center(child: Text('Return to Customer View')),
                 ),
               ],
             ),

@@ -15,6 +15,12 @@ import '../../features/bookings/presentation/booking_review_screen.dart';
 import '../../features/bookings/presentation/booking_result_screen.dart';
 import '../../features/home/presentation/splash_screen.dart';
 import '../../features/profile/presentation/admin_placeholder_screen.dart';
+import '../../features/profile/presentation/customer_account_center_screen.dart';
+import '../../features/profile/presentation/customer_edit_profile_screen.dart';
+import '../../features/profile/presentation/saved_addresses_screen.dart';
+import '../../features/drivers/presentation/driver_account_center_screen.dart';
+import '../../features/drivers/presentation/driver_edit_profile_screen.dart';
+import '../../features/profile/presentation/admin_account_center_screen.dart';
 import 'route_guards.dart';
 import 'route_paths.dart';
 
@@ -86,7 +92,17 @@ GoRouter createShadiRouter({
           GoRoute(
             path: RoutePaths.customerProfile,
             name: 'customerProfile',
-            builder: (context, state) => const CustomerProfilePlaceholder(),
+            builder: (context, state) => const CustomerAccountCenterScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.customerProfileEdit,
+            name: 'customerProfileEdit',
+            builder: (context, state) => const CustomerEditProfileScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.customerAddresses,
+            name: 'customerAddresses',
+            builder: (context, state) => const SavedAddressesScreen(),
           ),
           GoRoute(
             path: RoutePaths.customerVehicleDetails,
@@ -131,6 +147,18 @@ GoRouter createShadiRouter({
         builder: (context, state) => const DriverDashboardScreen(),
         routes: [
           GoRoute(
+            path: 'profile',
+            name: 'driverProfile',
+            builder: (context, state) => const DriverAccountCenterScreen(),
+            routes: [
+              GoRoute(
+                path: 'edit',
+                name: 'driverProfileEdit',
+                builder: (context, state) => const DriverEditProfileScreen(),
+              ),
+            ],
+          ),
+          GoRoute(
             path: 'requests/:bookingId',
             name: 'driverRequestDetails',
             builder: (context, state) => DriverBookingRequestScreen(
@@ -143,6 +171,13 @@ GoRouter createShadiRouter({
         path: RoutePaths.admin,
         name: 'admin',
         builder: (context, state) => const AdminPlaceholderScreen(),
+        routes: [
+          GoRoute(
+            path: 'profile',
+            name: 'adminProfile',
+            builder: (context, state) => const AdminAccountCenterScreen(),
+          ),
+        ],
       ),
     ],
     errorBuilder: (context, state) =>

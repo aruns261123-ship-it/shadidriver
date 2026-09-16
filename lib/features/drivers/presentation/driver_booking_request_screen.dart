@@ -574,13 +574,16 @@ class _DeclineReasonBottomSheetState extends State<_DeclineReasonBottomSheet> {
                   return RadioListTile<DriverDeclineReason>(
                     key: Key('decline_radio_${reason.name}'),
                     value: reason,
+                    // ignore: deprecated_member_use
                     groupValue: _selectedReason,
+                    // ignore: deprecated_member_use
                     onChanged: (val) {
                       setState(() {
                         _selectedReason = val;
                       });
                     },
                     dense: true,
+                    // ignore: deprecated_member_use
                     activeColor: AppColors.primaryBurgundy,
                     title: Text(
                       reason.displayLabel,
