@@ -23,16 +23,35 @@ import 'dart:math';
 
 import '../../../core/errors/failures.dart';
 import '../../../core/result/result.dart';
+import '../../../core/security/secure_storage_service.dart';
 import '../domain/entities/account_status.dart';
 import '../domain/entities/auth_session.dart';
 import '../domain/entities/user_role.dart';
 import '../domain/repositories/auth_repository.dart';
 
+class MockAuthAccount {
+  final String phone;
+  final UserRole role;
+  final AccountStatus accountStatus;
+  final String displayName;
+  final String? customOtp;
+
+  const MockAuthAccount({
+    required this.phone,
+    required this.role,
+    required this.accountStatus,
+    required this.displayName,
+    this.customOtp,
+  });
+}
+
 class MockAuthRepository implements AuthRepository {
-  // In-memory session store — cleared on signOut, survives hot reload.
+  final SecureStorageService? _storage;
+
+  // In-memory session store — cleared on signOut.
   AuthSession? _currentSession;
 
-  // Tracks pending OTP sessions: sessionId → {role, phone, expiresAt}
+  // Tracks pending OTP sessions: sessionId → _MockOtpSession
   final Map<String, _MockOtpSession> _pendingOtpSessions = {};
 
   static const String _universalOtp = '000000';
@@ -46,23 +65,97 @@ class MockAuthRepository implements AuthRepository {
     UserRole.superAdmin: '999999',
   };
 
-  /// Simulate a small network round-trip delay for realistic UX testing.
-  Future<void> _simulateDelay() =>
-      Future.delayed(const Duration(milliseconds: 800));
+  static final Map<String, MockAuthAccount> _registeredAccounts = {
+    '9876543210': const MockAuthAccount(
+      phone: '9876543210',
+      role: UserRole.customer,
+      accountStatus: AccountStatus.active,
+      displayName: 'Kabir Sharma',
+      customOtp: '111111',
+    ),
+    '9810000001': const MockAuthAccount(
+      phone: '9810000001',
+      role: UserRole.customer,
+      accountStatus: AccountStatus.active,
+      displayName: 'Kabir Sharma',
+      customOtp: '111111',
+    ),
+    '9810000002': const MockAuthAccount(
+      phone: '9810000002',
+      role: UserRole.driver,
+      accountStatus: AccountStatus.active,
+      displayName: 'Rajesh Singh',
+      customOtp: '222222',
+    ),
+    '9876500002': const MockAuthAccount(
+      phone: '9876500002',
+      role: UserRole.driver,
+      accountStatus: AccountStatus.active,
+      displayName: 'Rajesh Singh',
+      customOtp: '222222',
+    ),
+    '9810000003': const MockAuthAccount(
+      phone: '9810000003',
+      role: UserRole.operationsAdmin,
+      accountStatus: AccountStatus.active,
+      displayName: 'Vikram Malhotra',
+      customOtp: '444444',
+    ),
+    '9876500003': const MockAuthAccount(
+      phone: '9876500003',
+      role: UserRole.operationsAdmin,
+      accountStatus: AccountStatus.active,
+      displayName: 'Vikram Malhotra',
+      customOtp: '444444',
+    ),
+    '9810000004': const MockAuthAccount(
+      phone: '9810000004',
+      role: UserRole.customer,
+      accountStatus: AccountStatus.profileIncomplete,
+      displayName: 'New Customer',
+    ),
+    '9810000005': const MockAuthAccount(
+      phone: '9810000005',
+      role: UserRole.driver,
+      accountStatus: AccountStatus.profileIncomplete,
+      displayName: 'New Chauffeur Applicant',
+    ),
+    '9810000006': const MockAuthAccount(
+      phone: '9810000006',
+      role: UserRole.customer,
+      accountStatus: AccountStatus.suspended,
+      displayName: 'Suspended User',
+    ),
+  };
+
+  final bool simulateDelays;
+
+  MockAuthRepository([this._storage, this.simulateDelays = true]);
+
+  Future<void> _simulateDelay([int ms = 300]) {
+    if (!simulateDelays || ms <= 0) return Future.value();
+    return Future.delayed(Duration(milliseconds: ms));
+  }
+
+  static bool _isAdminRole(UserRole role) => switch (role) {
+    UserRole.operationsAdmin ||
+    UserRole.verificationAdmin ||
+    UserRole.financeAdmin ||
+    UserRole.superAdmin => true,
+    _ => false,
+  };
 
   @override
   Future<Result<String>> requestOtp({
     required String phoneNumber,
-    required UserRole role,
+    UserRole? role,
   }) async {
-    // NOTE: DO NOT log phoneNumber in production code. Safe here because
-    // this is a mock with no real user data.
     await _simulateDelay();
 
-    // Basic format check (mock only accepts 10-digit numbers without country code,
-    // or +91 prefixed numbers).
-    final normalized = phoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    final isValid = RegExp(r'^(\+91)?[6-9]\d{9}$').hasMatch(normalized);
+    final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    final raw10 = digits.length > 10 ? digits.substring(digits.length - 10) : digits;
+
+    final isValid = RegExp(r'^[6-9]\d{9}$').hasMatch(raw10);
     if (!isValid) {
       return const Result.failure(
         ValidationFailure(
@@ -72,22 +165,44 @@ class MockAuthRepository implements AuthRepository {
       );
     }
 
+    final registered = _registeredAccounts[raw10];
+
+    // Public admin registration prohibition
+    if (role != null && _isAdminRole(role) && (registered == null || !_isAdminRole(registered.role))) {
+      return const Result.failure(
+        UnauthorizedFailure(
+          'Admin accounts cannot be created via public registration.',
+          'ADMIN_REGISTRATION_PROHIBITED',
+        ),
+      );
+    }
+
+    final UserRole resolvedRole;
+    final AccountStatus resolvedStatus;
+    final String resolvedDisplayName;
+    final String? resolvedCustomOtp;
+
+    if (registered != null) {
+      resolvedRole = role ?? registered.role;
+      resolvedStatus = registered.accountStatus;
+      resolvedDisplayName = registered.displayName;
+      resolvedCustomOtp = registered.customOtp;
+    } else {
+      resolvedRole = role ?? UserRole.customer;
+      resolvedStatus = AccountStatus.active;
+      resolvedDisplayName = 'ShadiDriver Guest';
+      resolvedCustomOtp = null;
+    }
+
     final sessionId =
         'mock_session_${Random().nextInt(999999).toString().padLeft(6, '0')}';
     _pendingOtpSessions[sessionId] = _MockOtpSession(
-      phoneNumber: normalized,
-      role: role,
+      phoneNumber: raw10,
+      role: resolvedRole,
+      accountStatus: resolvedStatus,
+      displayName: resolvedDisplayName,
+      customOtp: resolvedCustomOtp,
       expiresAt: DateTime.now().add(const Duration(minutes: 5)),
-    );
-
-    // MOCK: Log session ID (safe — it's a temporary dev identifier, not a credential)
-    // ignore: avoid_print
-    print(
-      '[MOCK AUTH] OTP session created: $sessionId for role: ${role.displayLabel}',
-    );
-    // ignore: avoid_print
-    print(
-      '[MOCK AUTH] Use OTP: $_universalOtp or role-specific: ${_roleOtpCodes[role]}',
     );
 
     return Result.success(sessionId);
@@ -109,8 +224,8 @@ class MockAuthRepository implements AuthRepository {
 
     if (DateTime.now().isAfter(otpSession.expiresAt)) {
       _pendingOtpSessions.remove(otpSessionId);
-      return Result.failure(
-        const UnauthorizedFailure(
+      return const Result.failure(
+        UnauthorizedFailure(
           'Your OTP has expired. Please request a new one.',
           'OTP_EXPIRED',
         ),
@@ -119,65 +234,97 @@ class MockAuthRepository implements AuthRepository {
 
     final expectedOtps = [
       _universalOtp,
+      if (otpSession.customOtp != null) otpSession.customOtp!,
       _roleOtpCodes[otpSession.role],
     ].whereType<String>().toSet();
 
     if (!expectedOtps.contains(otpCode)) {
-      return Result.failure(
-        const UnauthorizedFailure(
+      return const Result.failure(
+        UnauthorizedFailure(
           'The OTP you entered is incorrect. Please try again.',
           'INVALID_OTP',
         ),
       );
     }
 
-    // OTP valid — create session.
     _pendingOtpSessions.remove(otpSessionId);
     final session = _buildMockSession(otpSession);
     _currentSession = session;
+
+    await _persistSession(session);
 
     return Result.success(session);
   }
 
   @override
   Future<Result<AuthSession?>> restoreSession() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    // In the mock, session only survives within the same app process.
-    // A real impl reads from SecureSessionStorageImpl.
-    return Result.success(_currentSession);
+    await _simulateDelay(100);
+
+    if (_currentSession != null) {
+      return Result.success(_currentSession);
+    }
+
+    if (_storage != null) {
+      final userId = await _storage.read('auth_user_id');
+      if (userId != null && userId.isNotEmpty) {
+        final roleKey = await _storage.read('auth_role');
+        final phone = await _storage.read('auth_phone') ?? '';
+        final statusKey = await _storage.read('auth_status');
+        final displayName = await _storage.read('auth_display_name');
+
+        final role = UserRole.fromStorageKey(roleKey);
+        final status = AccountStatus.fromStorageKey(statusKey);
+
+        final restored = AuthSession(
+          userId: userId,
+          phone: phone,
+          role: role ?? UserRole.customer,
+          displayName: displayName,
+          accountStatus: status,
+          issuedAt: DateTime.now(),
+        );
+        _currentSession = restored;
+        return Result.success(restored);
+      }
+    }
+
+    return const Result.success(null);
   }
 
   @override
   Future<Result<void>> signOut() async {
-    await _simulateDelay();
+    await _simulateDelay(150);
     _currentSession = null;
     _pendingOtpSessions.clear();
+    if (_storage != null) {
+      await _storage.delete('auth_user_id');
+      await _storage.delete('auth_role');
+      await _storage.delete('auth_phone');
+      await _storage.delete('auth_status');
+      await _storage.delete('auth_display_name');
+    }
     return const Result.success(null);
   }
 
   @override
   Future<Result<AuthSession>> refreshSession() async {
-    await Future.delayed(const Duration(milliseconds: 200));
+    await _simulateDelay(100);
     final session = _currentSession;
     if (session == null) {
       return const Result.failure(
         UnauthorizedFailure('No active session to refresh.'),
       );
     }
-    // Mock: always succeeds if a session exists.
     final refreshed = session.copyWith(issuedAt: DateTime.now());
     _currentSession = refreshed;
     return Result.success(refreshed);
   }
 
   // ---------------------------------------------------------------------------
-  // Dev helpers
+  // Dev & Test helpers
   // ---------------------------------------------------------------------------
 
-  /// Force a specific role without going through OTP flow.
-  /// ONLY for the DevAuthPanel — must never be called in production paths.
   Future<Result<AuthSession>> devSignInAsRole(UserRole role) async {
-    await _simulateDelay();
     final session = AuthSession(
       userId: 'dev_user_${role.storageKey}',
       phone: '+91 98765 XXXXX',
@@ -187,12 +334,11 @@ class MockAuthRepository implements AuthRepository {
       issuedAt: DateTime.now(),
     );
     _currentSession = session;
+    await _persistSession(session);
     return Result.success(session);
   }
 
-  /// Sign in as a suspended account for testing the suspended screen.
   Future<Result<AuthSession>> devSignInAsSuspended() async {
-    await _simulateDelay();
     final session = AuthSession(
       userId: 'dev_suspended_user',
       phone: '+91 98765 XXXXX',
@@ -202,6 +348,7 @@ class MockAuthRepository implements AuthRepository {
       issuedAt: DateTime.now(),
     );
     _currentSession = session;
+    await _persistSession(session);
     return Result.success(session);
   }
 
@@ -210,8 +357,7 @@ class MockAuthRepository implements AuthRepository {
   // ---------------------------------------------------------------------------
 
   AuthSession _buildMockSession(_MockOtpSession otpSession) {
-    // Mask phone for display
-    final raw = otpSession.phoneNumber.replaceFirst(RegExp(r'^\+91'), '');
+    final raw = otpSession.phoneNumber;
     final maskedPhone = '+91 ${raw.substring(0, 5)} XXXXX';
 
     return AuthSession(
@@ -219,21 +365,39 @@ class MockAuthRepository implements AuthRepository {
           'mock_${otpSession.role.storageKey}_${DateTime.now().millisecondsSinceEpoch}',
       phone: maskedPhone,
       role: otpSession.role,
-      displayName: 'Mock ${otpSession.role.displayLabel}',
-      accountStatus: AccountStatus.active,
+      displayName: otpSession.displayName,
+      accountStatus: otpSession.accountStatus,
       issuedAt: DateTime.now(),
     );
+  }
+
+  Future<void> _persistSession(AuthSession session) async {
+    if (_storage != null) {
+      await _storage.write('auth_user_id', session.userId);
+      await _storage.write('auth_role', session.role.storageKey);
+      await _storage.write('auth_phone', session.phone);
+      await _storage.write('auth_status', session.accountStatus.storageKey);
+      if (session.displayName != null) {
+        await _storage.write('auth_display_name', session.displayName!);
+      }
+    }
   }
 }
 
 class _MockOtpSession {
   final String phoneNumber;
   final UserRole role;
+  final AccountStatus accountStatus;
+  final String displayName;
+  final String? customOtp;
   final DateTime expiresAt;
 
   const _MockOtpSession({
     required this.phoneNumber,
     required this.role,
+    required this.accountStatus,
+    required this.displayName,
+    this.customOtp,
     required this.expiresAt,
   });
 }

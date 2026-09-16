@@ -7,6 +7,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
+import '../../auth/domain/entities/account_status.dart';
 import '../../auth/domain/entities/user_role.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 
@@ -80,8 +81,33 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
 
     final session = ref.read(activeSessionProvider);
+
+    // 1. Signed out users must go to LoginScreen (never bypass to Customer Home)
+    if (!session.isAuthenticated) {
+      context.go(RoutePaths.auth);
+      return;
+    }
+
+    // 2. Suspended accounts go to the suspension notice screen
+    if (session.accountStatus == AccountStatus.suspended) {
+      context.go(RoutePaths.accountSuspended);
+      return;
+    }
+
+    // 3. Incomplete profiles go to appropriate profile onboarding/edit screen
+    if (session.accountStatus == AccountStatus.profileIncomplete) {
+      if (session.role == UserRole.driver || session.role == UserRole.fleetOwner) {
+        context.go(RoutePaths.driverProfileEdit);
+      } else {
+        context.go(RoutePaths.customerProfileEdit);
+      }
+      return;
+    }
+
+    // 4. Active authenticated sessions route directly to their role portal
     switch (session.role) {
       case UserRole.driver:
+      case UserRole.fleetOwner:
         context.go(RoutePaths.driver);
         break;
       case UserRole.operationsAdmin:

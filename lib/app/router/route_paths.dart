@@ -2,6 +2,7 @@
 abstract final class RoutePaths {
   static const String splash = '/splash';
   static const String auth = '/auth';
+  static const String accountSuspended = '/account-suspended';
 
   // Customer Portal
   static const String customer = '/customer';

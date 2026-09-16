@@ -41,6 +41,9 @@ final class AuthSession {
     issuedAt: DateTime.fromMillisecondsSinceEpoch(0),
   );
 
+  /// Whether this session represents an authenticated user.
+  bool get isAuthenticated => userId.isNotEmpty;
+
   /// Whether the user's profile is considered complete enough for feature access.
   bool get isProfileComplete =>
       accountStatus != AccountStatus.profileIncomplete;

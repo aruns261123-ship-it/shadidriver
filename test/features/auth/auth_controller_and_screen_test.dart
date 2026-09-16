@@ -140,7 +140,7 @@ void main() {
   });
 
   group('LoginScreen Widget Tests', () {
-    testWidgets('renders brand crest, role selector, and phone input', (
+    testWidgets('renders brand crest, phone input, and no dev bypass or role chips', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -151,23 +151,22 @@ void main() {
 
       // Brand headers
       expect(find.text('ShadiDriver'), findsOneWidget);
-      expect(find.text('Royal Ceremonial Chauffeur Service'), findsOneWidget);
-      expect(find.text('Sign In / Register'), findsOneWidget);
+      expect(find.text('Royal Chauffeur Service'), findsOneWidget);
+      expect(find.text('Welcome to ShadiDriver'), findsOneWidget);
+      expect(find.text('Sign in or create your account'), findsOneWidget);
 
-      // Roles
-      expect(find.text('Host / Guest'), findsOneWidget);
-      expect(find.text('Chauffeur'), findsOneWidget);
-      expect(find.text('Operations'), findsOneWidget);
-
-      // Phone Input
+      // Phone Input & CTA
       expect(find.text('🇮🇳 +91'), findsOneWidget);
-      expect(find.text('Send Access Code (OTP)'), findsOneWidget);
+      expect(find.text('Continue'), findsOneWidget);
 
-      // Dev Bypass section
-      expect(find.text('Developer Quick Bypass (1-Tap)'), findsOneWidget);
-      expect(find.text('🚗 Host (Customer)'), findsOneWidget);
-      expect(find.text('🎩 Chauffeur (Driver)'), findsOneWidget);
-      expect(find.text('🏢 Operations Admin'), findsOneWidget);
+      // Production invariant: No role selector chips
+      expect(find.text('Host / Guest'), findsNothing);
+      expect(find.text('Chauffeur'), findsNothing);
+      expect(find.text('Operations'), findsNothing);
+
+      // Production invariant: No Developer Quick Bypass
+      expect(find.text('Developer Quick Bypass (1-Tap)'), findsNothing);
+      expect(find.text('Developer Quick Bypass'), findsNothing);
     });
   });
 }

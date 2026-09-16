@@ -1,3 +1,5 @@
+import '../../features/auth/domain/entities/account_status.dart';
+
 /// Architecture-ready route guard interface.
 /// Evaluates access permissions during route transitions without hardcoding logic into widgets.
 abstract interface class RouteGuard {
@@ -6,6 +8,7 @@ abstract interface class RouteGuard {
     required String targetLocation,
     required bool isAuthenticated,
     required String? userRole,
+    AccountStatus? accountStatus,
   });
 }
 
@@ -21,9 +24,10 @@ class ShadiRouteGuard implements RouteGuard {
     required String targetLocation,
     required bool isAuthenticated,
     required String? userRole,
+    AccountStatus? accountStatus,
   }) async {
-    // 1. Splash screen is always accessible
-    if (targetLocation == '/splash') {
+    // 1. Splash screen and root are always accessible
+    if (targetLocation == '/splash' || targetLocation == '/' || targetLocation.isEmpty) {
       return null;
     }
 
@@ -43,10 +47,37 @@ class ShadiRouteGuard implements RouteGuard {
 
     // 3. Authenticated user visiting /auth is redirected to their role home
     if (targetLocation == '/auth' && isAuthenticated) {
+      if (accountStatus == AccountStatus.suspended) {
+        return '/account-suspended';
+      }
+      if (accountStatus == AccountStatus.profileIncomplete) {
+        return _isDriverRole(userRole ?? '')
+            ? '/driver/profile/edit'
+            : '/customer/profile/edit';
+      }
       return getRoleHome(userRole);
     }
 
-    // 4. Strict Role-Based Isolation
+    // 4. Suspended account handling
+    if (isAuthenticated && accountStatus == AccountStatus.suspended) {
+      if (targetLocation == '/account-suspended') {
+        return null;
+      }
+      return '/account-suspended';
+    }
+
+    // 5. Incomplete profile handling
+    if (isAuthenticated && accountStatus == AccountStatus.profileIncomplete) {
+      final isDriver = _isDriverRole(userRole ?? '');
+      final requiredProfilePath =
+          isDriver ? '/driver/profile/edit' : '/customer/profile/edit';
+      if (targetLocation == requiredProfilePath) {
+        return null;
+      }
+      return requiredProfilePath;
+    }
+
+    // 6. Strict Role-Based Isolation
     if (userRole != null) {
       final isCustomer = _isCustomerRole(userRole);
       final isDriver = _isDriverRole(userRole);

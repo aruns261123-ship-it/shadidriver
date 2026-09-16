@@ -32,8 +32,6 @@ import '../../features/drivers/data/mock_driver_profile_repository.dart';
 import '../../features/profile/domain/repositories/admin_profile_repository.dart';
 import '../../features/profile/data/mock_admin_profile_repository.dart';
 import '../../features/auth/domain/entities/auth_session.dart';
-import '../../features/auth/domain/entities/user_role.dart';
-import '../../features/auth/domain/entities/account_status.dart';
 import '../../features/auth/data/mock_auth_repository.dart';
 import '../../features/bookings/domain/services/route_distance_service.dart';
 import '../../features/bookings/data/mock_route_distance_service.dart';
@@ -94,18 +92,22 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(sessionNotifier.dispose);
 
   return createShadiRouter(
-    routeGuard: const ShadiRouteGuard(enforceAuth: false),
+    routeGuard: const ShadiRouteGuard(enforceAuth: true),
     refreshListenable: sessionNotifier,
     isAuthenticated: () {
       final session = ref.read(activeSessionProvider);
-      return session.userId.isNotEmpty && session.canAccessFeatures;
+      return session.isAuthenticated;
     },
     userRole: () {
       final session = ref.read(activeSessionProvider);
-      if (session.userId.isNotEmpty && session.canAccessFeatures) {
+      if (session.isAuthenticated) {
         return session.role.name;
       }
       return null;
+    },
+    accountStatus: () {
+      final session = ref.read(activeSessionProvider);
+      return session.accountStatus;
     },
   );
 });
@@ -130,7 +132,8 @@ final bookingPricingPolicyProvider = Provider<BookingPricingPolicy>((ref) {
 // ---------------------------------------------------------------------------
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return MockAuthRepository();
+  final storage = ref.watch(secureStorageProvider);
+  return MockAuthRepository(storage);
 });
 
 final routeDistanceServiceProvider = Provider<RouteDistanceService>((ref) {
@@ -212,14 +215,7 @@ final adminProfileRepositoryProvider = Provider<AdminProfileRepository>((ref) {
 });
 
 final activeSessionProvider = StateProvider<AuthSession>((ref) {
-  return AuthSession(
-    userId: 'cust_101',
-    phone: '+91 98765 43210',
-    role: UserRole.customer,
-    displayName: 'Aditya Singhal',
-    accountStatus: AccountStatus.active,
-    issuedAt: DateTime.now(),
-  );
+  return AuthSession.unauthenticated();
 });
 
 // ---------------------------------------------------------------------------

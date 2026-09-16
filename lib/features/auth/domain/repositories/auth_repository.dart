@@ -8,7 +8,10 @@ import '../entities/user_role.dart';
 /// The mock implementation lives in the data layer and is swapped at the
 /// provider level without touching any domain or presentation code.
 abstract interface class AuthRepository {
-  /// Request a one-time password for [phoneNumber] with the user's intended [role].
+  /// Request a one-time password for [phoneNumber].
+  ///
+  /// The [role] is optional and primarily used in development harnesses;
+  /// in production the authoritative role is resolved server-side from the account.
   ///
   /// Returns a [Result.success] containing an opaque session ID to be passed
   /// back to [verifyOtp]. Returns a [Result.failure] on network or server error.
@@ -17,7 +20,7 @@ abstract interface class AuthRepository {
   /// or logged by the client.
   Future<Result<String>> requestOtp({
     required String phoneNumber,
-    required UserRole role,
+    UserRole? role,
   });
 
   /// Verify an OTP code entered by the user.

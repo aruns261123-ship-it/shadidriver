@@ -13,12 +13,10 @@ void main() {
     //   • GoRouter's async redirect (resolves /splash route)
     // Note: SplashScreen has a 1200ms delay. SearchController may trigger searches.
     // We pump for a sufficient duration to let timers fire.
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2000));
+    await tester.pump(const Duration(milliseconds: 500));
 
-    // A Scaffold is present on every app screen (splash, customer, driver, admin).
-    // Asserting on widget type rather than display text avoids coupling the test
-    // to translatable strings and survives future screen redesigns.
     expect(find.byType(Scaffold), findsAtLeastNWidgets(1));
 
     // No uncaught exceptions during the startup sequence.

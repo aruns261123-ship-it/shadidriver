@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/auth/domain/entities/account_status.dart';
+import '../../features/auth/presentation/account_suspended_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/drivers/presentation/driver_active_trip_screen.dart';
 import '../../features/drivers/presentation/driver_booking_request_screen.dart';
@@ -38,6 +40,7 @@ GoRouter createShadiRouter({
   RouteGuard routeGuard = const ShadiRouteGuard(),
   bool Function()? isAuthenticated,
   String? Function()? userRole,
+  AccountStatus Function()? accountStatus,
   Listenable? refreshListenable,
 }) {
   return GoRouter(
@@ -45,13 +48,21 @@ GoRouter createShadiRouter({
     initialLocation: initialLocation,
     refreshListenable: refreshListenable,
     redirect: (BuildContext context, GoRouterState state) async {
+      final loc = state.matchedLocation.isNotEmpty
+          ? state.matchedLocation
+          : state.uri.path;
       return await routeGuard.evaluateRedirect(
-        targetLocation: state.matchedLocation,
+        targetLocation: loc,
         isAuthenticated: isAuthenticated?.call() ?? false,
         userRole: userRole?.call(),
+        accountStatus: accountStatus?.call(),
       );
     },
     routes: [
+      GoRoute(
+        path: '/',
+        redirect: (_, _) => RoutePaths.splash,
+      ),
       GoRoute(
         path: RoutePaths.splash,
         name: 'splash',
@@ -61,6 +72,11 @@ GoRouter createShadiRouter({
         path: RoutePaths.auth,
         name: 'auth',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.accountSuspended,
+        name: 'accountSuspended',
+        builder: (context, state) => const AccountSuspendedScreen(),
       ),
       ShellRoute(
         navigatorKey: _customerShellNavigatorKey,

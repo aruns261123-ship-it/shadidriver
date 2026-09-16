@@ -17,7 +17,7 @@ class FakeAuthRepository implements AuthRepository {
   @override
   Future<Result<String>> requestOtp({
     required String phoneNumber,
-    required UserRole role,
+    UserRole? role,
   }) async {
     return const Result.success('session_test_999');
   }

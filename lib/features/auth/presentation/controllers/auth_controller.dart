@@ -30,10 +30,10 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  /// Request OTP for a phone number and intended role
+  /// Request OTP for a phone number
   Future<Result<String>> requestOtp({
     required String phoneNumber,
-    required UserRole role,
+    UserRole? role,
   }) async {
     state = const AuthLoading(reason: AuthLoadingReason.requestingOtp);
     final result = await _authRepository.requestOtp(
@@ -77,14 +77,22 @@ class AuthController extends StateNotifier<AuthState> {
       _ref.read(activeSessionProvider.notifier).state = session;
       state = Authenticated(session);
     } else {
+      final failure = result.failureOrNull;
+      final kind = switch (failure?.code) {
+        'OTP_EXPIRED' => AuthErrorKind.otpExpired,
+        'INVALID_OTP' => AuthErrorKind.invalidOtp,
+        'NETWORK_ERROR' => AuthErrorKind.network,
+        'ACCOUNT_SUSPENDED' => AuthErrorKind.accountDisabled,
+        _ => AuthErrorKind.invalidOtp,
+      };
       state = AuthError(
         failure:
-            result.failureOrNull ??
+            failure ??
             const ValidationFailure(
               'The entered OTP is incorrect.',
               code: 'INVALID_OTP',
             ),
-        kind: AuthErrorKind.invalidOtp,
+        kind: kind,
       );
     }
     return result;
