@@ -160,7 +160,7 @@ class _CustomerBookingsScreenState extends ConsumerState<CustomerBookingsScreen>
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         itemCount: list.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 14),
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
         itemBuilder: (context, index) {
           final item = list[index];
           return _buildBookingCard(item);

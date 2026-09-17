@@ -31,7 +31,7 @@ class ShadiSectionHeader extends StatelessWidget {
                 ),
               ),
             ),
-            ?trailing,
+            if (trailing != null) trailing!,
           ],
         ),
         if (subtitle != null) ...[

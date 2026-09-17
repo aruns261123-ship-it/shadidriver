@@ -265,12 +265,12 @@ class MockAuthRepository implements AuthRepository {
     }
 
     if (_storage != null) {
-      final userId = await _storage.read('auth_user_id');
+      final userId = await _storage?.read('auth_user_id');
       if (userId != null && userId.isNotEmpty) {
-        final roleKey = await _storage.read('auth_role');
-        final phone = await _storage.read('auth_phone') ?? '';
-        final statusKey = await _storage.read('auth_status');
-        final displayName = await _storage.read('auth_display_name');
+        final roleKey = await _storage?.read('auth_role');
+        final phone = await _storage?.read('auth_phone') ?? '';
+        final statusKey = await _storage?.read('auth_status');
+        final displayName = await _storage?.read('auth_display_name');
 
         final role = UserRole.fromStorageKey(roleKey);
         final status = AccountStatus.fromStorageKey(statusKey);
@@ -297,11 +297,11 @@ class MockAuthRepository implements AuthRepository {
     _currentSession = null;
     _pendingOtpSessions.clear();
     if (_storage != null) {
-      await _storage.delete('auth_user_id');
-      await _storage.delete('auth_role');
-      await _storage.delete('auth_phone');
-      await _storage.delete('auth_status');
-      await _storage.delete('auth_display_name');
+      await _storage?.delete('auth_user_id');
+      await _storage?.delete('auth_role');
+      await _storage?.delete('auth_phone');
+      await _storage?.delete('auth_status');
+      await _storage?.delete('auth_display_name');
     }
     return const Result.success(null);
   }
@@ -373,12 +373,12 @@ class MockAuthRepository implements AuthRepository {
 
   Future<void> _persistSession(AuthSession session) async {
     if (_storage != null) {
-      await _storage.write('auth_user_id', session.userId);
-      await _storage.write('auth_role', session.role.storageKey);
-      await _storage.write('auth_phone', session.phone);
-      await _storage.write('auth_status', session.accountStatus.storageKey);
+      await _storage?.write('auth_user_id', session.userId);
+      await _storage?.write('auth_role', session.role.storageKey);
+      await _storage?.write('auth_phone', session.phone);
+      await _storage?.write('auth_status', session.accountStatus.storageKey);
       if (session.displayName != null) {
-        await _storage.write('auth_display_name', session.displayName!);
+        await _storage?.write('auth_display_name', session.displayName!);
       }
     }
   }

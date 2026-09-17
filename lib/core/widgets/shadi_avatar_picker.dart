@@ -172,7 +172,7 @@ class ShadiAvatarPicker extends StatelessWidget {
                           ? Image.network(
                               photoUrl!,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => _buildInitials(),
+                              errorBuilder: (_, __, ___) => _buildInitials(),
                             )
                           : _buildInitials()),
               ),

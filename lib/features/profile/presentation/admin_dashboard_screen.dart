@@ -349,7 +349,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: _applicants.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final applicant = _applicants[index];
         final isPending = applicant.verificationStatus == 'PENDING';
@@ -537,7 +537,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: fleet.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final car = fleet[index];
         return ShadiCard(

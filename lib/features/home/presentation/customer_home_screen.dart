@@ -87,7 +87,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: categories.length,
-                          separatorBuilder: (_, _) => const SizedBox(width: 16),
+                          separatorBuilder: (_, __) => const SizedBox(width: 16),
                           itemBuilder: (context, index) =>
                               ShadiServiceCategoryCard(
                                 category: categories[index],
@@ -221,7 +221,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                             )
                           : const SizedBox.shrink(),
                       loading: () => const SizedBox.shrink(),
-                      error: (_, _) => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
                     ),
 
                     const SizedBox(height: 40),

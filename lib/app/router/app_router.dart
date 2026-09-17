@@ -61,7 +61,7 @@ GoRouter createShadiRouter({
     routes: [
       GoRoute(
         path: '/',
-        redirect: (_, _) => RoutePaths.splash,
+        redirect: (_, __) => RoutePaths.splash,
       ),
       GoRoute(
         path: RoutePaths.splash,
@@ -84,7 +84,7 @@ GoRouter createShadiRouter({
         routes: [
           GoRoute(
             path: RoutePaths.customer,
-            redirect: (_, _) => RoutePaths.customerHome,
+            redirect: (_, __) => RoutePaths.customerHome,
           ),
           GoRoute(
             path: RoutePaths.customerHome,
