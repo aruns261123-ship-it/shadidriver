@@ -207,7 +207,8 @@ void main() {
           'Specialist in luxury royal wedding fleets and convoy timing precision.',
         );
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'Primary Operating Area / Route *'),
+          find.widgetWithText(
+              TextFormField, 'Primary Operating Area / Route *'),
           'Jaipur & Udaipur Heritage Routes',
         );
         await tester.enterText(
@@ -238,7 +239,8 @@ void main() {
           ),
           findsOneWidget,
         );
-        expect(find.textContaining('Languages: Hindi, English'), findsOneWidget);
+        expect(
+            find.textContaining('Languages: Hindi, English'), findsOneWidget);
         expect(find.text('CHAUFFEUR'), findsOneWidget);
         expect(find.text('Profile Completion'), findsOneWidget);
       },
@@ -258,7 +260,8 @@ void main() {
         await repo.updateProfile(
           current.copyWithEditableFields(
             fullName: 'Devendra Shekhawat',
-            bio: 'Master of baraat ceremonies and vintage luxury fleet handling.',
+            bio:
+                'Master of baraat ceremonies and vintage luxury fleet handling.',
             operatingArea: 'Jodhpur & Jaisalmer Forts',
             experienceYears: 16,
             weddingExperienceYears: 11,
@@ -438,7 +441,8 @@ void main() {
           findsOneWidget,
         );
         expect(
-          find.textContaining('managed by Compliance and cannot be self-modified'),
+          find.textContaining(
+              'managed by Compliance and cannot be self-modified'),
           findsOneWidget,
         );
 

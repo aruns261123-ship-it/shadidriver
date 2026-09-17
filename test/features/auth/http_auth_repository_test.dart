@@ -48,7 +48,8 @@ class FakeHttpClientAdapter implements HttpClientAdapter {
   @override
   void close({bool force = false}) {}
 
-  static ResponseBody jsonResponse(Map<String, dynamic> data, {int statusCode = 200}) {
+  static ResponseBody jsonResponse(Map<String, dynamic> data,
+      {int statusCode = 200}) {
     return ResponseBody.fromString(
       jsonEncode(data),
       statusCode,
@@ -91,10 +92,12 @@ void main() {
       );
     });
 
-    test('1. requestOtp returns otpSessionId on successful backend response', () async {
+    test('1. requestOtp returns otpSessionId on successful backend response',
+        () async {
       adapter.handler = (options) {
         expect(options.path, equals('/auth/otp/request'));
-        expect(options.data, equals({'phoneNumber': '+919876543210', 'role': 'customer'}));
+        expect(options.data,
+            equals({'phoneNumber': '+919876543210', 'role': 'customer'}));
         return FakeHttpClientAdapter.jsonResponse({
           'otpSessionId': 'sess_test_12345',
         });
@@ -125,10 +128,13 @@ void main() {
       expect(result.failureOrNull?.message, contains('Too many OTP requests'));
     });
 
-    test('3. verifyOtp parses session, persists tokens, and returns AuthSession', () async {
+    test(
+        '3. verifyOtp parses session, persists tokens, and returns AuthSession',
+        () async {
       adapter.handler = (options) {
         expect(options.path, equals('/auth/otp/verify'));
-        expect(options.data, equals({'otpSessionId': 'sess_test_12345', 'otpCode': '123456'}));
+        expect(options.data,
+            equals({'otpSessionId': 'sess_test_12345', 'otpCode': '123456'}));
         return FakeHttpClientAdapter.jsonResponse({
           'userId': 'usr_customer_001',
           'phone': '+91 98765 43210',
@@ -154,13 +160,17 @@ void main() {
       expect(session.displayName, equals('Aditya Singhal'));
 
       // Verify hardware-backed storage was written via SecureSessionStorageImpl
-      expect(await storage.read(AppConstants.keyAccessToken), equals('jwt_access_token_xyz'));
-      expect(await storage.read(AppConstants.keyRefreshToken), equals('jwt_refresh_token_abc'));
-      expect(await storage.read(AppConstants.keyUserId), equals('usr_customer_001'));
+      expect(await storage.read(AppConstants.keyAccessToken),
+          equals('jwt_access_token_xyz'));
+      expect(await storage.read(AppConstants.keyRefreshToken),
+          equals('jwt_refresh_token_abc'));
+      expect(await storage.read(AppConstants.keyUserId),
+          equals('usr_customer_001'));
       expect(await storage.read(AppConstants.keyUserRole), equals('customer'));
     });
 
-    test('4. restoreSession returns session when valid stored session exists', () async {
+    test('4. restoreSession returns session when valid stored session exists',
+        () async {
       await storage.write(AppConstants.keyAccessToken, 'stored_token_abc');
       await storage.write(AppConstants.keyRefreshToken, 'stored_refresh_abc');
       await storage.write(AppConstants.keyUserId, 'usr_driver_002');
@@ -168,7 +178,8 @@ void main() {
       await storage.write(AppConstants.keyPhone, '+91 98100 00002');
       await storage.write(AppConstants.keyAccountStatus, 'active');
       await storage.write(AppConstants.keyDisplayName, 'Rajesh Kumar');
-      await storage.write(AppConstants.keySessionIssued, DateTime.now().toIso8601String());
+      await storage.write(
+          AppConstants.keySessionIssued, DateTime.now().toIso8601String());
 
       final result = await authRepo.restoreSession();
 
@@ -180,14 +191,16 @@ void main() {
       expect(session.isAuthenticated, isTrue);
     });
 
-    test('5. restoreSession returns null when storage has no credentials', () async {
+    test('5. restoreSession returns null when storage has no credentials',
+        () async {
       final result = await authRepo.restoreSession();
 
       expect(result.isSuccess, isTrue);
       expect(result.dataOrNull, isNull);
     });
 
-    test('6. signOut revokes session remotely and clears session storage', () async {
+    test('6. signOut revokes session remotely and clears session storage',
+        () async {
       await storage.write(AppConstants.keyAccessToken, 'token_to_clear');
       await storage.write(AppConstants.keyUserId, 'usr_to_clear');
 
@@ -204,11 +217,13 @@ void main() {
     });
 
     test('7. refreshSession fetches new tokens and updates storage', () async {
-      await storage.write(AppConstants.keyRefreshToken, 'existing_refresh_token');
+      await storage.write(
+          AppConstants.keyRefreshToken, 'existing_refresh_token');
 
       adapter.handler = (options) {
         expect(options.path, equals('/auth/refresh'));
-        expect(options.data, equals({'refreshToken': 'existing_refresh_token'}));
+        expect(
+            options.data, equals({'refreshToken': 'existing_refresh_token'}));
         return FakeHttpClientAdapter.jsonResponse({
           'userId': 'usr_customer_001',
           'phone': '+91 98765 43210',
@@ -224,8 +239,10 @@ void main() {
       final result = await authRepo.refreshSession();
 
       expect(result.isSuccess, isTrue);
-      expect(await storage.read(AppConstants.keyAccessToken), equals('new_jwt_access_token'));
-      expect(await storage.read(AppConstants.keyRefreshToken), equals('new_jwt_refresh_token'));
+      expect(await storage.read(AppConstants.keyAccessToken),
+          equals('new_jwt_access_token'));
+      expect(await storage.read(AppConstants.keyRefreshToken),
+          equals('new_jwt_refresh_token'));
     });
   });
 }

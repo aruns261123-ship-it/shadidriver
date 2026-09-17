@@ -32,7 +32,8 @@ class AccountSuspendedScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: Colors.red.shade50,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.red.shade200, width: 2),
+                        border:
+                            Border.all(color: Colors.red.shade200, width: 2),
                       ),
                       child: Center(
                         child: Icon(

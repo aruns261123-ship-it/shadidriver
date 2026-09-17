@@ -29,8 +29,8 @@ class HttpAuthRepository implements AuthRepository {
   const HttpAuthRepository({
     required ApiClient apiClient,
     required SessionStorageService sessionStorage,
-  }) : _apiClient = apiClient,
-       _sessionStorage = sessionStorage;
+  })  : _apiClient = apiClient,
+        _sessionStorage = sessionStorage;
 
   @override
   Future<Result<String>> requestOtp({
@@ -113,7 +113,8 @@ class HttpAuthRepository implements AuthRepository {
       // while the app was closed.
       return Result.success(cached);
     } catch (e) {
-      return Result.failure(StorageFailure('Failed to restore session.', 'STORAGE_ERROR', e));
+      return Result.failure(
+          StorageFailure('Failed to restore session.', 'STORAGE_ERROR', e));
     }
   }
 
@@ -138,7 +139,8 @@ class HttpAuthRepository implements AuthRepository {
       final refreshToken = await _sessionStorage.readRefreshToken();
       if (refreshToken == null) {
         return const Result.failure(
-          UnauthorizedFailure('No refresh token available. Please log in again.'),
+          UnauthorizedFailure(
+              'No refresh token available. Please log in again.'),
         );
       }
 
@@ -174,7 +176,8 @@ class HttpAuthRepository implements AuthRepository {
     } on DioException catch (e) {
       return Result.failure(NetworkErrorMapper.map(e));
     } catch (e) {
-      return Result.failure(UnknownFailure('Failed to refresh session.', null, e));
+      return Result.failure(
+          UnknownFailure('Failed to refresh session.', null, e));
     }
   }
 
@@ -197,10 +200,13 @@ class HttpAuthRepository implements AuthRepository {
     return AuthSession(
       userId: json['userId'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
-      role: UserRole.fromStorageKey(json['role'] as String?) ?? UserRole.customer,
+      role:
+          UserRole.fromStorageKey(json['role'] as String?) ?? UserRole.customer,
       displayName: json['displayName'] as String?,
-      accountStatus: AccountStatus.fromStorageKey(json['accountStatus'] as String?),
-      issuedAt: DateTime.tryParse(json['issuedAt'] as String? ?? '') ?? DateTime.now(),
+      accountStatus:
+          AccountStatus.fromStorageKey(json['accountStatus'] as String?),
+      issuedAt: DateTime.tryParse(json['issuedAt'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 }

@@ -30,11 +30,11 @@ class DriverActiveTripState {
 /// Controller managing chauffeur trip lifecycle transitions.
 class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
   DriverActiveTripController({String bookingId = 'bk_mock_req_1'})
-    : super(
-        DriverActiveTripState(
-          trip: DriverActiveTrip.mockInitial(bookingId: bookingId),
-        ),
-      );
+      : super(
+          DriverActiveTripState(
+            trip: DriverActiveTrip.mockInitial(bookingId: bookingId),
+          ),
+        );
 
   /// 1. Start journey to the customer's pickup address
   Future<void> startEnRoute() async {
@@ -108,9 +108,6 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
 }
 
 /// Provider parameterized by bookingId
-final driverActiveTripControllerProvider =
-    StateNotifierProvider.family<
-      DriverActiveTripController,
-      DriverActiveTripState,
-      String
-    >((ref, bookingId) => DriverActiveTripController(bookingId: bookingId));
+final driverActiveTripControllerProvider = StateNotifierProvider.family<
+        DriverActiveTripController, DriverActiveTripState, String>(
+    (ref, bookingId) => DriverActiveTripController(bookingId: bookingId));

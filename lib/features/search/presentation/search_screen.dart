@@ -46,9 +46,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _onSearch() {
-    ref
-        .read(searchControllerProvider.notifier)
-        .updateQuery(
+    ref.read(searchControllerProvider.notifier).updateQuery(
           VehicleSearchQuery(
             pickupLocation: _pickupController.text,
             destination: _destinationController.text,

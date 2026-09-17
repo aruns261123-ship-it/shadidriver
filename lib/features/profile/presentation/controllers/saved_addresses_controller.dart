@@ -31,9 +31,8 @@ class SavedAddressesState {
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       errorMessage: clearMessages ? null : (errorMessage ?? this.errorMessage),
-      successMessage: clearMessages
-          ? null
-          : (successMessage ?? this.successMessage),
+      successMessage:
+          clearMessages ? null : (successMessage ?? this.successMessage),
     );
   }
 }
@@ -43,7 +42,7 @@ class SavedAddressesController extends StateNotifier<SavedAddressesState> {
   final String customerId;
 
   SavedAddressesController({required this.repository, required this.customerId})
-    : super(const SavedAddressesState(isLoading: true)) {
+      : super(const SavedAddressesState(isLoading: true)) {
     loadAddresses();
   }
 
@@ -128,9 +127,8 @@ class SavedAddressesController extends StateNotifier<SavedAddressesState> {
         return false;
       },
       (_) {
-        final updatedList = state.addresses
-            .where((a) => a.id != addressId)
-            .toList();
+        final updatedList =
+            state.addresses.where((a) => a.id != addressId).toList();
         state = state.copyWith(
           isSaving: false,
           addresses: updatedList,
@@ -142,12 +140,8 @@ class SavedAddressesController extends StateNotifier<SavedAddressesState> {
   }
 }
 
-final savedAddressesControllerProvider =
-    StateNotifierProvider.family<
-      SavedAddressesController,
-      SavedAddressesState,
-      String
-    >((ref, customerId) {
-      final repo = ref.watch(savedAddressesRepositoryProvider);
-      return SavedAddressesController(repository: repo, customerId: customerId);
-    });
+final savedAddressesControllerProvider = StateNotifierProvider.family<
+    SavedAddressesController, SavedAddressesState, String>((ref, customerId) {
+  final repo = ref.watch(savedAddressesRepositoryProvider);
+  return SavedAddressesController(repository: repo, customerId: customerId);
+});

@@ -11,21 +11,20 @@ void main() {
 
     setUp(() {
       repository = MockBookingRepository();
-      validDraft =
-          BookingDraft.initial(
-            vehicleId: 'v1',
-            vehicleName: 'BMW 5 Series',
-            vehicleClass: 'Luxury Sedan',
-            chauffeurId: 'd1',
-            basePricePaise: 2500000,
-            estimatedTotalPaise: 2500000,
-            advanceTokenPaise: 500000,
-          ).copyWith(
-            pickupAddress: 'The Oberoi Hotel, New Delhi',
-            destinationAddress: 'Grand Imperial Banquets, MG Road',
-            primaryContactName: 'Vikram Malhotra',
-            primaryContactPhone: '9810012345',
-          );
+      validDraft = BookingDraft.initial(
+        vehicleId: 'v1',
+        vehicleName: 'BMW 5 Series',
+        vehicleClass: 'Luxury Sedan',
+        chauffeurId: 'd1',
+        basePricePaise: 2500000,
+        estimatedTotalPaise: 2500000,
+        advanceTokenPaise: 500000,
+      ).copyWith(
+        pickupAddress: 'The Oberoi Hotel, New Delhi',
+        destinationAddress: 'Grand Imperial Banquets, MG Road',
+        primaryContactName: 'Vikram Malhotra',
+        primaryContactPhone: '9810012345',
+      );
     });
 
     test('valid request submits successfully in requested status', () async {

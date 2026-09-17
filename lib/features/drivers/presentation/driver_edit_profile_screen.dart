@@ -109,14 +109,14 @@ class _DriverEditProfileScreenState
     final hasLanguages = _selectedLanguages.isNotEmpty;
 
     setState(() {
-      _languageError = hasLanguages
-          ? null
-          : 'Please select at least one spoken language.';
+      _languageError =
+          hasLanguages ? null : 'Please select at least one spoken language.';
     });
 
     if (!isFormValid || !hasLanguages) {
       setState(() {
-        _validationError = 'Please correct the highlighted fields before saving.';
+        _validationError =
+            'Please correct the highlighted fields before saving.';
       });
       return;
     }
@@ -267,7 +267,6 @@ class _DriverEditProfileScreenState
                             ),
                           ),
                           const SizedBox(height: 16),
-
                           ShadiTextField(
                             label: 'Full Name *',
                             controller: _nameController,
@@ -283,7 +282,6 @@ class _DriverEditProfileScreenState
                             ),
                           ),
                           const SizedBox(height: 16),
-
                           ShadiTextField(
                             label: 'Chauffeur Bio *',
                             hint:
@@ -302,7 +300,6 @@ class _DriverEditProfileScreenState
                             ),
                           ),
                           const SizedBox(height: 16),
-
                           ShadiTextField(
                             label: 'Primary Operating Area / Route *',
                             hint: 'e.g., Delhi NCR & Jaipur Highway',
@@ -319,7 +316,6 @@ class _DriverEditProfileScreenState
                             ),
                           ),
                           const SizedBox(height: 16),
-
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -357,7 +353,8 @@ class _DriverEditProfileScreenState
                                     final totalExp = int.tryParse(
                                       _expYearsController.text.trim(),
                                     );
-                                    if (totalExp != null && weddingExp > totalExp) {
+                                    if (totalExp != null &&
+                                        weddingExp > totalExp) {
                                       return 'Cannot exceed Total ($totalExp)';
                                     }
                                     return null;
@@ -367,7 +364,6 @@ class _DriverEditProfileScreenState
                             ],
                           ),
                           const SizedBox(height: 16),
-
                           Text(
                             'Spoken Languages *',
                             style: AppTypography.labelMedium,
@@ -377,11 +373,13 @@ class _DriverEditProfileScreenState
                             spacing: 8,
                             runSpacing: 8,
                             children: _availableLanguages.map((lang) {
-                              final selected = _selectedLanguages.contains(lang);
+                              final selected =
+                                  _selectedLanguages.contains(lang);
                               return FilterChip(
                                 label: Text(lang),
                                 selected: selected,
-                                selectedColor: AppColors.champagneGold.withValues(
+                                selectedColor:
+                                    AppColors.champagneGold.withValues(
                                   alpha: 0.3,
                                 ),
                                 checkmarkColor: AppColors.primaryBurgundy,
@@ -428,7 +426,8 @@ class _DriverEditProfileScreenState
                         const SizedBox(width: 12),
                         Expanded(
                           child: ShadiPrimaryButton(
-                            text: isSaving ? 'Saving Profile...' : 'Save Profile',
+                            text:
+                                isSaving ? 'Saving Profile...' : 'Save Profile',
                             isLoading: isSaving,
                             onPressed: isSaving
                                 ? null

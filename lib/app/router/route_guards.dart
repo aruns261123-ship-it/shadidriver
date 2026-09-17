@@ -27,7 +27,9 @@ class ShadiRouteGuard implements RouteGuard {
     AccountStatus? accountStatus,
   }) async {
     // 1. Splash screen and root are always accessible
-    if (targetLocation == '/splash' || targetLocation == '/' || targetLocation.isEmpty) {
+    if (targetLocation == '/splash' ||
+        targetLocation == '/' ||
+        targetLocation.isEmpty) {
       return null;
     }
 
@@ -120,9 +122,7 @@ class ShadiRouteGuard implements RouteGuard {
   }
 
   static bool _isDriverRole(String role) {
-    return role == 'driver' ||
-        role == 'fleetOwner' ||
-        role == 'fleet_owner';
+    return role == 'driver' || role == 'fleetOwner' || role == 'fleet_owner';
   }
 
   static bool _isAdminRole(String role) {

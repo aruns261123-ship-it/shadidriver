@@ -531,9 +531,8 @@ class BookingReviewScreen extends ConsumerWidget {
                     flex: 1,
                     child: ShadiSecondaryButton(
                       text: 'Edit Draft',
-                      onPressed: state.isSubmitting
-                          ? null
-                          : () => context.pop(),
+                      onPressed:
+                          state.isSubmitting ? null : () => context.pop(),
                     ),
                   ),
                   const SizedBox(width: 12),

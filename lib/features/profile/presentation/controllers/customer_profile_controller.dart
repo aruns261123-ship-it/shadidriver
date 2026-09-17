@@ -32,9 +32,8 @@ class CustomerProfileState {
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       errorMessage: clearMessages ? null : (errorMessage ?? this.errorMessage),
-      successMessage: clearMessages
-          ? null
-          : (successMessage ?? this.successMessage),
+      successMessage:
+          clearMessages ? null : (successMessage ?? this.successMessage),
     );
   }
 }
@@ -227,17 +226,13 @@ class CustomerProfileController extends StateNotifier<CustomerProfileState> {
   }
 }
 
-final customerProfileControllerProvider =
-    StateNotifierProvider.family<
-      CustomerProfileController,
-      CustomerProfileState,
-      String
-    >((ref, customerId) {
-      final repo = ref.watch(customerProfileRepositoryProvider);
-      final photoService = ref.watch(profilePhotoServiceProvider);
-      return CustomerProfileController(
-        repository: repo,
-        photoService: photoService,
-        customerId: customerId,
-      );
-    });
+final customerProfileControllerProvider = StateNotifierProvider.family<
+    CustomerProfileController, CustomerProfileState, String>((ref, customerId) {
+  final repo = ref.watch(customerProfileRepositoryProvider);
+  final photoService = ref.watch(profilePhotoServiceProvider);
+  return CustomerProfileController(
+    repository: repo,
+    photoService: photoService,
+    customerId: customerId,
+  );
+});

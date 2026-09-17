@@ -13,19 +13,22 @@ abstract final class SortEngine {
         return list
           ..sort((a, b) => _calculateScore(b).compareTo(_calculateScore(a)));
       case SearchSort.priceLowToHigh:
-        return list..sort(
-          (a, b) =>
-              a.pricing.basePriceCents.compareTo(b.pricing.basePriceCents),
-        );
+        return list
+          ..sort(
+            (a, b) =>
+                a.pricing.basePriceCents.compareTo(b.pricing.basePriceCents),
+          );
       case SearchSort.priceHighToLow:
-        return list..sort(
-          (a, b) =>
-              b.pricing.basePriceCents.compareTo(a.pricing.basePriceCents),
-        );
+        return list
+          ..sort(
+            (a, b) =>
+                b.pricing.basePriceCents.compareTo(a.pricing.basePriceCents),
+          );
       case SearchSort.nearest:
-        return list..sort(
-          (a, b) => (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999),
-        );
+        return list
+          ..sort(
+            (a, b) => (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999),
+          );
       case SearchSort.highestRated:
         return list..sort((a, b) => b.rating.compareTo(a.rating));
       case SearchSort.newestVehicle:

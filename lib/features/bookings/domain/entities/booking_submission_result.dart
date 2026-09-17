@@ -73,10 +73,10 @@ class BookingSubmissionResult {
 
   // --- Convenience & Backwards-Compatible Getters ---
   DateTime get eventDate => DateTime(
-    serviceStartDateTime.year,
-    serviceStartDateTime.month,
-    serviceStartDateTime.day,
-  );
+        serviceStartDateTime.year,
+        serviceStartDateTime.month,
+        serviceStartDateTime.day,
+      );
   int get durationHours =>
       serviceEndDateTime.difference(serviceStartDateTime).inHours;
   bool get isOvernight =>

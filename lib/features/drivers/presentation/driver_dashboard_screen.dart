@@ -272,29 +272,29 @@ class DriverDashboardScreen extends ConsumerWidget {
   ) {
     final (icon, text, color, showQuickAction) = switch (dutyStatus) {
       DriverDutyStatus.available => (
-        Icons.check_circle_rounded,
-        'Active Chauffeur Pool: Ready to receive ceremonial procession reservations.',
-        AppColors.verifiedEmerald,
-        false,
-      ),
+          Icons.check_circle_rounded,
+          'Active Chauffeur Pool: Ready to receive ceremonial procession reservations.',
+          AppColors.verifiedEmerald,
+          false,
+        ),
       DriverDutyStatus.availableNow => (
-        Icons.bolt_rounded,
-        'Immediate Dispatch Mode: Prioritized for urgent and upcoming ceremonial assignments.',
-        AppColors.warmGold,
-        false,
-      ),
+          Icons.bolt_rounded,
+          'Immediate Dispatch Mode: Prioritized for urgent and upcoming ceremonial assignments.',
+          AppColors.warmGold,
+          false,
+        ),
       DriverDutyStatus.busy => (
-        Icons.access_time_rounded,
-        'Chauffeur Busy: Currently assigned to an active ceremony. Dispatch offers paused.',
-        Colors.orange,
-        true,
-      ),
+          Icons.access_time_rounded,
+          'Chauffeur Busy: Currently assigned to an active ceremony. Dispatch offers paused.',
+          Colors.orange,
+          true,
+        ),
       DriverDutyStatus.offline => (
-        Icons.power_settings_new_rounded,
-        'Chauffeur Offline: Switch status to Available to receive high-tier wedding offers.',
-        Colors.grey.shade600,
-        true,
-      ),
+          Icons.power_settings_new_rounded,
+          'Chauffeur Offline: Switch status to Available to receive high-tier wedding offers.',
+          Colors.grey.shade600,
+          true,
+        ),
     };
 
     return Container(

@@ -116,9 +116,8 @@ class DriverProfile {
       operatingArea: operatingArea ?? this.operatingArea,
       identityVerified: identityVerified, // protected
       recentReviews: recentReviews, // protected
-      profileImageUrl: clearProfileImage
-          ? null
-          : (profileImageUrl ?? this.profileImageUrl),
+      profileImageUrl:
+          clearProfileImage ? null : (profileImageUrl ?? this.profileImageUrl),
     );
   }
 
@@ -162,9 +161,8 @@ class DriverProfile {
       operatingArea: operatingArea ?? this.operatingArea,
       identityVerified: identityVerified ?? this.identityVerified,
       recentReviews: recentReviews ?? this.recentReviews,
-      profileImageUrl: clearProfileImage
-          ? null
-          : (profileImageUrl ?? this.profileImageUrl),
+      profileImageUrl:
+          clearProfileImage ? null : (profileImageUrl ?? this.profileImageUrl),
     );
   }
 }

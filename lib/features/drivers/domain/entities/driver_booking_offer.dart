@@ -132,9 +132,9 @@ class DriverBookingOffer {
 
   @override
   int get hashCode => Object.hash(
-    bookingId,
-    bookingReference,
-    status,
-    estimatedDriverEarningsPaise,
-  );
+        bookingId,
+        bookingReference,
+        status,
+        estimatedDriverEarningsPaise,
+      );
 }

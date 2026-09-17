@@ -140,7 +140,8 @@ void main() {
   });
 
   group('LoginScreen Widget Tests', () {
-    testWidgets('renders brand crest, phone input, and no dev bypass or role chips', (
+    testWidgets(
+        'renders brand crest, phone input, and no dev bypass or role chips', (
       tester,
     ) async {
       await tester.pumpWidget(

@@ -42,12 +42,13 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
-  }) => _dio.get<T>(
-    path,
-    queryParameters: queryParameters,
-    options: options,
-    cancelToken: cancelToken,
-  );
+  }) =>
+      _dio.get<T>(
+        path,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+      );
 
   Future<Response<T>> post<T>(
     String path, {
@@ -55,13 +56,14 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
-  }) => _dio.post<T>(
-    path,
-    data: data,
-    queryParameters: queryParameters,
-    options: options,
-    cancelToken: cancelToken,
-  );
+  }) =>
+      _dio.post<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+      );
 
   Future<Response<T>> put<T>(
     String path, {
@@ -69,13 +71,14 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
-  }) => _dio.put<T>(
-    path,
-    data: data,
-    queryParameters: queryParameters,
-    options: options,
-    cancelToken: cancelToken,
-  );
+  }) =>
+      _dio.put<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+      );
 
   Future<Response<T>> delete<T>(
     String path, {
@@ -83,11 +86,12 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
-  }) => _dio.delete<T>(
-    path,
-    data: data,
-    queryParameters: queryParameters,
-    options: options,
-    cancelToken: cancelToken,
-  );
+  }) =>
+      _dio.delete<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+      );
 }

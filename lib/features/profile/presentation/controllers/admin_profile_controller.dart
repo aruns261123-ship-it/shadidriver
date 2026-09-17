@@ -32,9 +32,8 @@ class AdminProfileState {
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       errorMessage: clearMessages ? null : (errorMessage ?? this.errorMessage),
-      successMessage: clearMessages
-          ? null
-          : (successMessage ?? this.successMessage),
+      successMessage:
+          clearMessages ? null : (successMessage ?? this.successMessage),
     );
   }
 }
@@ -142,17 +141,13 @@ class AdminProfileController extends StateNotifier<AdminProfileState> {
   }
 }
 
-final adminProfileControllerProvider =
-    StateNotifierProvider.family<
-      AdminProfileController,
-      AdminProfileState,
-      String
-    >((ref, adminId) {
-      final repo = ref.watch(adminProfileRepositoryProvider);
-      final photoService = ref.watch(profilePhotoServiceProvider);
-      return AdminProfileController(
-        repository: repo,
-        photoService: photoService,
-        adminId: adminId,
-      );
-    });
+final adminProfileControllerProvider = StateNotifierProvider.family<
+    AdminProfileController, AdminProfileState, String>((ref, adminId) {
+  final repo = ref.watch(adminProfileRepositoryProvider);
+  final photoService = ref.watch(profilePhotoServiceProvider);
+  return AdminProfileController(
+    repository: repo,
+    photoService: photoService,
+    adminId: adminId,
+  );
+});

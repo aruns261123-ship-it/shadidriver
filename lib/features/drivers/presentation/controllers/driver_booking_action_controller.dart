@@ -128,34 +128,31 @@ class DriverBookingActionController
 /// Provider family for fetching detailed offer for a driver.
 final driverBookingOfferDetailsProvider =
     FutureProvider.family<DriverBookingOffer, String>((ref, bookingId) async {
-      final repo = ref.watch(bookingRepositoryProvider);
-      final pricingPolicy = ref.watch(bookingPricingPolicyProvider);
-      final driverId = ref.watch(currentDriverIdProvider);
+  final repo = ref.watch(bookingRepositoryProvider);
+  final pricingPolicy = ref.watch(bookingPricingPolicyProvider);
+  final driverId = ref.watch(currentDriverIdProvider);
 
-      final result = await repo.getDriverBookingDetails(
-        bookingId: bookingId,
-        driverId: driverId,
-      );
-      return result.fold(
-        (failure) => throw failure,
-        (submission) => DriverBookingOffer.fromBookingSubmissionResult(
-          submission,
-          pricingPolicy,
-        ),
-      );
-    });
+  final result = await repo.getDriverBookingDetails(
+    bookingId: bookingId,
+    driverId: driverId,
+  );
+  return result.fold(
+    (failure) => throw failure,
+    (submission) => DriverBookingOffer.fromBookingSubmissionResult(
+      submission,
+      pricingPolicy,
+    ),
+  );
+});
 
 /// Provider for [DriverBookingActionController].
-final driverBookingActionControllerProvider =
-    StateNotifierProvider.autoDispose<
-      DriverBookingActionController,
-      DriverBookingActionState
-    >((ref) {
-      final repo = ref.watch(bookingRepositoryProvider);
-      final driverId = ref.watch(currentDriverIdProvider);
+final driverBookingActionControllerProvider = StateNotifierProvider.autoDispose<
+    DriverBookingActionController, DriverBookingActionState>((ref) {
+  final repo = ref.watch(bookingRepositoryProvider);
+  final driverId = ref.watch(currentDriverIdProvider);
 
-      return DriverBookingActionController(
-        bookingRepository: repo,
-        driverId: driverId,
-      );
-    });
+  return DriverBookingActionController(
+    bookingRepository: repo,
+    driverId: driverId,
+  );
+});

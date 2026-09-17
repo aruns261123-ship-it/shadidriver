@@ -71,13 +71,13 @@ class AdminProfile {
 
   @override
   int get hashCode => Object.hash(
-    id,
-    fullName,
-    email,
-    phone,
-    photoUrl,
-    role,
-    department,
-    authorizationLevel,
-  );
+        id,
+        fullName,
+        email,
+        phone,
+        photoUrl,
+        role,
+        department,
+        authorizationLevel,
+      );
 }

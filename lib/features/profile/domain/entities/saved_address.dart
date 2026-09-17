@@ -9,12 +9,12 @@ enum AddressType {
   other;
 
   String get displayLabel => switch (this) {
-    AddressType.home => 'Home',
-    AddressType.work => 'Work',
-    AddressType.weddingVenue => 'Wedding Venue',
-    AddressType.family => 'Family / Relatives',
-    AddressType.other => 'Other',
-  };
+        AddressType.home => 'Home',
+        AddressType.work => 'Work',
+        AddressType.weddingVenue => 'Wedding Venue',
+        AddressType.family => 'Family / Relatives',
+        AddressType.other => 'Other',
+      };
 }
 
 /// Immutable domain model representing a customer's saved address.

@@ -16,21 +16,20 @@ void main() {
 
     setUp(() async {
       mockRepo = MockBookingRepository();
-      final draft =
-          BookingDraft.initial(
-            vehicleId: 'v1',
-            vehicleName: 'BMW 5 Series',
-            vehicleClass: 'Luxury Sedan',
-            chauffeurId: 'd1',
-            basePricePaise: 2500000,
-            estimatedTotalPaise: 2500000,
-            advanceTokenPaise: 500000,
-          ).copyWith(
-            pickupAddress: 'The Oberoi Hotel, New Delhi',
-            destinationAddress: 'Grand Imperial Banquets, MG Road',
-            primaryContactName: 'Vikram Malhotra',
-            primaryContactPhone: '9810012345',
-          );
+      final draft = BookingDraft.initial(
+        vehicleId: 'v1',
+        vehicleName: 'BMW 5 Series',
+        vehicleClass: 'Luxury Sedan',
+        chauffeurId: 'd1',
+        basePricePaise: 2500000,
+        estimatedTotalPaise: 2500000,
+        advanceTokenPaise: 500000,
+      ).copyWith(
+        pickupAddress: 'The Oberoi Hotel, New Delhi',
+        destinationAddress: 'Grand Imperial Banquets, MG Road',
+        primaryContactName: 'Vikram Malhotra',
+        primaryContactPhone: '9810012345',
+      );
 
       final req = BookingSubmissionRequest.fromDraft(
         draft,

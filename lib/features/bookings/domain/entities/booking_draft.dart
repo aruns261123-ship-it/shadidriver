@@ -114,8 +114,7 @@ class BookingDraft {
     int passengerCount = 2,
   }) {
     final now = DateTime.now();
-    final effectiveStart =
-        serviceStartDateTime ??
+    final effectiveStart = serviceStartDateTime ??
         (eventDate != null
             ? DateTime(
                 eventDate.year,
@@ -125,8 +124,7 @@ class BookingDraft {
                 startTime?.minute ?? 0,
               )
             : DateTime(now.year, now.month, now.day + 7, 16, 0));
-    final effectiveEnd =
-        serviceEndDateTime ??
+    final effectiveEnd = serviceEndDateTime ??
         effectiveStart.add(Duration(hours: durationHours));
 
     return BookingDraft(
@@ -162,18 +160,18 @@ class BookingDraft {
 
   // --- Convenience & Backwards-Compatible Getters ---
   DateTime get eventDate => DateTime(
-    serviceStartDateTime.year,
-    serviceStartDateTime.month,
-    serviceStartDateTime.day,
-  );
+        serviceStartDateTime.year,
+        serviceStartDateTime.month,
+        serviceStartDateTime.day,
+      );
   TimeOfDay get startTime => TimeOfDay(
-    hour: serviceStartDateTime.hour,
-    minute: serviceStartDateTime.minute,
-  );
+        hour: serviceStartDateTime.hour,
+        minute: serviceStartDateTime.minute,
+      );
   TimeOfDay get endTime => TimeOfDay(
-    hour: serviceEndDateTime.hour,
-    minute: serviceEndDateTime.minute,
-  );
+        hour: serviceEndDateTime.hour,
+        minute: serviceEndDateTime.minute,
+      );
   DateTime get startDateTime => serviceStartDateTime;
   DateTime get endDateTime => serviceEndDateTime;
 
@@ -349,19 +347,19 @@ class BookingDraft {
 
   @override
   int get hashCode => Object.hash(
-    id,
-    vehicleId,
-    ceremonyType,
-    serviceStartDateTime,
-    serviceEndDateTime,
-    routeDistanceKm,
-    pickupAddress,
-    destinationAddress,
-    primaryContactName,
-    basePricePaise,
-    estimatedTotalPaise,
-    advanceTokenPaise,
-    advanceTokenLabel,
-    status,
-  );
+        id,
+        vehicleId,
+        ceremonyType,
+        serviceStartDateTime,
+        serviceEndDateTime,
+        routeDistanceKm,
+        pickupAddress,
+        destinationAddress,
+        primaryContactName,
+        basePricePaise,
+        estimatedTotalPaise,
+        advanceTokenPaise,
+        advanceTokenLabel,
+        status,
+      );
 }

@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shadidriver/app/app.dart';
 
 void main() {
-  testWidgets('ShadiDriverApp smoke test — app shell initializes without errors', (
+  testWidgets(
+      'ShadiDriverApp smoke test — app shell initializes without errors', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: ShadiDriverApp()));

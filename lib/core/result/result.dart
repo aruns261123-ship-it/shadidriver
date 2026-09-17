@@ -15,14 +15,14 @@ sealed class Result<T> {
   bool get isFailure => this is Failure<T>;
 
   T? get dataOrNull => switch (this) {
-    Success(:final data) => data,
-    Failure() => null,
-  };
+        Success(:final data) => data,
+        Failure() => null,
+      };
 
   AppFailure? get failureOrNull => switch (this) {
-    Success() => null,
-    Failure(failure: final f) => f,
-  };
+        Success() => null,
+        Failure(failure: final f) => f,
+      };
 
   /// Pattern-matches over the result.
   R when<R>({

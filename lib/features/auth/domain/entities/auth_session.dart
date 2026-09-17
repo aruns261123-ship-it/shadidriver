@@ -34,12 +34,12 @@ final class AuthSession {
 
   /// Factory representing an unauthenticated, cleared session state.
   factory AuthSession.unauthenticated() => AuthSession(
-    userId: '',
-    phone: '',
-    role: UserRole.customer,
-    accountStatus: AccountStatus.suspended,
-    issuedAt: DateTime.fromMillisecondsSinceEpoch(0),
-  );
+        userId: '',
+        phone: '',
+        role: UserRole.customer,
+        accountStatus: AccountStatus.suspended,
+        issuedAt: DateTime.fromMillisecondsSinceEpoch(0),
+      );
 
   /// Whether this session represents an authenticated user.
   bool get isAuthenticated => userId.isNotEmpty;

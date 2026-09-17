@@ -264,9 +264,7 @@ class SearchResultsScreen extends ConsumerWidget {
     List<int>? seatingCapacities,
     List<String>? vehicleCategories,
   }) {
-    ref
-        .read(searchControllerProvider.notifier)
-        .updateQuery(
+    ref.read(searchControllerProvider.notifier).updateQuery(
           session.query.copyWith(
             availableNow: availableNow,
             verifiedChauffeurOnly: verifiedChauffeurOnly,

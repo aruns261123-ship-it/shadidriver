@@ -189,21 +189,21 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                     padding: const EdgeInsets.all(16),
                     child: switch (draftState.activeStep) {
                       0 => _buildCeremonyStep(
-                        vehicle,
-                        draftState,
-                        draftNotifier,
-                      ),
+                          vehicle,
+                          draftState,
+                          draftNotifier,
+                        ),
                       1 => _buildDateTimeStep(
-                        vehicle,
-                        draftState,
-                        draftNotifier,
-                      ),
+                          vehicle,
+                          draftState,
+                          draftNotifier,
+                        ),
                       2 => _buildLocationsStep(draftState, draftNotifier),
                       3 => _buildPassengerStep(
-                        vehicle,
-                        draftState,
-                        draftNotifier,
-                      ),
+                          vehicle,
+                          draftState,
+                          draftNotifier,
+                        ),
                       _ => const SizedBox.shrink(),
                     },
                   ),
@@ -320,8 +320,8 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                               color: isCompleted
                                   ? AppColors.verifiedEmerald
                                   : (isCurrent
-                                        ? AppColors.primaryBurgundy
-                                        : AppColors.borderLight),
+                                      ? AppColors.primaryBurgundy
+                                      : AppColors.borderLight),
                               shape: BoxShape.circle,
                             ),
                             child: Center(
@@ -351,8 +351,8 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                                 color: isCurrent
                                     ? AppColors.primaryBurgundy
                                     : (isCompleted
-                                          ? AppColors.textPrimaryLight
-                                          : AppColors.textSecondaryLight),
+                                        ? AppColors.textPrimaryLight
+                                        : AppColors.textSecondaryLight),
                                 fontWeight: isCurrent
                                     ? FontWeight.w700
                                     : FontWeight.w500,
@@ -370,8 +370,8 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                           color: isCompleted
                               ? AppColors.verifiedEmerald
                               : (isCurrent
-                                    ? AppColors.primaryBurgundy
-                                    : AppColors.borderLight),
+                                  ? AppColors.primaryBurgundy
+                                  : AppColors.borderLight),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -430,7 +430,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
           ),
         ),
         const SizedBox(height: 16),
-
         ShadiCard(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -454,9 +453,8 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                       color: isSelected
                           ? Colors.white
                           : AppColors.textPrimaryLight,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w500,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w500,
                       fontSize: 12,
                     ),
                     backgroundColor: AppColors.secondarySurface,
@@ -481,7 +479,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                 }).toList(),
               ),
               const SizedBox(height: 20),
-
               Text(
                 'Chauffeur Ceremonial Attire',
                 style: AppTypography.labelMedium,
@@ -550,7 +547,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                 }).toList(),
               ),
               const SizedBox(height: 16),
-
               ShadiTextField(
                 label: 'Special Ceremonial Instructions (Optional)',
                 hint:
@@ -602,7 +598,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
           ),
         ),
         const SizedBox(height: 16),
-
         ShadiCard(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1153,7 +1148,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
           ),
         ),
         const SizedBox(height: 16),
-
         ShadiCard(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1195,7 +1189,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                 },
               ),
               const SizedBox(height: 16),
-
               ShadiTextField(
                 label: 'Pickup Address / Hotel / Residence',
                 hint: 'e.g., The Oberoi, Dr Zakir Hussain Marg',
@@ -1215,7 +1208,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                 },
               ),
               const SizedBox(height: 16),
-
               ShadiTextField(
                 label: 'Destination / Ceremony Venue Address',
                 hint: 'e.g., Grand Imperial Banquets, MG Road',
@@ -1235,7 +1227,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                 },
               ),
               const SizedBox(height: 16),
-
               ShadiTextField(
                 label: 'Ceremony Venue / Banquet Name',
                 hint: 'e.g., Grand Imperial Ballroom',
@@ -1255,7 +1246,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                 },
               ),
               const SizedBox(height: 16),
-
               ShadiTextField(
                 label: 'Landmark or Gate Entry Instructions (Optional)',
                 hint: 'e.g., Gate No. 2 VIP Entrance, near North Lawn',
@@ -1349,7 +1339,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
           ),
         ),
         const SizedBox(height: 16),
-
         ShadiCard(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1373,7 +1362,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                 },
               ),
               const SizedBox(height: 16),
-
               ShadiTextField(
                 label: 'Mobile Number (10 Digits)',
                 hint: 'e.g., 9876543210',
@@ -1393,7 +1381,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                 },
               ),
               const SizedBox(height: 16),
-
               ShadiTextField(
                 label: 'Alternate Family Coordinator Phone (Optional)',
                 hint: 'e.g., 9123456780',
@@ -1413,7 +1400,6 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                 },
               ),
               const SizedBox(height: 20),
-
               Text('Number of Passengers', style: AppTypography.labelMedium),
               const SizedBox(height: 10),
               Row(

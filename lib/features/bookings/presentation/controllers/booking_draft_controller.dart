@@ -55,8 +55,8 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
     this.routeDistanceService,
     required VehicleDetails vehicle,
   }) : super(
-         _createInitialState(vehicle: vehicle, pricingPolicy: pricingPolicy),
-       );
+          _createInitialState(vehicle: vehicle, pricingPolicy: pricingPolicy),
+        );
 
   static BookingDraftState _createInitialState({
     required VehicleDetails vehicle,
@@ -290,19 +290,15 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
 }
 
 /// Provider family for booking draft controller keyed by vehicle details.
-final bookingDraftControllerProvider =
-    StateNotifierProvider.family<
-      BookingDraftController,
-      BookingDraftState,
-      VehicleDetails
-    >((ref, vehicle) {
-      final bookingRepo = ref.watch(bookingRepositoryProvider);
-      final pricingPolicy = ref.watch(bookingPricingPolicyProvider);
-      final routeDistanceService = ref.watch(routeDistanceServiceProvider);
-      return BookingDraftController(
-        bookingRepository: bookingRepo,
-        pricingPolicy: pricingPolicy,
-        routeDistanceService: routeDistanceService,
-        vehicle: vehicle,
-      );
-    });
+final bookingDraftControllerProvider = StateNotifierProvider.family<
+    BookingDraftController, BookingDraftState, VehicleDetails>((ref, vehicle) {
+  final bookingRepo = ref.watch(bookingRepositoryProvider);
+  final pricingPolicy = ref.watch(bookingPricingPolicyProvider);
+  final routeDistanceService = ref.watch(routeDistanceServiceProvider);
+  return BookingDraftController(
+    bookingRepository: bookingRepo,
+    pricingPolicy: pricingPolicy,
+    routeDistanceService: routeDistanceService,
+    vehicle: vehicle,
+  );
+});

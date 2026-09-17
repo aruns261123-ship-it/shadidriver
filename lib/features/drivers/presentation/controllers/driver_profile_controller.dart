@@ -32,9 +32,8 @@ class DriverProfileState {
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       errorMessage: clearMessages ? null : (errorMessage ?? this.errorMessage),
-      successMessage: clearMessages
-          ? null
-          : (successMessage ?? this.successMessage),
+      successMessage:
+          clearMessages ? null : (successMessage ?? this.successMessage),
     );
   }
 }
@@ -214,17 +213,13 @@ class DriverProfileController extends StateNotifier<DriverProfileState> {
   }
 }
 
-final driverProfileControllerProvider =
-    StateNotifierProvider.family<
-      DriverProfileController,
-      DriverProfileState,
-      String
-    >((ref, driverId) {
-      final repo = ref.watch(driverProfileRepositoryProvider);
-      final photoService = ref.watch(profilePhotoServiceProvider);
-      return DriverProfileController(
-        repository: repo,
-        photoService: photoService,
-        driverId: driverId,
-      );
-    });
+final driverProfileControllerProvider = StateNotifierProvider.family<
+    DriverProfileController, DriverProfileState, String>((ref, driverId) {
+  final repo = ref.watch(driverProfileRepositoryProvider);
+  final photoService = ref.watch(profilePhotoServiceProvider);
+  return DriverProfileController(
+    repository: repo,
+    photoService: photoService,
+    driverId: driverId,
+  );
+});

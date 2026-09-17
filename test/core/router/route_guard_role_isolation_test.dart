@@ -8,7 +8,9 @@ void main() {
     const strictAuthGuard = ShadiRouteGuard(enforceAuth: true);
 
     group('Public Routes & Unauthenticated Access', () {
-      test('Splash screen is always accessible regardless of auth state or role', () async {
+      test(
+          'Splash screen is always accessible regardless of auth state or role',
+          () async {
         expect(
           await defaultGuard.evaluateRedirect(
             targetLocation: RoutePaths.splash,
@@ -57,7 +59,9 @@ void main() {
         );
       });
 
-      test('Unauthenticated user is redirected to /auth when enforceAuth is true', () async {
+      test(
+          'Unauthenticated user is redirected to /auth when enforceAuth is true',
+          () async {
         expect(
           await strictAuthGuard.evaluateRedirect(
             targetLocation: RoutePaths.customer,
@@ -86,7 +90,9 @@ void main() {
         );
       });
 
-      test('Authenticated user landing on /auth is redirected to their role home', () async {
+      test(
+          'Authenticated user landing on /auth is redirected to their role home',
+          () async {
         expect(
           await strictAuthGuard.evaluateRedirect(
             targetLocation: RoutePaths.auth,
@@ -146,7 +152,8 @@ void main() {
         );
       });
 
-      test('Customer is blocked from driver routes and redirected to /customer', () async {
+      test('Customer is blocked from driver routes and redirected to /customer',
+          () async {
         expect(
           await defaultGuard.evaluateRedirect(
             targetLocation: RoutePaths.driver,
@@ -166,7 +173,8 @@ void main() {
         );
       });
 
-      test('Customer is blocked from admin routes and redirected to /customer', () async {
+      test('Customer is blocked from admin routes and redirected to /customer',
+          () async {
         expect(
           await defaultGuard.evaluateRedirect(
             targetLocation: RoutePaths.admin,
@@ -208,7 +216,8 @@ void main() {
         );
       });
 
-      test('Driver is blocked from customer routes and redirected to /driver', () async {
+      test('Driver is blocked from customer routes and redirected to /driver',
+          () async {
         expect(
           await defaultGuard.evaluateRedirect(
             targetLocation: RoutePaths.customer,
@@ -237,7 +246,8 @@ void main() {
         );
       });
 
-      test('Driver is blocked from admin routes and redirected to /driver', () async {
+      test('Driver is blocked from admin routes and redirected to /driver',
+          () async {
         expect(
           await defaultGuard.evaluateRedirect(
             targetLocation: RoutePaths.admin,
@@ -270,7 +280,8 @@ void main() {
         );
       });
 
-      test('Admin is blocked from customer routes and redirected to /admin', () async {
+      test('Admin is blocked from customer routes and redirected to /admin',
+          () async {
         expect(
           await defaultGuard.evaluateRedirect(
             targetLocation: RoutePaths.customer,
@@ -290,7 +301,8 @@ void main() {
         );
       });
 
-      test('Admin is blocked from driver routes and redirected to /admin', () async {
+      test('Admin is blocked from driver routes and redirected to /admin',
+          () async {
         expect(
           await defaultGuard.evaluateRedirect(
             targetLocation: RoutePaths.driver,

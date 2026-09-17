@@ -39,7 +39,8 @@ class DriverAccountCenterScreen extends ConsumerWidget {
             Icons.arrow_back_rounded,
             color: AppColors.primaryBurgundy,
           ),
-          onPressed: () => context.canPop() ? context.pop() : context.go(RoutePaths.driver),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go(RoutePaths.driver),
         ),
         title: Text(
           'Chauffeur Profile',
@@ -56,92 +57,94 @@ class DriverAccountCenterScreen extends ConsumerWidget {
               ),
             )
           : state.profile == null
-          ? ShadiErrorView(
-              message:
-                  state.errorMessage ?? 'Unable to load chauffeur profile.',
-              onRetry: () => controller.loadProfile(),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // 1. Chauffeur Header
-                _buildHeaderCard(context, state, controller),
+              ? ShadiErrorView(
+                  message:
+                      state.errorMessage ?? 'Unable to load chauffeur profile.',
+                  onRetry: () => controller.loadProfile(),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // 1. Chauffeur Header
+                    _buildHeaderCard(context, state, controller),
 
-                const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                // 2. Profile Completion Card (Decoupled from verification!)
-                _buildCompletionCard(state.profile!),
+                    // 2. Profile Completion Card (Decoupled from verification!)
+                    _buildCompletionCard(state.profile!),
 
-                const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                // 3. Verification & Compliance Card (Separate State!)
-                _buildVerificationCard(state.profile!.verificationStatus),
+                    // 3. Verification & Compliance Card (Separate State!)
+                    _buildVerificationCard(state.profile!.verificationStatus),
 
-                const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                // 4. Fleet & Operational Overview
-                _buildSectionHeader('Fleet & Duty Credentials'),
-                const SizedBox(height: 10),
-                _buildMenuCard([
-                  _MenuItem(
-                    icon: Icons.directions_car_rounded,
-                    title: 'Assigned Vehicle',
-                    subtitle:
-                        '${state.profile!.vehicleStatus} • Inspected for Ceremonies',
-                    onTap: () {},
-                  ),
-                  _MenuItem(
-                    icon: Icons.badge_rounded,
-                    title: 'Chauffeur Documents',
-                    subtitle:
-                        '${state.profile!.documentStatus} • Commercial Badge & License',
-                    onTap: () {},
-                  ),
-                  _MenuItem(
-                    icon: Icons.currency_rupee_rounded,
-                    title: 'Payouts & Earnings',
-                    subtitle:
-                        'Direct deposit bank details and weekly earnings summary',
-                    onTap: () {},
-                  ),
-                ]),
+                    // 4. Fleet & Operational Overview
+                    _buildSectionHeader('Fleet & Duty Credentials'),
+                    const SizedBox(height: 10),
+                    _buildMenuCard([
+                      _MenuItem(
+                        icon: Icons.directions_car_rounded,
+                        title: 'Assigned Vehicle',
+                        subtitle:
+                            '${state.profile!.vehicleStatus} • Inspected for Ceremonies',
+                        onTap: () {},
+                      ),
+                      _MenuItem(
+                        icon: Icons.badge_rounded,
+                        title: 'Chauffeur Documents',
+                        subtitle:
+                            '${state.profile!.documentStatus} • Commercial Badge & License',
+                        onTap: () {},
+                      ),
+                      _MenuItem(
+                        icon: Icons.currency_rupee_rounded,
+                        title: 'Payouts & Earnings',
+                        subtitle:
+                            'Direct deposit bank details and weekly earnings summary',
+                        onTap: () {},
+                      ),
+                    ]),
 
-                const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                // 5. Account Actions
-                _buildSectionHeader('Account & Operations'),
-                const SizedBox(height: 10),
-                _buildMenuCard([
-                  _MenuItem(
-                    icon: Icons.notifications_active_rounded,
-                    title: 'Dispatch Alerts',
-                    subtitle: 'Urgent ceremony dispatch ringers and SMS',
-                    onTap: () {},
-                  ),
-                  _MenuItem(
-                    icon: Icons.security_rounded,
-                    title: 'Chauffeur Code of Conduct',
-                    subtitle: 'Royal ceremonial protocol & etiquette standards',
-                    onTap: () {},
-                  ),
-                  _MenuItem(
-                    icon: Icons.support_agent_rounded,
-                    title: 'Chauffeur Support Desk',
-                    subtitle: 'Direct emergency line to operations control room',
-                    onTap: () {},
-                  ),
-                  _MenuItem(
-                    icon: Icons.logout_rounded,
-                    title: 'Sign Out of Chauffeur Console',
-                    subtitle: 'Go offline and end duty session securely',
-                    titleColor: AppColors.errorRed,
-                    onTap: () => _showDriverSignOutDialog(context, ref),
-                  ),
-                ]),
+                    // 5. Account Actions
+                    _buildSectionHeader('Account & Operations'),
+                    const SizedBox(height: 10),
+                    _buildMenuCard([
+                      _MenuItem(
+                        icon: Icons.notifications_active_rounded,
+                        title: 'Dispatch Alerts',
+                        subtitle: 'Urgent ceremony dispatch ringers and SMS',
+                        onTap: () {},
+                      ),
+                      _MenuItem(
+                        icon: Icons.security_rounded,
+                        title: 'Chauffeur Code of Conduct',
+                        subtitle:
+                            'Royal ceremonial protocol & etiquette standards',
+                        onTap: () {},
+                      ),
+                      _MenuItem(
+                        icon: Icons.support_agent_rounded,
+                        title: 'Chauffeur Support Desk',
+                        subtitle:
+                            'Direct emergency line to operations control room',
+                        onTap: () {},
+                      ),
+                      _MenuItem(
+                        icon: Icons.logout_rounded,
+                        title: 'Sign Out of Chauffeur Console',
+                        subtitle: 'Go offline and end duty session securely',
+                        titleColor: AppColors.errorRed,
+                        onTap: () => _showDriverSignOutDialog(context, ref),
+                      ),
+                    ]),
 
-                const SizedBox(height: 32),
-              ],
-            ),
+                    const SizedBox(height: 32),
+                  ],
+                ),
     );
   }
 

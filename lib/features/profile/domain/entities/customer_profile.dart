@@ -97,15 +97,15 @@ class CustomerProfile {
 
   @override
   int get hashCode => Object.hash(
-    id,
-    fullName,
-    phone,
-    email,
-    city,
-    preferredLanguage,
-    profilePhotoUrl,
-    emergencyContactName,
-    emergencyContactPhone,
-    weddingPreferences,
-  );
+        id,
+        fullName,
+        phone,
+        email,
+        city,
+        preferredLanguage,
+        profilePhotoUrl,
+        emergencyContactName,
+        emergencyContactPhone,
+        weddingPreferences,
+      );
 }

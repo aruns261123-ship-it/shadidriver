@@ -111,7 +111,8 @@ void main() {
       },
     );
 
-    testWidgets('Search Results -> View Details -> Vehicle Details -> Book Now', (
+    testWidgets('Search Results -> View Details -> Vehicle Details -> Book Now',
+        (
       tester,
     ) async {
       await tester.pumpWidget(

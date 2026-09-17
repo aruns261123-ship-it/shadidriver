@@ -78,14 +78,16 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1700));
       await tester.pump(const Duration(milliseconds: 200));
 
-      expect(router.routeInformationProvider.value.uri.path, equals(RoutePaths.auth));
+      expect(router.routeInformationProvider.value.uri.path,
+          equals(RoutePaths.auth));
       expect(find.byType(LoginScreen), findsOneWidget);
     });
 
     // -------------------------------------------------------------------------
     // TEST 2: Existing Customer session → Splash → Customer Home
     // -------------------------------------------------------------------------
-    testWidgets('2. Existing Customer session routes from Splash to Customer Home', (
+    testWidgets(
+        '2. Existing Customer session routes from Splash to Customer Home', (
       tester,
     ) async {
       await authRepo.devSignInAsRole(UserRole.customer);
@@ -116,13 +118,15 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1700));
       await tester.pumpAndSettle();
 
-      expect(router.routeInformationProvider.value.uri.path, equals(RoutePaths.customerHome));
+      expect(router.routeInformationProvider.value.uri.path,
+          equals(RoutePaths.customerHome));
     });
 
     // -------------------------------------------------------------------------
     // TEST 3: Existing Driver session → Splash → Chauffeur Dashboard
     // -------------------------------------------------------------------------
-    testWidgets('3. Existing Driver session routes from Splash to Driver Dashboard', (
+    testWidgets(
+        '3. Existing Driver session routes from Splash to Driver Dashboard', (
       tester,
     ) async {
       await authRepo.devSignInAsRole(UserRole.driver);
@@ -153,13 +157,15 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1700));
       await tester.pumpAndSettle();
 
-      expect(router.routeInformationProvider.value.uri.path, equals(RoutePaths.driver));
+      expect(router.routeInformationProvider.value.uri.path,
+          equals(RoutePaths.driver));
     });
 
     // -------------------------------------------------------------------------
     // TEST 4: Existing Admin session → Splash → Admin Command Hub
     // -------------------------------------------------------------------------
-    testWidgets('4. Existing Admin session routes from Splash to Admin Command Hub', (
+    testWidgets(
+        '4. Existing Admin session routes from Splash to Admin Command Hub', (
       tester,
     ) async {
       await authRepo.devSignInAsRole(UserRole.operationsAdmin);
@@ -190,14 +196,16 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1700));
       await tester.pumpAndSettle();
 
-      expect(router.routeInformationProvider.value.uri.path, equals(RoutePaths.admin));
+      expect(router.routeInformationProvider.value.uri.path,
+          equals(RoutePaths.admin));
     });
 
     // -------------------------------------------------------------------------
     // TEST 5: Invalid/expired session → Login
     // -------------------------------------------------------------------------
-    test('5. Invalid/expired session fails restoration and transitions to Unauthenticated', (
-    ) async {
+    test(
+        '5. Invalid/expired session fails restoration and transitions to Unauthenticated',
+        () async {
       final container = ProviderContainer(
         overrides: [
           authRepositoryProvider.overrideWithValue(authRepo),
@@ -216,8 +224,9 @@ void main() {
     // -------------------------------------------------------------------------
     // TEST 6: Customer with incomplete profile → Customer Profile Creation
     // -------------------------------------------------------------------------
-    test('6. Route guard routes customer with incomplete profile to customer profile edit', (
-    ) async {
+    test(
+        '6. Route guard routes customer with incomplete profile to customer profile edit',
+        () async {
       const guard = ShadiRouteGuard(enforceAuth: true);
       final redirect = await guard.evaluateRedirect(
         targetLocation: RoutePaths.customerHome,
@@ -232,8 +241,9 @@ void main() {
     // -------------------------------------------------------------------------
     // TEST 7: Driver with incomplete profile → Chauffeur Profile Creation / Verification
     // -------------------------------------------------------------------------
-    test('7. Route guard routes driver with incomplete profile to driver profile edit', (
-    ) async {
+    test(
+        '7. Route guard routes driver with incomplete profile to driver profile edit',
+        () async {
       const guard = ShadiRouteGuard(enforceAuth: true);
       final redirect = await guard.evaluateRedirect(
         targetLocation: RoutePaths.driver,
@@ -255,14 +265,16 @@ void main() {
       );
 
       expect(result.isFailure, isTrue);
-      expect(result.failureOrNull?.code, equals('ADMIN_REGISTRATION_PROHIBITED'));
+      expect(
+          result.failureOrNull?.code, equals('ADMIN_REGISTRATION_PROHIBITED'));
     });
 
     // -------------------------------------------------------------------------
     // TEST 9: Customer cannot navigate to driver routes
     // -------------------------------------------------------------------------
-    test('9. Customer cannot navigate to driver routes (redirects to /customer)', (
-    ) async {
+    test(
+        '9. Customer cannot navigate to driver routes (redirects to /customer)',
+        () async {
       const guard = ShadiRouteGuard(enforceAuth: true);
       final redirect = await guard.evaluateRedirect(
         targetLocation: RoutePaths.driver,
@@ -277,8 +289,9 @@ void main() {
     // -------------------------------------------------------------------------
     // TEST 10: Customer cannot navigate to admin routes
     // -------------------------------------------------------------------------
-    test('10. Customer cannot navigate to admin routes (redirects to /customer)', (
-    ) async {
+    test(
+        '10. Customer cannot navigate to admin routes (redirects to /customer)',
+        () async {
       const guard = ShadiRouteGuard(enforceAuth: true);
       final redirect = await guard.evaluateRedirect(
         targetLocation: RoutePaths.admin,
@@ -293,8 +306,8 @@ void main() {
     // -------------------------------------------------------------------------
     // TEST 11: Driver cannot navigate to customer routes
     // -------------------------------------------------------------------------
-    test('11. Driver cannot navigate to customer routes (redirects to /driver)', (
-    ) async {
+    test('11. Driver cannot navigate to customer routes (redirects to /driver)',
+        () async {
       const guard = ShadiRouteGuard(enforceAuth: true);
       final redirect = await guard.evaluateRedirect(
         targetLocation: RoutePaths.customerHome,
@@ -309,8 +322,8 @@ void main() {
     // -------------------------------------------------------------------------
     // TEST 12: Driver cannot navigate to admin routes
     // -------------------------------------------------------------------------
-    test('12. Driver cannot navigate to admin routes (redirects to /driver)', (
-    ) async {
+    test('12. Driver cannot navigate to admin routes (redirects to /driver)',
+        () async {
       const guard = ShadiRouteGuard(enforceAuth: true);
       final redirect = await guard.evaluateRedirect(
         targetLocation: RoutePaths.admin,
@@ -325,7 +338,9 @@ void main() {
     // -------------------------------------------------------------------------
     // TEST 13: Developer bypass is not rendered in production authentication UI
     // -------------------------------------------------------------------------
-    testWidgets('13. Developer bypass is not rendered in production authentication UI', (
+    testWidgets(
+        '13. Developer bypass is not rendered in production authentication UI',
+        (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -344,8 +359,8 @@ void main() {
     // -------------------------------------------------------------------------
     // TEST 14: Invalid OTP remains unauthenticated
     // -------------------------------------------------------------------------
-    test('14. Invalid OTP fails verification and state remains unauthenticated', (
-    ) async {
+    test('14. Invalid OTP fails verification and state remains unauthenticated',
+        () async {
       final container = ProviderContainer(
         overrides: [
           authRepositoryProvider.overrideWithValue(authRepo),
@@ -355,7 +370,8 @@ void main() {
       addTearDown(container.dispose);
 
       final controller = container.read(authControllerProvider.notifier);
-      final req = await controller.requestOtp(phoneNumber: DevAuthHarness.customerPhone);
+      final req = await controller.requestOtp(
+          phoneNumber: DevAuthHarness.customerPhone);
       expect(req.isSuccess, isTrue);
 
       final verify = await controller.verifyOtp(
@@ -371,8 +387,8 @@ void main() {
     // -------------------------------------------------------------------------
     // TEST 15: Successful OTP verification produces authenticated session
     // -------------------------------------------------------------------------
-    test('15. Successful OTP verification produces valid authenticated session', (
-    ) async {
+    test('15. Successful OTP verification produces valid authenticated session',
+        () async {
       final container = ProviderContainer(
         overrides: [
           authRepositoryProvider.overrideWithValue(authRepo),
@@ -382,7 +398,8 @@ void main() {
       addTearDown(container.dispose);
 
       final controller = container.read(authControllerProvider.notifier);
-      final req = await controller.requestOtp(phoneNumber: DevAuthHarness.customerPhone);
+      final req = await controller.requestOtp(
+          phoneNumber: DevAuthHarness.customerPhone);
       expect(req.isSuccess, isTrue);
 
       final verify = await controller.verifyOtp(
@@ -401,8 +418,8 @@ void main() {
     // -------------------------------------------------------------------------
     // TEST 16: Sign out → Login
     // -------------------------------------------------------------------------
-    test('16. Sign out clears session and returns to Unauthenticated state', (
-    ) async {
+    test('16. Sign out clears session and returns to Unauthenticated state',
+        () async {
       final container = ProviderContainer(
         overrides: [
           authRepositoryProvider.overrideWithValue(authRepo),
@@ -423,8 +440,9 @@ void main() {
     // -------------------------------------------------------------------------
     // TEST 17: App restart after sign out → Login
     // -------------------------------------------------------------------------
-    test('17. App restart after sign out restores empty session and stays unauthenticated', (
-    ) async {
+    test(
+        '17. App restart after sign out restores empty session and stays unauthenticated',
+        () async {
       // Step A: Login then sign out
       final container1 = ProviderContainer(
         overrides: [
@@ -432,7 +450,9 @@ void main() {
           secureStorageProvider.overrideWithValue(secureStorage),
         ],
       );
-      await container1.read(authControllerProvider.notifier).devLoginAsRole(UserRole.customer);
+      await container1
+          .read(authControllerProvider.notifier)
+          .devLoginAsRole(UserRole.customer);
       await container1.read(authControllerProvider.notifier).signOut();
       container1.dispose();
 
@@ -455,8 +475,9 @@ void main() {
     // -------------------------------------------------------------------------
     // TEST 18: App restart with valid session → correct role destination
     // -------------------------------------------------------------------------
-    test('18. App restart with valid session restores authenticated driver role', (
-    ) async {
+    test(
+        '18. App restart with valid session restores authenticated driver role',
+        () async {
       // Step A: Login as Driver
       final container1 = ProviderContainer(
         overrides: [
@@ -464,7 +485,9 @@ void main() {
           secureStorageProvider.overrideWithValue(secureStorage),
         ],
       );
-      await container1.read(authControllerProvider.notifier).devLoginAsRole(UserRole.driver);
+      await container1
+          .read(authControllerProvider.notifier)
+          .devLoginAsRole(UserRole.driver);
       container1.dispose();
 
       // Step B: Simulate app restart

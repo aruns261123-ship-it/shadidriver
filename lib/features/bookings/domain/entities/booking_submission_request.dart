@@ -76,10 +76,10 @@ class BookingSubmissionRequest {
 
   // --- Convenience Getters ---
   DateTime get eventDate => DateTime(
-    serviceStartDateTime.year,
-    serviceStartDateTime.month,
-    serviceStartDateTime.day,
-  );
+        serviceStartDateTime.year,
+        serviceStartDateTime.month,
+        serviceStartDateTime.day,
+      );
   int get startTimeHour => serviceStartDateTime.hour;
   int get startTimeMinute => serviceStartDateTime.minute;
   int get durationHours =>
@@ -126,15 +126,12 @@ class BookingSubmissionRequest {
     final hasVehicle = vehicleId.trim().isNotEmpty;
     final hasCeremony =
         ceremonyType.trim().isNotEmpty && ceremonialAttire.trim().isNotEmpty;
-    final hasTiming =
-        serviceEndDateTime.isAfter(serviceStartDateTime) &&
+    final hasTiming = serviceEndDateTime.isAfter(serviceStartDateTime) &&
         serviceEndDateTime.difference(serviceStartDateTime).inMinutes >= 60;
-    final hasLocations =
-        city.trim().isNotEmpty &&
+    final hasLocations = city.trim().isNotEmpty &&
         pickupAddress.trim().isNotEmpty &&
         destinationAddress.trim().isNotEmpty;
-    final hasContact =
-        primaryContactName.trim().length >= 2 &&
+    final hasContact = primaryContactName.trim().length >= 2 &&
         primaryContactPhone.replaceAll(RegExp(r'\D'), '').length >= 10;
     final hasPricing = estimatedTotalPaise > 0 && advanceTokenPaise > 0;
     final hasKey = idempotencyKey.trim().isNotEmpty;

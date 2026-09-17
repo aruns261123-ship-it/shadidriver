@@ -26,9 +26,9 @@ class SearchSession {
   });
 
   factory SearchSession.initial() => SearchSession(
-    query: const VehicleSearchQuery(),
-    lastUpdated: DateTime.now(),
-  );
+        query: const VehicleSearchQuery(),
+        lastUpdated: DateTime.now(),
+      );
 
   SearchSession copyWith({
     VehicleSearchQuery? query,

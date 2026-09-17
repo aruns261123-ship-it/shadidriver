@@ -14,29 +14,28 @@ void main() {
 
     setUp(() async {
       mockBookingRepo = MockBookingRepository();
-      testDraft =
-          BookingDraft.initial(
-            vehicleId: 'v1',
-            vehicleName: 'BMW 5 Series',
-            vehicleClass: 'Luxury Sedan',
-            chauffeurId: 'd1',
-            basePricePaise: 2500000,
-            estimatedTotalPaise: 2500000,
-            advanceTokenPaise: 500000,
-            advanceTokenLabel: 'Advance Token',
-          ).copyWith(
-            ceremonyType: 'Baraat',
-            ceremonialAttire: 'Royal Bandhgala & Gold Safa',
-            specialInstructions: 'Ceremonial slow drive',
-            pickupAddress: 'The Oberoi Hotel, New Delhi',
-            destinationAddress: 'Grand Imperial Banquets, MG Road',
-            venueName: 'Imperial Ballroom',
-            landmark: 'Gate 2',
-            primaryContactName: 'Vikram Malhotra',
-            primaryContactPhone: '9810012345',
-            alternateContactPhone: '9811122233',
-            passengerCount: 2,
-          );
+      testDraft = BookingDraft.initial(
+        vehicleId: 'v1',
+        vehicleName: 'BMW 5 Series',
+        vehicleClass: 'Luxury Sedan',
+        chauffeurId: 'd1',
+        basePricePaise: 2500000,
+        estimatedTotalPaise: 2500000,
+        advanceTokenPaise: 500000,
+        advanceTokenLabel: 'Advance Token',
+      ).copyWith(
+        ceremonyType: 'Baraat',
+        ceremonialAttire: 'Royal Bandhgala & Gold Safa',
+        specialInstructions: 'Ceremonial slow drive',
+        pickupAddress: 'The Oberoi Hotel, New Delhi',
+        destinationAddress: 'Grand Imperial Banquets, MG Road',
+        venueName: 'Imperial Ballroom',
+        landmark: 'Gate 2',
+        primaryContactName: 'Vikram Malhotra',
+        primaryContactPhone: '9810012345',
+        alternateContactPhone: '9811122233',
+        passengerCount: 2,
+      );
 
       await mockBookingRepo.createBookingDraft(testDraft);
     });

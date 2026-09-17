@@ -67,9 +67,8 @@ class SecureSessionStorageImpl implements SessionStorageService {
     final statusKey = await _storage.read(AppConstants.keyAccountStatus);
     final accountStatus = AccountStatus.fromStorageKey(statusKey);
     final issuedAtStr = await _storage.read(AppConstants.keySessionIssued);
-    final issuedAt = issuedAtStr != null
-        ? DateTime.tryParse(issuedAtStr)
-        : null;
+    final issuedAt =
+        issuedAtStr != null ? DateTime.tryParse(issuedAtStr) : null;
 
     return AuthSession(
       userId: userId,

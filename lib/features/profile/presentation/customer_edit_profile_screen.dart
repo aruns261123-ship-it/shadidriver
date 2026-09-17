@@ -205,7 +205,6 @@ class _CustomerEditProfileScreenState
                         ],
                       ),
                     ),
-
                   ShadiCard(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -219,7 +218,6 @@ class _CustomerEditProfileScreenState
                           ),
                         ),
                         const SizedBox(height: 16),
-
                         ShadiTextField(
                           label: 'Full Name *',
                           hint: 'e.g., Aditya Singhal',
@@ -230,7 +228,6 @@ class _CustomerEditProfileScreenState
                           ),
                         ),
                         const SizedBox(height: 16),
-
                         ShadiTextField(
                           label: 'Mobile Number *',
                           hint: 'e.g., +91 98765 43210',
@@ -242,7 +239,6 @@ class _CustomerEditProfileScreenState
                           ),
                         ),
                         const SizedBox(height: 16),
-
                         ShadiTextField(
                           label: 'Email Address (Optional)',
                           hint: 'e.g., aditya@example.com',
@@ -254,7 +250,6 @@ class _CustomerEditProfileScreenState
                           ),
                         ),
                         const SizedBox(height: 16),
-
                         Text(
                           'Primary Event City *',
                           style: AppTypography.labelMedium,
@@ -289,7 +284,6 @@ class _CustomerEditProfileScreenState
                           },
                         ),
                         const SizedBox(height: 16),
-
                         Text(
                           'Preferred Language',
                           style: AppTypography.labelMedium,
@@ -326,9 +320,7 @@ class _CustomerEditProfileScreenState
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   ShadiCard(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -342,7 +334,6 @@ class _CustomerEditProfileScreenState
                           ),
                         ),
                         const SizedBox(height: 16),
-
                         ShadiTextField(
                           label: 'Emergency Contact Name',
                           hint: 'e.g., Vikram Malhotra (Brother)',
@@ -353,7 +344,6 @@ class _CustomerEditProfileScreenState
                           ),
                         ),
                         const SizedBox(height: 16),
-
                         ShadiTextField(
                           label: 'Emergency Mobile Number',
                           hint: 'e.g., +91 98100 12345',
@@ -365,7 +355,6 @@ class _CustomerEditProfileScreenState
                           ),
                         ),
                         const SizedBox(height: 16),
-
                         ShadiTextField(
                           label: 'Wedding Chauffeur Preferences (Optional)',
                           hint:
@@ -380,9 +369,7 @@ class _CustomerEditProfileScreenState
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 24),
-
                   Row(
                     children: [
                       Expanded(

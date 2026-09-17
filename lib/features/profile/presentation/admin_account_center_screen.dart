@@ -109,248 +109,250 @@ class AdminAccountCenterScreen extends ConsumerWidget {
               ),
             )
           : state.profile == null
-          ? ShadiErrorView(
-              message:
-                  state.errorMessage ??
-                  'Unable to load administrator credentials.',
-              onRetry: () => controller.loadProfile(),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // 1. Admin Header Card
-                ShadiCard(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Row(
+              ? ShadiErrorView(
+                  message: state.errorMessage ??
+                      'Unable to load administrator credentials.',
+                  onRetry: () => controller.loadProfile(),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // 1. Admin Header Card
+                    ShadiCard(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
                         children: [
-                          ShadiAvatarPicker(
-                            photoUrl: state.profile!.photoUrl,
-                            name: state.profile!.fullName,
-                            size: 80,
-                            isSaving: state.isSaving,
-                            onPickFromGallery: () =>
-                                controller.pickAndSavePhotoFromGallery(),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                          Row(
+                            children: [
+                              ShadiAvatarPicker(
+                                photoUrl: state.profile!.photoUrl,
+                                name: state.profile!.fullName,
+                                size: 80,
+                                isSaving: state.isSaving,
+                                onPickFromGallery: () =>
+                                    controller.pickAndSavePhotoFromGallery(),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      child: Text(
-                                        state.profile!.fullName,
-                                        style: AppTypography.titleLarge
-                                            .copyWith(
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            state.profile!.fullName,
+                                            style: AppTypography.titleLarge
+                                                .copyWith(
                                               color: AppColors.primaryBurgundy,
                                               fontWeight: FontWeight.w700,
                                             ),
+                                          ),
+                                        ),
+                                        ShadiStatusBadge(
+                                          status: state
+                                              .profile!.role.displayLabel
+                                              .toUpperCase(),
+                                          color: AppColors.primaryBurgundy,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      state.profile!.email,
+                                      style: AppTypography.bodySmall.copyWith(
+                                        color: AppColors.textSecondaryLight,
                                       ),
                                     ),
-                                    ShadiStatusBadge(
-                                      status: state.profile!.role.displayLabel
-                                          .toUpperCase(),
-                                      color: AppColors.primaryBurgundy,
+                                    Text(
+                                      state.profile!.department,
+                                      style: AppTypography.labelSmall.copyWith(
+                                        color: AppColors.warmGold,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  state.profile!.email,
-                                  style: AppTypography.bodySmall.copyWith(
-                                    color: AppColors.textSecondaryLight,
+                              ),
+                            ],
+                          ),
+                          const Divider(
+                              height: 24, color: AppColors.borderLight),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Phone: ${state.profile!.phone}',
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.textPrimaryLight,
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () => _showEditContactDialog(
+                                  context,
+                                  controller,
+                                  state.profile!.fullName,
+                                  state.profile!.phone,
+                                ),
+                                icon: const Icon(
+                                  Icons.edit_rounded,
+                                  size: 16,
+                                  color: AppColors.primaryBurgundy,
+                                ),
+                                label: Text(
+                                  'Edit Contact',
+                                  style: AppTypography.labelMedium.copyWith(
+                                    color: AppColors.primaryBurgundy,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                Text(
-                                  state.profile!.department,
-                                  style: AppTypography.labelSmall.copyWith(
-                                    color: AppColors.warmGold,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // 2. Read-Only Authorization Invariant Card
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.borderLight),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.security_rounded,
+                                color: AppColors.warmGold,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Operational Authorization Level',
+                                style: AppTypography.titleSmall.copyWith(
+                                  color: AppColors.primaryBurgundy,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                state.profile!.authorizationLevel,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimaryLight,
+                                ),
+                              ),
+                              const Icon(
+                                Icons.lock_rounded,
+                                size: 16,
+                                color: AppColors.textSecondaryLight,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Administrative roles and authorization boundaries are managed exclusively by Super Admin provision and cannot be modified via profile UI.',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textSecondaryLight,
                             ),
                           ),
                         ],
                       ),
-                      const Divider(height: 24, color: AppColors.borderLight),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 3. Security & Operational Sessions
+                    ShadiCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
                         children: [
-                          Text(
-                            'Phone: ${state.profile!.phone}',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: AppColors.textPrimaryLight,
-                            ),
-                          ),
-                          TextButton.icon(
-                            onPressed: () => _showEditContactDialog(
-                              context,
-                              controller,
-                              state.profile!.fullName,
-                              state.profile!.phone,
-                            ),
-                            icon: const Icon(
-                              Icons.edit_rounded,
-                              size: 16,
+                          ListTile(
+                            leading: const Icon(
+                              Icons.devices_rounded,
                               color: AppColors.primaryBurgundy,
                             ),
-                            label: Text(
-                              'Edit Contact',
-                              style: AppTypography.labelMedium.copyWith(
-                                color: AppColors.primaryBurgundy,
-                                fontWeight: FontWeight.w700,
+                            title: const Text('Active Staff Sessions'),
+                            subtitle:
+                                const Text('1 Active Android Device Console'),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () {},
+                          ),
+                          const Divider(
+                            height: 1,
+                            indent: 60,
+                            color: AppColors.borderLight,
+                          ),
+                          ListTile(
+                            leading: const Icon(
+                              Icons.policy_rounded,
+                              color: AppColors.primaryBurgundy,
+                            ),
+                            title: const Text('Audit Trail & Compliance Logs'),
+                            subtitle: const Text(
+                              'View operations tamper-evident records',
+                            ),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () {},
+                          ),
+                          const Divider(
+                            height: 1,
+                            indent: 60,
+                            color: AppColors.borderLight,
+                          ),
+                          ListTile(
+                            leading: const Icon(
+                              Icons.support_agent_rounded,
+                              color: AppColors.primaryBurgundy,
+                            ),
+                            title: const Text('System & Security Help Desk'),
+                            subtitle: const Text(
+                              '24/7 technical incident and protocol response',
+                            ),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () {},
+                          ),
+                          const Divider(
+                            height: 1,
+                            indent: 60,
+                            color: AppColors.borderLight,
+                          ),
+                          ListTile(
+                            leading: const Icon(
+                              Icons.logout_rounded,
+                              color: AppColors.errorRed,
+                            ),
+                            title: Text(
+                              'Sign Out of Operations Console',
+                              style: TextStyle(
+                                color: AppColors.errorRed,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // 2. Read-Only Authorization Invariant Card
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderLight),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.security_rounded,
-                            color: AppColors.warmGold,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Operational Authorization Level',
-                            style: AppTypography.titleSmall.copyWith(
-                              color: AppColors.primaryBurgundy,
-                              fontWeight: FontWeight.w700,
+                            subtitle: const Text(
+                              'Lock control room and end administrative session',
                             ),
+                            onTap: () => _showAdminSignOutDialog(context, ref),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            state.profile!.authorizationLevel,
-                            style: AppTypography.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimaryLight,
-                            ),
-                          ),
-                          const Icon(
-                            Icons.lock_rounded,
-                            size: 16,
-                            color: AppColors.textSecondaryLight,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Administrative roles and authorization boundaries are managed exclusively by Super Admin provision and cannot be modified via profile UI.',
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.textSecondaryLight,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+
+                    const SizedBox(height: 32),
+                  ],
                 ),
-
-                const SizedBox(height: 20),
-
-                // 3. Security & Operational Sessions
-                ShadiCard(
-                  padding: EdgeInsets.zero,
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: const Icon(
-                          Icons.devices_rounded,
-                          color: AppColors.primaryBurgundy,
-                        ),
-                        title: const Text('Active Staff Sessions'),
-                        subtitle: const Text('1 Active Android Device Console'),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () {},
-                      ),
-                      const Divider(
-                        height: 1,
-                        indent: 60,
-                        color: AppColors.borderLight,
-                      ),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.policy_rounded,
-                          color: AppColors.primaryBurgundy,
-                        ),
-                        title: const Text('Audit Trail & Compliance Logs'),
-                        subtitle: const Text(
-                          'View operations tamper-evident records',
-                        ),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () {},
-                      ),
-                      const Divider(
-                        height: 1,
-                        indent: 60,
-                        color: AppColors.borderLight,
-                      ),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.support_agent_rounded,
-                          color: AppColors.primaryBurgundy,
-                        ),
-                        title: const Text('System & Security Help Desk'),
-                        subtitle: const Text(
-                          '24/7 technical incident and protocol response',
-                        ),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () {},
-                      ),
-                      const Divider(
-                        height: 1,
-                        indent: 60,
-                        color: AppColors.borderLight,
-                      ),
-                      ListTile(
-                        leading: const Icon(
-                          Icons.logout_rounded,
-                          color: AppColors.errorRed,
-                        ),
-                        title: Text(
-                          'Sign Out of Operations Console',
-                          style: TextStyle(
-                            color: AppColors.errorRed,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        subtitle: const Text(
-                          'Lock control room and end administrative session',
-                        ),
-                        onTap: () => _showAdminSignOutDialog(context, ref),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-              ],
-            ),
     );
   }
 

@@ -19,13 +19,13 @@ import '../domain/entities/booking_submission_result.dart';
 /// Provider fetching submission result by booking ID.
 final submissionResultProvider =
     FutureProvider.family<BookingSubmissionResult?, String>((
-      ref,
-      bookingId,
-    ) async {
-      final repo = ref.watch(bookingRepositoryProvider);
-      final res = await repo.getSubmissionResult(bookingId);
-      return res.dataOrNull;
-    });
+  ref,
+  bookingId,
+) async {
+  final repo = ref.watch(bookingRepositoryProvider);
+  final res = await repo.getSubmissionResult(bookingId);
+  return res.dataOrNull;
+});
 
 /// Milestone 4B: Customer Booking Submission Result Screen.
 ///

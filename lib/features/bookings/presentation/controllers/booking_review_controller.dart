@@ -59,13 +59,12 @@ class BookingReviewController extends StateNotifier<BookingReviewState> {
     required String draftId,
     String? initialIdempotencyKey,
   }) : super(
-         BookingReviewState(
-           isLoadingDraft: true,
-           idempotencyKey:
-               initialIdempotencyKey ??
-               'idem_${draftId}_${DateTime.now().millisecondsSinceEpoch}',
-         ),
-       ) {
+          BookingReviewState(
+            isLoadingDraft: true,
+            idempotencyKey: initialIdempotencyKey ??
+                'idem_${draftId}_${DateTime.now().millisecondsSinceEpoch}',
+          ),
+        ) {
     _loadDraft(draftId);
   }
 
@@ -148,12 +147,8 @@ class BookingReviewController extends StateNotifier<BookingReviewState> {
 }
 
 /// Provider family for BookingReviewController keyed by draft ID.
-final bookingReviewControllerProvider =
-    StateNotifierProvider.family<
-      BookingReviewController,
-      BookingReviewState,
-      String
-    >((ref, draftId) {
-      final repo = ref.watch(bookingRepositoryProvider);
-      return BookingReviewController(bookingRepository: repo, draftId: draftId);
-    });
+final bookingReviewControllerProvider = StateNotifierProvider.family<
+    BookingReviewController, BookingReviewState, String>((ref, draftId) {
+  final repo = ref.watch(bookingRepositoryProvider);
+  return BookingReviewController(bookingRepository: repo, draftId: draftId);
+});

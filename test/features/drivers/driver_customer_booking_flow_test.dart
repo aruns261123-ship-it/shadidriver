@@ -23,7 +23,8 @@ void main() {
     mockVehicleRepo = MockVehicleRepository();
   });
 
-  group('Milestone 5: Customer Submission -> Driver Accept Flow Integration', () {
+  group('Milestone 5: Customer Submission -> Driver Accept Flow Integration',
+      () {
     testWidgets(
       'Customer submits booking -> Driver accepts -> Customer view shows driverAccepted & assigned chauffeur',
       (tester) async {
@@ -33,23 +34,22 @@ void main() {
         addTearDown(() => tester.view.resetDevicePixelRatio());
 
         // 1. Customer Submits a Booking
-        final draft =
-            BookingDraft.initial(
-              vehicleId: 'v1',
-              vehicleName: 'Rolls-Royce Ghost',
-              vehicleClass: 'Ultra-Luxury',
-              chauffeurId: 'd1',
-              basePricePaise: 2500000,
-              estimatedTotalPaise: 2500000,
-              advanceTokenPaise: 500000,
-              advanceTokenLabel: '20% Advance Token Deposit',
-            ).copyWith(
-              ceremonyType: 'Baraat Procession',
-              pickupAddress: 'The Imperial, Janpath, New Delhi',
-              destinationAddress: 'Taj Palace, Chanakyapuri, New Delhi',
-              primaryContactName: 'Aarav Sharma',
-              primaryContactPhone: '+91 98765 43210',
-            );
+        final draft = BookingDraft.initial(
+          vehicleId: 'v1',
+          vehicleName: 'Rolls-Royce Ghost',
+          vehicleClass: 'Ultra-Luxury',
+          chauffeurId: 'd1',
+          basePricePaise: 2500000,
+          estimatedTotalPaise: 2500000,
+          advanceTokenPaise: 500000,
+          advanceTokenLabel: '20% Advance Token Deposit',
+        ).copyWith(
+          ceremonyType: 'Baraat Procession',
+          pickupAddress: 'The Imperial, Janpath, New Delhi',
+          destinationAddress: 'Taj Palace, Chanakyapuri, New Delhi',
+          primaryContactName: 'Aarav Sharma',
+          primaryContactPhone: '+91 98765 43210',
+        );
 
         final submitReq = BookingSubmissionRequest.fromDraft(
           draft,

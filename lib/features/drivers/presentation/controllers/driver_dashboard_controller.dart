@@ -173,20 +173,17 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
 }
 
 /// Riverpod provider for [DriverDashboardController].
-final driverDashboardControllerProvider =
-    StateNotifierProvider.autoDispose<
-      DriverDashboardController,
-      DriverDashboardState
-    >((ref) {
-      final driverRepo = ref.watch(driverRepositoryProvider);
-      final bookingRepo = ref.watch(bookingRepositoryProvider);
-      final pricingPolicy = ref.watch(bookingPricingPolicyProvider);
-      final driverId = ref.watch(currentDriverIdProvider);
+final driverDashboardControllerProvider = StateNotifierProvider.autoDispose<
+    DriverDashboardController, DriverDashboardState>((ref) {
+  final driverRepo = ref.watch(driverRepositoryProvider);
+  final bookingRepo = ref.watch(bookingRepositoryProvider);
+  final pricingPolicy = ref.watch(bookingPricingPolicyProvider);
+  final driverId = ref.watch(currentDriverIdProvider);
 
-      return DriverDashboardController(
-        driverRepository: driverRepo,
-        bookingRepository: bookingRepo,
-        pricingPolicy: pricingPolicy,
-        driverId: driverId,
-      );
-    });
+  return DriverDashboardController(
+    driverRepository: driverRepo,
+    bookingRepository: bookingRepo,
+    pricingPolicy: pricingPolicy,
+    driverId: driverId,
+  );
+});

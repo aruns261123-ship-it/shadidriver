@@ -96,7 +96,8 @@ final sessionStorageProvider = Provider<SessionStorageService>((ref) {
 /// whenever the active session changes.
 class _RouterSessionNotifier extends ChangeNotifier {
   _RouterSessionNotifier(Ref ref) {
-    ref.listen<AuthSession>(activeSessionProvider, (prev, next) => notifyListeners());
+    ref.listen<AuthSession>(
+        activeSessionProvider, (prev, next) => notifyListeners());
   }
 }
 

@@ -15,13 +15,13 @@ import '../domain/entities/booking_summary.dart';
 /// Provider for customer's bookings list
 final customerBookingsProvider =
     FutureProvider.autoDispose<List<BookingSummary>>((ref) async {
-      final repo = ref.watch(bookingRepositoryProvider);
-      final result = await repo.getMyBookings();
-      if (result.isSuccess) {
-        return result.dataOrNull!;
-      }
-      return [];
-    });
+  final repo = ref.watch(bookingRepositoryProvider);
+  final result = await repo.getMyBookings();
+  if (result.isSuccess) {
+    return result.dataOrNull!;
+  }
+  return [];
+});
 
 /// Production-ready Customer Bookings tab screen with tabs, status badges,
 /// timing details, and ceremonial journey cards.

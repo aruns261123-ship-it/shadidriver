@@ -7,16 +7,16 @@ class AppLoggerImpl implements AppLogger {
   final bool enabled;
 
   AppLoggerImpl({this.enabled = true})
-    : _logger = log_pkg.Logger(
-        printer: log_pkg.PrettyPrinter(
-          methodCount: 1,
-          errorMethodCount: 5,
-          lineLength: 80,
-          colors: true,
-          printEmojis: true,
-          dateTimeFormat: log_pkg.DateTimeFormat.onlyTimeAndSinceStart,
-        ),
-      );
+      : _logger = log_pkg.Logger(
+          printer: log_pkg.PrettyPrinter(
+            methodCount: 1,
+            errorMethodCount: 5,
+            lineLength: 80,
+            colors: true,
+            printEmojis: true,
+            dateTimeFormat: log_pkg.DateTimeFormat.onlyTimeAndSinceStart,
+          ),
+        );
 
   @override
   void debug(String message, [Object? error, StackTrace? stackTrace]) {

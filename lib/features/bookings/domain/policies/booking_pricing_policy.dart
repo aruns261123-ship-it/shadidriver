@@ -33,11 +33,11 @@ class BookingPricingCalculation {
 
   @override
   int get hashCode => Object.hash(
-    basePricePaise,
-    estimatedTotalPaise,
-    advanceTokenPaise,
-    advanceTokenLabel,
-  );
+        basePricePaise,
+        estimatedTotalPaise,
+        advanceTokenPaise,
+        advanceTokenLabel,
+      );
 }
 
 /// Abstract contract for advance payment policies.

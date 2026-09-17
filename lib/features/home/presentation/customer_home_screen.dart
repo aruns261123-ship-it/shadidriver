@@ -61,9 +61,7 @@ class CustomerHomeScreen extends ConsumerWidget {
                     const SizedBox(height: 24),
                     ShadiSearchCard(
                       onSearch: () {
-                        ref
-                            .read(searchControllerProvider.notifier)
-                            .updateQuery(
+                        ref.read(searchControllerProvider.notifier).updateQuery(
                               const VehicleSearchQuery(
                                 pickupLocation: 'Delhi NCR',
                                 occasionId: 'Baraat',
@@ -87,12 +85,13 @@ class CustomerHomeScreen extends ConsumerWidget {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: categories.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 16),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 16),
                           itemBuilder: (context, index) =>
                               ShadiServiceCategoryCard(
-                                category: categories[index],
-                                onTap: () {},
-                              ),
+                            category: categories[index],
+                            onTap: () {},
+                          ),
                         ),
                       ),
                       loading: () => const ShadiLoadingIndicator(size: 24),
@@ -123,7 +122,6 @@ class CustomerHomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
             featuredVehiclesAsync.when(
               data: (vehicles) => SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -157,7 +155,6 @@ class CustomerHomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(20),

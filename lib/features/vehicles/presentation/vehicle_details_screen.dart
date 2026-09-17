@@ -173,10 +173,10 @@ class VehicleDetailsScreen extends ConsumerWidget {
                                               ceremony,
                                               style: AppTypography.labelSmall
                                                   .copyWith(
-                                                    color: AppColors
-                                                        .primaryBurgundy,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
+                                                color:
+                                                    AppColors.primaryBurgundy,
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                             ),
                                           ),
                                         )
@@ -219,9 +219,9 @@ class VehicleDetailsScreen extends ConsumerWidget {
                                                 amenity,
                                                 style: AppTypography.bodyMedium
                                                     .copyWith(
-                                                      color: AppColors
-                                                          .textPrimaryLight,
-                                                    ),
+                                                  color: AppColors
+                                                      .textPrimaryLight,
+                                                ),
                                               ),
                                             ),
                                           ],
@@ -260,10 +260,10 @@ class VehicleDetailsScreen extends ConsumerWidget {
                                               addon.name,
                                               style: AppTypography.titleSmall
                                                   .copyWith(
-                                                    color: AppColors
-                                                        .primaryBurgundy,
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
+                                                color:
+                                                    AppColors.primaryBurgundy,
+                                                fontWeight: FontWeight.w700,
+                                              ),
                                             ),
                                           ),
                                           Text(
@@ -272,9 +272,9 @@ class VehicleDetailsScreen extends ConsumerWidget {
                                             ),
                                             style: AppTypography.titleSmall
                                                 .copyWith(
-                                                  color: AppColors.warmGold,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
+                                              color: AppColors.warmGold,
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                           ),
                                         ],
                                       ),

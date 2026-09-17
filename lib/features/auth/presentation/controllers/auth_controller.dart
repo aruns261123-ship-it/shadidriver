@@ -15,7 +15,7 @@ class AuthController extends StateNotifier<AuthState> {
   final Ref _ref;
 
   AuthController(this._authRepository, this._secureStorage, this._ref)
-    : super(const AuthUnknown());
+      : super(const AuthUnknown());
 
   /// Restores session on app startup
   Future<void> restoreSession() async {
@@ -43,9 +43,8 @@ class AuthController extends StateNotifier<AuthState> {
     if (result.isSuccess) {
       final sessionId = result.dataOrNull!;
       final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
-      final last4 = digits.length >= 4
-          ? digits.substring(digits.length - 4)
-          : digits;
+      final last4 =
+          digits.length >= 4 ? digits.substring(digits.length - 4) : digits;
       final masked = '+91 ••••• $last4';
       state = OtpSent(
         maskedPhone: masked,
@@ -54,8 +53,7 @@ class AuthController extends StateNotifier<AuthState> {
       );
     } else {
       state = AuthError(
-        failure:
-            result.failureOrNull ??
+        failure: result.failureOrNull ??
             const UnknownFailure('Failed to request OTP. Please try again.'),
       );
     }
@@ -86,8 +84,7 @@ class AuthController extends StateNotifier<AuthState> {
         _ => AuthErrorKind.invalidOtp,
       };
       state = AuthError(
-        failure:
-            failure ??
+        failure: failure ??
             const ValidationFailure(
               'The entered OTP is incorrect.',
               code: 'INVALID_OTP',

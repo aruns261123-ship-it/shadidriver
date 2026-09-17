@@ -79,14 +79,12 @@ class SavedAddressesScreen extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-
                     ShadiTextField(
                       label: 'Address Label *',
                       hint: 'e.g., Delhi Residence or Imperial Ballroom',
                       controller: labelCtrl,
                     ),
                     const SizedBox(height: 12),
-
                     ShadiTextField(
                       label: 'Full Address *',
                       hint:
@@ -95,14 +93,12 @@ class SavedAddressesScreen extends ConsumerWidget {
                       maxLines: 2,
                     ),
                     const SizedBox(height: 12),
-
                     ShadiTextField(
                       label: 'Landmark or Gate Instructions',
                       hint: 'e.g., Near VIP Porch Gate 2',
                       controller: landmarkCtrl,
                     ),
                     const SizedBox(height: 12),
-
                     Text('Address Category', style: AppTypography.labelMedium),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<AddressType>(
@@ -132,7 +128,6 @@ class SavedAddressesScreen extends ConsumerWidget {
                       },
                     ),
                     const SizedBox(height: 12),
-
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       value: isDefault,
@@ -142,11 +137,9 @@ class SavedAddressesScreen extends ConsumerWidget {
                       title: const Text('Set as default pickup point'),
                     ),
                     const SizedBox(height: 16),
-
                     ShadiPrimaryButton(
-                      text: existing == null
-                          ? 'Save Address'
-                          : 'Update Address',
+                      text:
+                          existing == null ? 'Save Address' : 'Update Address',
                       onPressed: () async {
                         final label = labelCtrl.text.trim();
                         final address = addressCtrl.text.trim();
@@ -223,163 +216,168 @@ class SavedAddressesScreen extends ConsumerWidget {
       body: state.isLoading
           ? const Center(child: ShadiLoadingIndicator())
           : state.addresses.isEmpty
-          ? ShadiEmptyState(
-              icon: Icons.location_off_rounded,
-              title: 'No Saved Addresses',
-              description:
-                  'Save wedding venues and residences for 1-tap bookings.',
-              actionLabel: 'Add Address',
-              onAction: () =>
-                  _showAddressDialog(context, controller, session.userId),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: state.addresses.length,
-              itemBuilder: (context, index) {
-                final item = state.addresses[index];
+              ? ShadiEmptyState(
+                  icon: Icons.location_off_rounded,
+                  title: 'No Saved Addresses',
+                  description:
+                      'Save wedding venues and residences for 1-tap bookings.',
+                  actionLabel: 'Add Address',
+                  onAction: () =>
+                      _showAddressDialog(context, controller, session.userId),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: state.addresses.length,
+                  itemBuilder: (context, index) {
+                    final item = state.addresses[index];
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: ShadiCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: ShadiCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.champagneGold.withValues(
-                                  alpha: 0.15,
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.champagneGold.withValues(
+                                      alpha: 0.15,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    _iconForType(item.type),
+                                    color: AppColors.primaryBurgundy,
+                                    size: 20,
+                                  ),
                                 ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                _iconForType(item.type),
-                                color: AppColors.primaryBurgundy,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        item.label,
-                                        style: AppTypography.titleSmall
-                                            .copyWith(
+                                      Row(
+                                        children: [
+                                          Text(
+                                            item.label,
+                                            style: AppTypography.titleSmall
+                                                .copyWith(
                                               color: AppColors.textPrimaryLight,
                                               fontWeight: FontWeight.w700,
                                             ),
+                                          ),
+                                          if (item.isDefault) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.warmGold,
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                  4,
+                                                ),
+                                              ),
+                                              child: const Text(
+                                                'DEFAULT',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
-                                      if (item.isDefault) ...[
-                                        const SizedBox(width: 8),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.warmGold,
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            'DEFAULT',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
+                                      Text(
+                                        item.type.displayLabel,
+                                        style:
+                                            AppTypography.labelSmall.copyWith(
+                                          color: AppColors.textSecondaryLight,
                                         ),
-                                      ],
+                                      ),
                                     ],
                                   ),
-                                  Text(
-                                    item.type.displayLabel,
-                                    style: AppTypography.labelSmall.copyWith(
-                                      color: AppColors.textSecondaryLight,
+                                ),
+                                PopupMenuButton<String>(
+                                  icon: const Icon(
+                                    Icons.more_vert_rounded,
+                                    color: AppColors.textSecondaryLight,
+                                  ),
+                                  onSelected: (action) {
+                                    if (action == 'edit') {
+                                      _showAddressDialog(
+                                        context,
+                                        controller,
+                                        session.userId,
+                                        existing: item,
+                                      );
+                                    } else if (action == 'delete') {
+                                      controller.deleteAddress(item.id);
+                                    }
+                                  },
+                                  itemBuilder: (_) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text('Edit'),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text(
+                                        'Delete',
+                                        style: TextStyle(
+                                            color: AppColors.errorRed),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              item.address,
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.textPrimaryLight,
+                                height: 1.4,
+                              ),
+                            ),
+                            if (item.landmark != null &&
+                                item.landmark!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.flag_rounded,
+                                    size: 14,
+                                    color: AppColors.warmGold,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      item.landmark!,
+                                      style: AppTypography.labelSmall.copyWith(
+                                        color: AppColors.textSecondaryLight,
+                                        fontStyle: FontStyle.italic,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                            PopupMenuButton<String>(
-                              icon: const Icon(
-                                Icons.more_vert_rounded,
-                                color: AppColors.textSecondaryLight,
-                              ),
-                              onSelected: (action) {
-                                if (action == 'edit') {
-                                  _showAddressDialog(
-                                    context,
-                                    controller,
-                                    session.userId,
-                                    existing: item,
-                                  );
-                                } else if (action == 'delete') {
-                                  controller.deleteAddress(item.id);
-                                }
-                              },
-                              itemBuilder: (_) => [
-                                const PopupMenuItem(
-                                  value: 'edit',
-                                  child: Text('Edit'),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text(
-                                    'Delete',
-                                    style: TextStyle(color: AppColors.errorRed),
-                                  ),
-                                ),
-                              ],
-                            ),
+                            ],
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          item.address,
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.textPrimaryLight,
-                            height: 1.4,
-                          ),
-                        ),
-                        if (item.landmark != null &&
-                            item.landmark!.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.flag_rounded,
-                                size: 14,
-                                color: AppColors.warmGold,
-                              ),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  item.landmark!,
-                                  style: AppTypography.labelSmall.copyWith(
-                                    color: AppColors.textSecondaryLight,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+                      ),
+                    );
+                  },
+                ),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),

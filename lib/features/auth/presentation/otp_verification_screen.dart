@@ -172,13 +172,13 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                                 const EdgeInsets.symmetric(vertical: 14),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide:
-                                  const BorderSide(color: AppColors.borderLight),
+                              borderSide: const BorderSide(
+                                  color: AppColors.borderLight),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide:
-                                  const BorderSide(color: AppColors.borderLight),
+                              borderSide: const BorderSide(
+                                  color: AppColors.borderLight),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),

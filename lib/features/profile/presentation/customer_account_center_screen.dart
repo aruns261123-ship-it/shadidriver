@@ -55,97 +55,102 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
               ),
             )
           : profileState.profile == null
-          ? ShadiErrorView(
-              message: profileState.errorMessage ?? 'Unable to load profile.',
-              onRetry: () => profileController.loadProfile(),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // 1. Profile Header Card
-                _buildProfileHeaderCard(
-                  context,
-                  profileState,
-                  profileController,
+              ? ShadiErrorView(
+                  message:
+                      profileState.errorMessage ?? 'Unable to load profile.',
+                  onRetry: () => profileController.loadProfile(),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // 1. Profile Header Card
+                    _buildProfileHeaderCard(
+                      context,
+                      profileState,
+                      profileController,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 2. Ceremonial & Travel Section
+                    _buildSectionHeader('Ceremonial Travel & Bookings'),
+                    const SizedBox(height: 10),
+                    _buildMenuCard([
+                      _MenuItem(
+                        icon: Icons.pin_drop_rounded,
+                        title: 'Saved Addresses',
+                        subtitle:
+                            '${addressState.addresses.length} saved addresses (Home, Venues)',
+                        onTap: () => context.push(RoutePaths.customerAddresses),
+                      ),
+                      _MenuItem(
+                        icon: Icons.calendar_today_rounded,
+                        title: 'My Ceremonial Reservations',
+                        subtitle: 'Review past and current wedding bookings',
+                        onTap: () => context.go(RoutePaths.customerBookings),
+                      ),
+                      _MenuItem(
+                        icon: Icons.favorite_rounded,
+                        title: 'Shortlisted Fleet',
+                        subtitle: 'Vehicles saved for your special occasions',
+                        onTap: () => context.go(RoutePaths.customerSearch),
+                      ),
+                    ]),
+
+                    const SizedBox(height: 20),
+
+                    // 3. Settings & Preferences
+                    _buildSectionHeader('Settings & Preferences'),
+                    const SizedBox(height: 10),
+                    _buildMenuCard([
+                      _MenuItem(
+                        icon: Icons.notifications_active_rounded,
+                        title: 'Notifications & Alerts',
+                        subtitle: 'Booking updates and chauffeur dispatch SMS',
+                        onTap: () => _showNotificationSheet(context),
+                      ),
+                      _MenuItem(
+                        icon: Icons.security_rounded,
+                        title: 'Privacy & Security',
+                        subtitle: 'Manage data sharing and account credentials',
+                        onTap: () => _showPrivacySheet(context),
+                      ),
+                      _MenuItem(
+                        icon: Icons.support_agent_rounded,
+                        title: '24/7 Royal Concierge Support',
+                        subtitle:
+                            'Direct line to your wedding transport manager',
+                        onTap: () => _showConciergeSheet(context),
+                      ),
+                    ]),
+
+                    const SizedBox(height: 20),
+
+                    // 4. Account Actions
+                    _buildSectionHeader('Account Actions'),
+                    const SizedBox(height: 10),
+                    _buildMenuCard([
+                      _MenuItem(
+                        icon: Icons.edit_rounded,
+                        title: 'Edit Royal Profile',
+                        subtitle:
+                            'Update full name, contact information, and city',
+                        onTap: () =>
+                            context.push(RoutePaths.customerProfileEdit),
+                      ),
+                      _MenuItem(
+                        icon: Icons.logout_rounded,
+                        title: 'Sign Out',
+                        subtitle:
+                            'End your current ceremonial session securely',
+                        titleColor: AppColors.errorRed,
+                        onTap: () => _showLogoutDialog(context, ref),
+                      ),
+                    ]),
+
+                    const SizedBox(height: 32),
+                  ],
                 ),
-
-                const SizedBox(height: 20),
-
-                // 2. Ceremonial & Travel Section
-                _buildSectionHeader('Ceremonial Travel & Bookings'),
-                const SizedBox(height: 10),
-                _buildMenuCard([
-                  _MenuItem(
-                    icon: Icons.pin_drop_rounded,
-                    title: 'Saved Addresses',
-                    subtitle:
-                        '${addressState.addresses.length} saved addresses (Home, Venues)',
-                    onTap: () => context.push(RoutePaths.customerAddresses),
-                  ),
-                  _MenuItem(
-                    icon: Icons.calendar_today_rounded,
-                    title: 'My Ceremonial Reservations',
-                    subtitle: 'Review past and current wedding bookings',
-                    onTap: () => context.go(RoutePaths.customerBookings),
-                  ),
-                  _MenuItem(
-                    icon: Icons.favorite_rounded,
-                    title: 'Shortlisted Fleet',
-                    subtitle: 'Vehicles saved for your special occasions',
-                    onTap: () => context.go(RoutePaths.customerSearch),
-                  ),
-                ]),
-
-                const SizedBox(height: 20),
-
-                // 3. Settings & Preferences
-                _buildSectionHeader('Settings & Preferences'),
-                const SizedBox(height: 10),
-                _buildMenuCard([
-                  _MenuItem(
-                    icon: Icons.notifications_active_rounded,
-                    title: 'Notifications & Alerts',
-                    subtitle: 'Booking updates and chauffeur dispatch SMS',
-                    onTap: () => _showNotificationSheet(context),
-                  ),
-                  _MenuItem(
-                    icon: Icons.security_rounded,
-                    title: 'Privacy & Security',
-                    subtitle: 'Manage data sharing and account credentials',
-                    onTap: () => _showPrivacySheet(context),
-                  ),
-                  _MenuItem(
-                    icon: Icons.support_agent_rounded,
-                    title: '24/7 Royal Concierge Support',
-                    subtitle: 'Direct line to your wedding transport manager',
-                    onTap: () => _showConciergeSheet(context),
-                  ),
-                ]),
-
-                const SizedBox(height: 20),
-
-                // 4. Account Actions
-                _buildSectionHeader('Account Actions'),
-                const SizedBox(height: 10),
-                _buildMenuCard([
-                  _MenuItem(
-                    icon: Icons.edit_rounded,
-                    title: 'Edit Royal Profile',
-                    subtitle: 'Update full name, contact information, and city',
-                    onTap: () => context.push(RoutePaths.customerProfileEdit),
-                  ),
-                  _MenuItem(
-                    icon: Icons.logout_rounded,
-                    title: 'Sign Out',
-                    subtitle: 'End your current ceremonial session securely',
-                    titleColor: AppColors.errorRed,
-                    onTap: () => _showLogoutDialog(context, ref),
-                  ),
-                ]),
-
-                const SizedBox(height: 32),
-              ],
-            ),
     );
   }
 

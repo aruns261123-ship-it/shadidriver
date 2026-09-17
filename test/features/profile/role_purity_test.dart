@@ -9,7 +9,9 @@ import 'package:shadidriver/features/profile/presentation/admin_dashboard_screen
 
 void main() {
   group('Role Purity & Cross-Role Switcher Removal Tests', () {
-    testWidgets('CustomerAccountCenterScreen is role-pure without cross-role switchers', (tester) async {
+    testWidgets(
+        'CustomerAccountCenterScreen is role-pure without cross-role switchers',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -45,10 +47,13 @@ void main() {
       await tester.tap(find.text('Sign Out'));
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsOneWidget);
-      expect(find.text('Are you sure you want to end your ceremonial session?'), findsOneWidget);
+      expect(find.text('Are you sure you want to end your ceremonial session?'),
+          findsOneWidget);
     });
 
-    testWidgets('DriverAccountCenterScreen is role-pure without customer switchers', (tester) async {
+    testWidgets(
+        'DriverAccountCenterScreen is role-pure without customer switchers',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -82,10 +87,15 @@ void main() {
       await tester.tap(find.text('Sign Out of Chauffeur Console'));
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsOneWidget);
-      expect(find.text('Are you sure you want to go offline and end your chauffeur duty session?'), findsOneWidget);
+      expect(
+          find.text(
+              'Are you sure you want to go offline and end your chauffeur duty session?'),
+          findsOneWidget);
     });
 
-    testWidgets('DriverDashboardScreen does not render cross-role switch button', (tester) async {
+    testWidgets(
+        'DriverDashboardScreen does not render cross-role switch button',
+        (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(
@@ -101,7 +111,9 @@ void main() {
       expect(find.text('Switch to Customer View'), findsNothing);
     });
 
-    testWidgets('AdminAccountCenterScreen is role-pure without customer switchers', (tester) async {
+    testWidgets(
+        'AdminAccountCenterScreen is role-pure without customer switchers',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -135,10 +147,14 @@ void main() {
       await tester.tap(find.text('Sign Out of Operations Console'));
       await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsOneWidget);
-      expect(find.text('Are you sure you want to lock the control room and end your administrative session?'), findsOneWidget);
+      expect(
+          find.text(
+              'Are you sure you want to lock the control room and end your administrative session?'),
+          findsOneWidget);
     });
 
-    testWidgets('AdminDashboardScreen does not render cross-role switch button', (tester) async {
+    testWidgets('AdminDashboardScreen does not render cross-role switch button',
+        (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(

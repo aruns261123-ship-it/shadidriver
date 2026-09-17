@@ -111,7 +111,8 @@ class FakeBookingRepository implements BookingRepository {
     int page = 1,
     int limit = 20,
     String? statusFilter,
-  }) async => const Result.success([]);
+  }) async =>
+      const Result.success([]);
 
   @override
   Future<Result<BookingSummary>> transitionState({
@@ -140,7 +141,8 @@ class FakeBookingRepository implements BookingRepository {
   Future<Result<void>> cancelBooking({
     required String bookingId,
     required String reason,
-  }) async => const Result.success(null);
+  }) async =>
+      const Result.success(null);
 
   final Map<String, BookingSubmissionResult> _submissions = {};
 
@@ -309,21 +311,20 @@ void main() {
       'FakeBookingRepository submits booking intent and returns submission result',
       () async {
         final repo = FakeBookingRepository();
-        final draft =
-            BookingDraft.initial(
-              vehicleId: 'v_test',
-              vehicleName: 'Mercedes-Benz E-Class',
-              vehicleClass: 'Luxury Sedan',
-              chauffeurId: 'd_test',
-              basePricePaise: 3000000,
-              estimatedTotalPaise: 3000000,
-              advanceTokenPaise: 600000,
-            ).copyWith(
-              pickupAddress: 'The Oberoi, New Delhi',
-              destinationAddress: 'Grand Imperial Banquets',
-              primaryContactName: 'Vikram Malhotra',
-              primaryContactPhone: '9810012345',
-            );
+        final draft = BookingDraft.initial(
+          vehicleId: 'v_test',
+          vehicleName: 'Mercedes-Benz E-Class',
+          vehicleClass: 'Luxury Sedan',
+          chauffeurId: 'd_test',
+          basePricePaise: 3000000,
+          estimatedTotalPaise: 3000000,
+          advanceTokenPaise: 600000,
+        ).copyWith(
+          pickupAddress: 'The Oberoi, New Delhi',
+          destinationAddress: 'Grand Imperial Banquets',
+          primaryContactName: 'Vikram Malhotra',
+          primaryContactPhone: '9810012345',
+        );
 
         final request = BookingSubmissionRequest.fromDraft(
           draft,
@@ -346,21 +347,20 @@ void main() {
       'FakeBookingRepository accepts and declines driver booking request',
       () async {
         final repo = FakeBookingRepository();
-        final draft =
-            BookingDraft.initial(
-              vehicleId: 'v_test',
-              vehicleName: 'Mercedes-Benz E-Class',
-              vehicleClass: 'Luxury Sedan',
-              chauffeurId: 'd_test',
-              basePricePaise: 3000000,
-              estimatedTotalPaise: 3000000,
-              advanceTokenPaise: 600000,
-            ).copyWith(
-              pickupAddress: 'The Oberoi, New Delhi',
-              destinationAddress: 'Grand Imperial Banquets',
-              primaryContactName: 'Vikram Malhotra',
-              primaryContactPhone: '9810012345',
-            );
+        final draft = BookingDraft.initial(
+          vehicleId: 'v_test',
+          vehicleName: 'Mercedes-Benz E-Class',
+          vehicleClass: 'Luxury Sedan',
+          chauffeurId: 'd_test',
+          basePricePaise: 3000000,
+          estimatedTotalPaise: 3000000,
+          advanceTokenPaise: 600000,
+        ).copyWith(
+          pickupAddress: 'The Oberoi, New Delhi',
+          destinationAddress: 'Grand Imperial Banquets',
+          primaryContactName: 'Vikram Malhotra',
+          primaryContactPhone: '9810012345',
+        );
 
         final request = BookingSubmissionRequest.fromDraft(
           draft,

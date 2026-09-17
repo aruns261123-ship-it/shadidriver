@@ -32,21 +32,20 @@ void main() {
 
     setUp(() async {
       repository = FailingBookingRepository();
-      testDraft =
-          BookingDraft.initial(
-            vehicleId: 'v1',
-            vehicleName: 'BMW 5 Series',
-            vehicleClass: 'Luxury Sedan',
-            chauffeurId: 'd1',
-            basePricePaise: 2500000,
-            estimatedTotalPaise: 2500000,
-            advanceTokenPaise: 500000,
-          ).copyWith(
-            pickupAddress: 'The Oberoi Hotel, New Delhi',
-            destinationAddress: 'Grand Imperial Banquets',
-            primaryContactName: 'Vikram Malhotra',
-            primaryContactPhone: '9810012345',
-          );
+      testDraft = BookingDraft.initial(
+        vehicleId: 'v1',
+        vehicleName: 'BMW 5 Series',
+        vehicleClass: 'Luxury Sedan',
+        chauffeurId: 'd1',
+        basePricePaise: 2500000,
+        estimatedTotalPaise: 2500000,
+        advanceTokenPaise: 500000,
+      ).copyWith(
+        pickupAddress: 'The Oberoi Hotel, New Delhi',
+        destinationAddress: 'Grand Imperial Banquets',
+        primaryContactName: 'Vikram Malhotra',
+        primaryContactPhone: '9810012345',
+      );
 
       // Save draft to repository so controller can load it
       await repository.createBookingDraft(testDraft);

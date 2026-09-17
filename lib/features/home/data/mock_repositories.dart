@@ -530,7 +530,8 @@ class MockDriverRepository implements DriverRepository {
   }
 
   @override
-  Future<Result<DriverProfile>> updateDriverProfile(DriverProfile profile) async {
+  Future<Result<DriverProfile>> updateDriverProfile(
+      DriverProfile profile) async {
     await Future.delayed(const Duration(milliseconds: 150));
     _mockDrivers[profile.id] = profile;
     return Result.success(profile);
@@ -578,7 +579,8 @@ class MockDriverRepository implements DriverRepository {
     required bool isFuelChecked,
     required bool isDualAcChecked,
     required bool isGroomingChecked,
-  }) async => const Result.success(null);
+  }) async =>
+      const Result.success(null);
 
   @override
   Future<Result<void>> sendTelemetryPing({
@@ -586,7 +588,8 @@ class MockDriverRepository implements DriverRepository {
     required double longitude,
     required double speedKmh,
     required double bearing,
-  }) async => const Result.success(null);
+  }) async =>
+      const Result.success(null);
 
   static final Map<String, DriverProfile> _mockDrivers = {
     'd1': DriverProfile(

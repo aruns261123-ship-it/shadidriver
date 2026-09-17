@@ -90,7 +90,8 @@ void main() {
     test('deleteAddress removes the address', () async {
       final listBefore = (await repository.getAddresses(
         'cust_101',
-      )).dataOrNull!;
+      ))
+          .dataOrNull!;
       final toDelete = listBefore.first.id;
 
       final delRes = await repository.deleteAddress(

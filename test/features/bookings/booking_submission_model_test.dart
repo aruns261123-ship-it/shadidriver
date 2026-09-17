@@ -22,27 +22,26 @@ void main() {
     test(
       'BookingSubmissionRequest.fromDraft builds valid request from complete draft',
       () {
-        final draft =
-            BookingDraft.initial(
-              vehicleId: 'v1',
-              vehicleName: 'BMW 5 Series',
-              vehicleClass: 'Luxury Sedan',
-              chauffeurId: 'd1',
-              basePricePaise: 2500000,
-              estimatedTotalPaise: 2500000,
-              advanceTokenPaise: 500000,
-              advanceTokenLabel: '20% Token Deposit',
-            ).copyWith(
-              ceremonyType: 'Vidai',
-              ceremonialAttire: 'Royal Bandhgala',
-              pickupAddress: 'The Oberoi Hotel, New Delhi',
-              destinationAddress: 'Grand Imperial Banquets, MG Road',
-              venueName: 'The Imperial Ballroom',
-              landmark: 'Near Gate 2',
-              primaryContactName: 'Vikram Malhotra',
-              primaryContactPhone: '9810012345',
-              passengerCount: 3,
-            );
+        final draft = BookingDraft.initial(
+          vehicleId: 'v1',
+          vehicleName: 'BMW 5 Series',
+          vehicleClass: 'Luxury Sedan',
+          chauffeurId: 'd1',
+          basePricePaise: 2500000,
+          estimatedTotalPaise: 2500000,
+          advanceTokenPaise: 500000,
+          advanceTokenLabel: '20% Token Deposit',
+        ).copyWith(
+          ceremonyType: 'Vidai',
+          ceremonialAttire: 'Royal Bandhgala',
+          pickupAddress: 'The Oberoi Hotel, New Delhi',
+          destinationAddress: 'Grand Imperial Banquets, MG Road',
+          venueName: 'The Imperial Ballroom',
+          landmark: 'Near Gate 2',
+          primaryContactName: 'Vikram Malhotra',
+          primaryContactPhone: '9810012345',
+          passengerCount: 3,
+        );
 
         expect(draft.isComplete, isTrue);
 

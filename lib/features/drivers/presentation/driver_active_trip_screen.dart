@@ -144,9 +144,8 @@ class DriverActiveTripScreen extends ConsumerWidget {
             return Expanded(
               child: Container(
                 height: 2,
-                color: isDone
-                    ? AppColors.primaryBurgundy
-                    : AppColors.borderLight,
+                color:
+                    isDone ? AppColors.primaryBurgundy : AppColors.borderLight,
               ),
             );
           }
@@ -506,9 +505,8 @@ class DriverActiveTripScreen extends ConsumerWidget {
         return ShadiPrimaryButton(
           text: 'Start Ceremonial Service',
           isLoading: isUpdating,
-          onPressed: isUpdating
-              ? null
-              : () => _showStartOtpModal(context, controller),
+          onPressed:
+              isUpdating ? null : () => _showStartOtpModal(context, controller),
         );
 
       case DriverTripStage.ceremonyInProgress:
@@ -597,7 +595,6 @@ class DriverActiveTripScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-
                   TextField(
                     controller: otpController,
                     keyboardType: TextInputType.number,
@@ -620,7 +617,6 @@ class DriverActiveTripScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-
                   CheckboxListTile(
                     value: attireChecked,
                     contentPadding: EdgeInsets.zero,
@@ -634,7 +630,6 @@ class DriverActiveTripScreen extends ConsumerWidget {
                     },
                   ),
                   const SizedBox(height: 16),
-
                   ShadiPrimaryButton(
                     text: 'Confirm & Begin Ceremony',
                     onPressed: () async {
