@@ -1,18 +1,26 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/result/result.dart';
+import '../../home/data/mock_repositories.dart';
 import '../domain/entities/driver_profile.dart';
 import '../domain/repositories/driver_profile_repository.dart';
 
 /// In-memory development mock for [DriverProfileRepository].
 class MockDriverProfileRepository implements DriverProfileRepository {
-  final Map<String, DriverProfile> _profiles = {};
+  static final Map<String, DriverProfile> _sessionProfiles = {};
 
   MockDriverProfileRepository() {
-    _seedDefaultDriverProfile();
+    if (_sessionProfiles.isEmpty) {
+      _seedDefaultDriverProfile();
+    }
+  }
+
+  /// Resets mock state (useful for test isolation).
+  static void resetSession() {
+    _sessionProfiles.clear();
   }
 
   void _seedDefaultDriverProfile() {
-    _profiles['d1'] = const DriverProfile(
+    _sessionProfiles['d1'] = const DriverProfile(
       id: 'd1',
       fullName: 'Rajesh Kumar',
       phone: '+91 98100 12345',
@@ -36,7 +44,7 @@ class MockDriverProfileRepository implements DriverProfileRepository {
   @override
   Future<Result<DriverProfile>> getProfile(String driverId) async {
     await Future.delayed(const Duration(milliseconds: 100));
-    final profile = _profiles[driverId];
+    final profile = _sessionProfiles[driverId];
     if (profile != null) {
       return Result.success(profile);
     }
@@ -50,14 +58,14 @@ class MockDriverProfileRepository implements DriverProfileRepository {
       rating: 5.0,
       totalTrips: 0,
     );
-    _profiles[driverId] = created;
+    _sessionProfiles[driverId] = created;
     return Result.success(created);
   }
 
   @override
   Future<Result<DriverProfile>> updateProfile(DriverProfile profile) async {
     await Future.delayed(const Duration(milliseconds: 150));
-    final existing = _profiles[profile.id];
+    final existing = _sessionProfiles[profile.id] ?? _sessionProfiles['d1'];
     if (existing == null) {
       return const Result.failure(NotFoundFailure('Driver profile not found.'));
     }
@@ -78,7 +86,10 @@ class MockDriverProfileRepository implements DriverProfileRepository {
       clearProfileImage: profile.profileImageUrl == null,
     );
 
-    _profiles[profile.id] = sanitized;
+    _sessionProfiles[profile.id] = sanitized;
+    // Synchronize with MockDriverRepository so customer/driver views match
+    MockDriverRepository.setMockDriver(profile.id, sanitized);
+
     return Result.success(sanitized);
   }
 
@@ -88,12 +99,13 @@ class MockDriverProfileRepository implements DriverProfileRepository {
     required String photoUrl,
   }) async {
     await Future.delayed(const Duration(milliseconds: 120));
-    final existing = _profiles[driverId];
+    final existing = _sessionProfiles[driverId] ?? _sessionProfiles['d1'];
     if (existing == null) {
       return const Result.failure(NotFoundFailure('Driver profile not found.'));
     }
     final updated = existing.copyWith(profileImageUrl: photoUrl);
-    _profiles[driverId] = updated;
+    _sessionProfiles[driverId] = updated;
+    MockDriverRepository.setMockDriver(driverId, updated);
     return Result.success(photoUrl);
   }
 }

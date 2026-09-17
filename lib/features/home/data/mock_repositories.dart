@@ -529,6 +529,17 @@ class MockDriverRepository implements DriverRepository {
     );
   }
 
+  @override
+  Future<Result<DriverProfile>> updateDriverProfile(DriverProfile profile) async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    _mockDrivers[profile.id] = profile;
+    return Result.success(profile);
+  }
+
+  static void setMockDriver(String id, DriverProfile profile) {
+    _mockDrivers[id] = profile;
+  }
+
   static final Map<String, DriverDutyStatus> _dutyStatuses = {
     'd1': DriverDutyStatus.available,
     'd2': DriverDutyStatus.available,

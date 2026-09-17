@@ -8,6 +8,8 @@ abstract interface class DriverRepository {
 
   Future<Result<DriverProfile>> getDriverById(String driverId);
 
+  Future<Result<DriverProfile>> updateDriverProfile(DriverProfile profile);
+
   Future<Result<DriverDutyStatus>> getDutyStatus(String driverId);
 
   Future<Result<void>> updateDutyStatus({

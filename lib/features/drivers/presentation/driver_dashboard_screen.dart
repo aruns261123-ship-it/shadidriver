@@ -14,6 +14,7 @@ import '../../../core/widgets/shadi_status_badge.dart';
 import '../domain/entities/driver_booking_offer.dart';
 import '../domain/entities/driver_duty_status.dart';
 import 'controllers/driver_dashboard_controller.dart';
+import 'controllers/driver_profile_controller.dart';
 
 /// Milestone 5: Chauffeur Operational Dashboard.
 ///
@@ -26,6 +27,8 @@ class DriverDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(driverDashboardControllerProvider);
     final controller = ref.read(driverDashboardControllerProvider.notifier);
+    final profileState = ref.watch(driverProfileControllerProvider('d1'));
+    final driverName = profileState.profile?.fullName ?? 'Rajesh Kumar';
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -43,7 +46,7 @@ class DriverDashboardScreen extends ConsumerWidget {
               ),
             ),
             Text(
-              'Rajesh Kumar • Ceremonial Fleet PB-01',
+              '$driverName • Ceremonial Fleet PB-01',
               style: AppTypography.labelSmall.copyWith(
                 color: AppColors.textSecondaryLight,
               ),

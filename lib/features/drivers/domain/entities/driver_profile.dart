@@ -58,12 +58,31 @@ class DriverProfile {
       score += 15;
     }
     if (bio.trim().length >= 10) score += 15;
-    if (experienceYears > 0) score += 10;
     if (operatingArea.trim().isNotEmpty) score += 10;
-    if (languages.isNotEmpty) score += 10;
+    if (experienceYears > 0) score += 10;
     if (weddingExperienceYears > 0) score += 10;
+    if (languages.isNotEmpty) score += 10;
     return score.clamp(0, 100);
   }
+
+  /// List of non-sensitive missing items needed for 100% profile completion.
+  List<String> get missingProfileItems {
+    final missing = <String>[];
+    if (fullName.trim().length < 2) missing.add('Full Name');
+    if (phone.trim().length < 10) missing.add('Phone Number');
+    if (profileImageUrl == null || profileImageUrl!.trim().isEmpty) {
+      missing.add('Profile Photo');
+    }
+    if (bio.trim().length < 10) missing.add('Chauffeur Bio');
+    if (operatingArea.trim().isEmpty) missing.add('Operating Area');
+    if (experienceYears <= 0) missing.add('Total Experience');
+    if (weddingExperienceYears <= 0) missing.add('Wedding Experience');
+    if (languages.isEmpty) missing.add('Spoken Languages');
+    return missing;
+  }
+
+  /// Whether all essential professional profile attributes are filled.
+  bool get isProfileComplete => missingProfileItems.isEmpty;
 
   /// Driver editing method that strictly preserves verification and platform invariants.
   DriverProfile copyWithEditableFields({

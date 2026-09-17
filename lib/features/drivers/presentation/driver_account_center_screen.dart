@@ -10,6 +10,7 @@ import '../../../core/widgets/shadi_error_view.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../core/widgets/shadi_status_badge.dart';
 import 'controllers/driver_profile_controller.dart';
+import '../domain/entities/driver_profile.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 
 /// Chauffeur Account & Profile Center Screen.
@@ -38,7 +39,7 @@ class DriverAccountCenterScreen extends ConsumerWidget {
             Icons.arrow_back_rounded,
             color: AppColors.primaryBurgundy,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go(RoutePaths.driver),
         ),
         title: Text(
           'Chauffeur Profile',
@@ -69,7 +70,7 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
 
                 // 2. Profile Completion Card (Decoupled from verification!)
-                _buildCompletionCard(state.profile!.completionPercentage),
+                _buildCompletionCard(state.profile!),
 
                 const SizedBox(height: 16),
 
@@ -202,7 +203,7 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'ID: ${profile.id} • ${profile.experienceYears} Years Exp',
+                            '${profile.experienceYears} Yrs Total Exp • ${profile.weddingExperienceYears} Yrs Wedding Exp',
                             style: AppTypography.labelSmall.copyWith(
                               color: AppColors.textSecondaryLight,
                               fontWeight: FontWeight.w600,
@@ -277,7 +278,7 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                   color: AppColors.primaryBurgundy,
                 ),
                 label: Text(
-                  'Edit Bio & Details',
+                  'Edit Profile',
                   style: AppTypography.labelMedium.copyWith(
                     color: AppColors.primaryBurgundy,
                     fontWeight: FontWeight.w700,
@@ -291,7 +292,8 @@ class DriverAccountCenterScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildCompletionCard(int percentage) {
+  Widget _buildCompletionCard(DriverProfile profile) {
+    final percentage = profile.completionPercentage;
     return ShadiCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -329,14 +331,32 @@ class DriverAccountCenterScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            percentage >= 90
-                ? 'Your professional profile is complete and ready for wedding bookings.'
-                : 'Complete wedding experience, languages, and bio to increase booking allocations.',
-            style: AppTypography.labelSmall.copyWith(
-              color: AppColors.textSecondaryLight,
+          if (profile.isProfileComplete) ...[
+            Row(
+              children: [
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 16,
+                  color: AppColors.verifiedEmerald,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Professional profile complete',
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.verifiedEmerald,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-          ),
+          ] else ...[
+            Text(
+              'Missing: ${profile.missingProfileItems.join(", ")}',
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textSecondaryLight,
+              ),
+            ),
+          ],
         ],
       ),
     );
