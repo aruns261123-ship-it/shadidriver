@@ -1,4 +1,4 @@
-package com.example.shadidriver
+package in.shadidriver.app
 
 import io.flutter.embedding.android.FlutterActivity
 

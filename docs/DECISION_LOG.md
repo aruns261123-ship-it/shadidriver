@@ -197,12 +197,12 @@
 ---
 
 ### ADR-019: Application Package & Bundle Identity Migration
-* **Status**: **RECOMMENDED BUT NOT YET FINAL**
-* **Rationale**: The repository was generated with placeholder identifier `com.example.shadidriver`. Production Google Play Console and Apple Developer accounts require an authoritative, registered reverse-domain identity. The proposed production identifiers are:
-  - Customer App: `in.shadidriver.app` (or `com.shadidriver.customer`)
-  - Chauffeur App: `in.shadidriver.partner` (or `com.shadidriver.driver`)
-  - Universal Bundle: `in.shadidriver.app`
-* **Alternatives Considered**: Retaining `com.example.shadidriver` (rejected - cannot publish to app stores with `com.example`); Changing platform files prematurely before final legal entity incorporation domain confirmation.
-* **Dependencies**: Official company registration and domain ownership verification (`shadidriver.in`).
-* **What Would Cause Revisit**: Confirmation of legal trademark registration or decision to release separate flavor app bundles vs single multi-role app bundle.
+* **Status**: **ACCEPTED & IMPLEMENTED**
+* **Decision**: Adopt universal bundle identity `in.shadidriver.app` across Android (`namespace` and `applicationId`), iOS, macOS, and Linux platforms.
+* **Rationale**: The repository was generated with placeholder identifier `com.example.shadidriver`. Production Google Play Console and Apple Developer accounts require an authoritative, registered reverse-domain identity. Single multi-role app bundle architecture with server-authoritative role determination utilizes `in.shadidriver.app`.
+* **Implementation Details**:
+  - Android namespace & applicationId: `in.shadidriver.app`
+  - Android Kotlin Package: `in.shadidriver.app.MainActivity`
+  - iOS/macOS Bundle Identifier: `in.shadidriver.app`
+  - Linux Application ID: `in.shadidriver.app`
 

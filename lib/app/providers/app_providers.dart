@@ -1,11 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/config/env_config.dart';
+import '../../core/config/feature_flags.dart';
 import '../../core/logging/app_logger.dart';
 import '../../core/logging/logger_impl.dart';
 import '../../core/network/api_client.dart';
 import '../../core/security/flutter_secure_storage_impl.dart';
 import '../../core/security/secure_storage_service.dart';
+import '../../core/security/session_storage_service.dart';
+import '../../core/security/secure_session_storage_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/bookings/domain/repositories/booking_repository.dart';
 import '../../features/bookings/domain/policies/booking_pricing_policy.dart';
@@ -33,6 +36,7 @@ import '../../features/profile/domain/repositories/admin_profile_repository.dart
 import '../../features/profile/data/mock_admin_profile_repository.dart';
 import '../../features/auth/domain/entities/auth_session.dart';
 import '../../features/auth/data/mock_auth_repository.dart';
+import '../../features/auth/data/http_auth_repository.dart';
 import '../../features/bookings/domain/services/route_distance_service.dart';
 import '../../features/bookings/data/mock_route_distance_service.dart';
 import '../../features/payments/data/mock_payment_repository.dart';
@@ -54,8 +58,12 @@ import '../router/route_guards.dart';
 // ---------------------------------------------------------------------------
 
 /// Active environment configuration provider.
+///
+/// Resolved from the `--dart-define=APP_FLAVOR=...` compile-time flag (see
+/// [EnvironmentConfig.current]). Defaults to development, so this is safe
+/// to leave untouched during day-to-day frontend work.
 final environmentConfigProvider = Provider<EnvironmentConfig>((ref) {
-  return EnvironmentConfig.development();
+  return EnvironmentConfig.current();
 });
 
 /// Centralized application logger provider.
@@ -76,6 +84,12 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   final storage = ref.watch(secureStorageProvider);
 
   return ApiClient(config: config, logger: logger, secureStorage: storage);
+});
+
+/// Session persistence provider (used by the real Http*Repository
+/// implementations; mocks manage their own in-memory session state).
+final sessionStorageProvider = Provider<SessionStorageService>((ref) {
+  return SecureSessionStorageImpl(ref.watch(secureStorageProvider));
 });
 
 /// Listenable notifier that triggers GoRouter redirect re-evaluation
@@ -131,9 +145,21 @@ final bookingPricingPolicyProvider = Provider<BookingPricingPolicy>((ref) {
 // Domain Repository Providers (Interfaces declared, implementations injected)
 // ---------------------------------------------------------------------------
 
+/// Auth repository provider — this is the reference pattern for every other
+/// repository provider below. Each one should follow this exact shape:
+/// check the feature's [FeatureFlags] flag, return the real Http*
+/// implementation when false, otherwise fall back to the mock. This means
+/// flipping one --dart-define switches one feature to the real backend
+/// without touching any other provider or any presentation code.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final storage = ref.watch(secureStorageProvider);
-  return MockAuthRepository(storage);
+  if (FeatureFlags.useMockAuth) {
+    final storage = ref.watch(secureStorageProvider);
+    return MockAuthRepository(storage);
+  }
+  return HttpAuthRepository(
+    apiClient: ref.watch(apiClientProvider),
+    sessionStorage: ref.watch(sessionStorageProvider),
+  );
 });
 
 final routeDistanceServiceProvider = Provider<RouteDistanceService>((ref) {

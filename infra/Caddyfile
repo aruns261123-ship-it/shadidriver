@@ -1,0 +1,25 @@
+# Caddy configuration for ShadiDriver Single-City Pilot
+# For local dev: http://localhost
+# For VPS deploy: replace localhost with api.shadidriver.in
+
+localhost {
+    # Reverse proxy API requests to the NestJS backend
+    reverse_proxy backend:3000
+
+    # Global compression
+    encode gzip zstd
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Access logs
+    log {
+        output stdout
+        format json
+    }
+}
