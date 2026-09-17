@@ -530,7 +530,9 @@ class MockDriverRepository implements DriverRepository {
   }
 
   @override
-  Future<Result<DriverProfile>> updateDriverProfile(DriverProfile profile) async {
+  Future<Result<DriverProfile>> updateDriverProfile(
+    DriverProfile profile,
+  ) async {
     await Future.delayed(const Duration(milliseconds: 150));
     _mockDrivers[profile.id] = profile;
     return Result.success(profile);

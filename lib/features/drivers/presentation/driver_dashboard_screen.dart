@@ -60,9 +60,8 @@ class DriverDashboardScreen extends ConsumerWidget {
               color: AppColors.primaryBurgundy,
             ),
             tooltip: 'Active Trip Console',
-            onPressed: () => context.push(
-              RoutePaths.driverActiveTripPath('bk_mock_req_1'),
-            ),
+            onPressed: () =>
+                context.push(RoutePaths.driverActiveTripPath('bk_mock_req_1')),
           ),
           IconButton(
             icon: const Icon(

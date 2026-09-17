@@ -28,7 +28,10 @@ class EnvironmentConfig {
 
   /// Default development configuration pointing to mock/local environment.
   factory EnvironmentConfig.development({bool? useMockData}) {
-    const isMock = bool.fromEnvironment('SHADI_USE_MOCK_AUTH', defaultValue: true);
+    const isMock = bool.fromEnvironment(
+      'SHADI_USE_MOCK_AUTH',
+      defaultValue: true,
+    );
     return EnvironmentConfig(
       flavor: AppFlavor.development,
       appName: 'ShadiDriver Dev',
@@ -46,7 +49,10 @@ class EnvironmentConfig {
 
   /// Staging configuration for pre-release validation.
   factory EnvironmentConfig.staging({bool? useMockData}) {
-    const isMock = bool.fromEnvironment('SHADI_USE_MOCK_AUTH', defaultValue: false);
+    const isMock = bool.fromEnvironment(
+      'SHADI_USE_MOCK_AUTH',
+      defaultValue: false,
+    );
     return EnvironmentConfig(
       flavor: AppFlavor.staging,
       appName: 'ShadiDriver Staging',

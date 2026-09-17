@@ -39,7 +39,8 @@ class DriverAccountCenterScreen extends ConsumerWidget {
             Icons.arrow_back_rounded,
             color: AppColors.primaryBurgundy,
           ),
-          onPressed: () => context.canPop() ? context.pop() : context.go(RoutePaths.driver),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go(RoutePaths.driver),
         ),
         title: Text(
           'Chauffeur Profile',
@@ -127,7 +128,8 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                   _MenuItem(
                     icon: Icons.support_agent_rounded,
                     title: 'Chauffeur Support Desk',
-                    subtitle: 'Direct emergency line to operations control room',
+                    subtitle:
+                        'Direct emergency line to operations control room',
                     onTap: () {},
                   ),
                   _MenuItem(

@@ -71,10 +71,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       return;
     }
     setState(() => _errorMessage = null);
-    ref.read(authControllerProvider.notifier).verifyOtp(
-          otpSessionId: widget.otpSessionId,
-          otpCode: code,
-        );
+    ref
+        .read(authControllerProvider.notifier)
+        .verifyOtp(otpSessionId: widget.otpSessionId, otpCode: code);
   }
 
   void _onResend() {
@@ -82,9 +81,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     _startCooldown();
     setState(() => _errorMessage = null);
     if (widget.initialPhone != null && widget.initialPhone!.isNotEmpty) {
-      ref.read(authControllerProvider.notifier).requestOtp(
-            phoneNumber: widget.initialPhone!,
-          );
+      ref
+          .read(authControllerProvider.notifier)
+          .requestOtp(phoneNumber: widget.initialPhone!);
     }
   }
 
@@ -168,17 +167,20 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                             ),
                             filled: true,
                             fillColor: Colors.white,
-                            contentPadding:
-                                const EdgeInsets.symmetric(vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide:
-                                  const BorderSide(color: AppColors.borderLight),
+                              borderSide: const BorderSide(
+                                color: AppColors.borderLight,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide:
-                                  const BorderSide(color: AppColors.borderLight),
+                              borderSide: const BorderSide(
+                                color: AppColors.borderLight,
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),

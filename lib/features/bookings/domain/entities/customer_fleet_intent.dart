@@ -86,9 +86,7 @@ class CustomerFleetIntent {
   }
 
   /// Factory for any suitable luxury vehicle fleet to accommodate [passengerCount].
-  factory CustomerFleetIntent.anySuitable({
-    required int passengerCount,
-  }) {
+  factory CustomerFleetIntent.anySuitable({required int passengerCount}) {
     return CustomerFleetIntent(
       passengerCount: passengerCount,
       preference: CustomerFleetPreference.anySuitable,
@@ -97,8 +95,13 @@ class CustomerFleetIntent {
 
   /// Resolves the booking type based on units and preference.
   FleetBookingType get bookingType {
-    final totalUnits = requestedUnits.values.fold<int>(0, (sum, count) => sum + count);
-    if (totalUnits <= 1 && requestedUnits.length <= 1 && preference != CustomerFleetPreference.customFleet) {
+    final totalUnits = requestedUnits.values.fold<int>(
+      0,
+      (sum, count) => sum + count,
+    );
+    if (totalUnits <= 1 &&
+        requestedUnits.length <= 1 &&
+        preference != CustomerFleetPreference.customFleet) {
       return FleetBookingType.singleVehicle;
     }
     if (requestedUnits.length == 1) {

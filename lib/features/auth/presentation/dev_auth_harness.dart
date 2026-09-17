@@ -43,10 +43,7 @@ abstract final class DevAuthHarness {
     final controller = container.read(authControllerProvider.notifier);
     final req = await controller.requestOtp(phoneNumber: phone);
     if (req.isSuccess) {
-      await controller.verifyOtp(
-        otpSessionId: req.dataOrNull!,
-        otpCode: otp,
-      );
+      await controller.verifyOtp(otpSessionId: req.dataOrNull!, otpCode: otp);
     }
   }
 }

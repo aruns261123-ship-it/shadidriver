@@ -116,7 +116,8 @@ class _DriverEditProfileScreenState
 
     if (!isFormValid || !hasLanguages) {
       setState(() {
-        _validationError = 'Please correct the highlighted fields before saving.';
+        _validationError =
+            'Please correct the highlighted fields before saving.';
       });
       return;
     }
@@ -357,7 +358,8 @@ class _DriverEditProfileScreenState
                                     final totalExp = int.tryParse(
                                       _expYearsController.text.trim(),
                                     );
-                                    if (totalExp != null && weddingExp > totalExp) {
+                                    if (totalExp != null &&
+                                        weddingExp > totalExp) {
                                       return 'Cannot exceed Total ($totalExp)';
                                     }
                                     return null;
@@ -377,13 +379,14 @@ class _DriverEditProfileScreenState
                             spacing: 8,
                             runSpacing: 8,
                             children: _availableLanguages.map((lang) {
-                              final selected = _selectedLanguages.contains(lang);
+                              final selected = _selectedLanguages.contains(
+                                lang,
+                              );
                               return FilterChip(
                                 label: Text(lang),
                                 selected: selected,
-                                selectedColor: AppColors.champagneGold.withValues(
-                                  alpha: 0.3,
-                                ),
+                                selectedColor: AppColors.champagneGold
+                                    .withValues(alpha: 0.3),
                                 checkmarkColor: AppColors.primaryBurgundy,
                                 onSelected: isSaving
                                     ? null
@@ -428,7 +431,9 @@ class _DriverEditProfileScreenState
                         const SizedBox(width: 12),
                         Expanded(
                           child: ShadiPrimaryButton(
-                            text: isSaving ? 'Saving Profile...' : 'Save Profile',
+                            text: isSaving
+                                ? 'Saving Profile...'
+                                : 'Save Profile',
                             isLoading: isSaving,
                             onPressed: isSaving
                                 ? null

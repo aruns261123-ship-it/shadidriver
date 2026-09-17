@@ -69,7 +69,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     if (session.accountStatus == AccountStatus.profileIncomplete) {
-      if (session.role == UserRole.driver || session.role == UserRole.fleetOwner) {
+      if (session.role == UserRole.driver ||
+          session.role == UserRole.fleetOwner) {
         context.go(RoutePaths.driverProfileEdit);
       } else {
         context.go(RoutePaths.customerProfileEdit);
@@ -115,10 +116,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
     setState(() => _errorMessage = null);
-    ref.read(authControllerProvider.notifier).verifyOtp(
-          otpSessionId: otpSessionId,
-          otpCode: code,
-        );
+    ref
+        .read(authControllerProvider.notifier)
+        .verifyOtp(otpSessionId: otpSessionId, otpCode: code);
   }
 
   @override
@@ -408,7 +408,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ShadiPrimaryButton(
           text: 'Verify & Continue',
           isLoading: isLoading,
-          onPressed: isLoading ? null : () => _onVerifyOtp(otpState.otpSessionId),
+          onPressed: isLoading
+              ? null
+              : () => _onVerifyOtp(otpState.otpSessionId),
         ),
         const SizedBox(height: 16),
         Center(

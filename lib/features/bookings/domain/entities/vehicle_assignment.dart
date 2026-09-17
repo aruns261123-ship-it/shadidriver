@@ -92,5 +92,6 @@ class VehicleAssignment {
           other.status == status);
 
   @override
-  int get hashCode => Object.hash(assignmentId, parentBookingId, vehicleId, status);
+  int get hashCode =>
+      Object.hash(assignmentId, parentBookingId, vehicleId, status);
 }

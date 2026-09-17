@@ -471,7 +471,8 @@ class MockBookingRepository implements BookingRepository {
 
     if (intent.preference == CustomerFleetPreference.preferredModel) {
       final model = intent.preferredModel ?? 'Toyota Innova Crysta';
-      final requestedCount = intent.requestedUnits[model] ?? (intent.passengerCount / 6).ceil();
+      final requestedCount =
+          intent.requestedUnits[model] ?? (intent.passengerCount / 6).ceil();
       final availableCount = _mockInventory[model] ?? 2;
 
       if (requestedCount <= availableCount) {
@@ -603,14 +604,14 @@ class MockBookingRepository implements BookingRepository {
     final unitsMap = request.fleetIntent.requestedUnits.isNotEmpty
         ? request.fleetIntent.requestedUnits
         : (request.fleetIntent.preferredModel != null
-            ? {
-                request.fleetIntent.preferredModel!:
-                    (request.fleetIntent.passengerCount / 6).ceil()
-              }
-            : {
-                'Toyota Innova Crysta':
-                    (request.fleetIntent.passengerCount / 6).ceil()
-              });
+              ? {
+                  request.fleetIntent.preferredModel!:
+                      (request.fleetIntent.passengerCount / 6).ceil(),
+                }
+              : {
+                  'Toyota Innova Crysta':
+                      (request.fleetIntent.passengerCount / 6).ceil(),
+                });
 
     int estimatedTotalPaise = 0;
 

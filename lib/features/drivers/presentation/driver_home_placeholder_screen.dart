@@ -15,9 +15,7 @@ class DriverHomePlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chauffeur Portal'),
-      ),
+      appBar: AppBar(title: const Text('Chauffeur Portal')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [

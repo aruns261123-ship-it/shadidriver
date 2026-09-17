@@ -153,7 +153,9 @@ class MockAuthRepository implements AuthRepository {
     await _simulateDelay();
 
     final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
-    final raw10 = digits.length > 10 ? digits.substring(digits.length - 10) : digits;
+    final raw10 = digits.length > 10
+        ? digits.substring(digits.length - 10)
+        : digits;
 
     final isValid = RegExp(r'^[6-9]\d{9}$').hasMatch(raw10);
     if (!isValid) {
@@ -168,7 +170,9 @@ class MockAuthRepository implements AuthRepository {
     final registered = _registeredAccounts[raw10];
 
     // Public admin registration prohibition
-    if (role != null && _isAdminRole(role) && (registered == null || !_isAdminRole(registered.role))) {
+    if (role != null &&
+        _isAdminRole(role) &&
+        (registered == null || !_isAdminRole(registered.role))) {
       return const Result.failure(
         UnauthorizedFailure(
           'Admin accounts cannot be created via public registration.',

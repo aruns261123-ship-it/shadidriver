@@ -140,33 +140,34 @@ void main() {
   });
 
   group('LoginScreen Widget Tests', () {
-    testWidgets('renders brand crest, phone input, and no dev bypass or role chips', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        const ProviderScope(child: MaterialApp(home: LoginScreen())),
-      );
+    testWidgets(
+      'renders brand crest, phone input, and no dev bypass or role chips',
+      (tester) async {
+        await tester.pumpWidget(
+          const ProviderScope(child: MaterialApp(home: LoginScreen())),
+        );
 
-      await tester.pump();
+        await tester.pump();
 
-      // Brand headers
-      expect(find.text('ShadiDriver'), findsOneWidget);
-      expect(find.text('Royal Chauffeur Service'), findsOneWidget);
-      expect(find.text('Welcome to ShadiDriver'), findsOneWidget);
-      expect(find.text('Sign in or create your account'), findsOneWidget);
+        // Brand headers
+        expect(find.text('ShadiDriver'), findsOneWidget);
+        expect(find.text('Royal Chauffeur Service'), findsOneWidget);
+        expect(find.text('Welcome to ShadiDriver'), findsOneWidget);
+        expect(find.text('Sign in or create your account'), findsOneWidget);
 
-      // Phone Input & CTA
-      expect(find.text('🇮🇳 +91'), findsOneWidget);
-      expect(find.text('Continue'), findsOneWidget);
+        // Phone Input & CTA
+        expect(find.text('🇮🇳 +91'), findsOneWidget);
+        expect(find.text('Continue'), findsOneWidget);
 
-      // Production invariant: No role selector chips
-      expect(find.text('Host / Guest'), findsNothing);
-      expect(find.text('Chauffeur'), findsNothing);
-      expect(find.text('Operations'), findsNothing);
+        // Production invariant: No role selector chips
+        expect(find.text('Host / Guest'), findsNothing);
+        expect(find.text('Chauffeur'), findsNothing);
+        expect(find.text('Operations'), findsNothing);
 
-      // Production invariant: No Developer Quick Bypass
-      expect(find.text('Developer Quick Bypass (1-Tap)'), findsNothing);
-      expect(find.text('Developer Quick Bypass'), findsNothing);
-    });
+        // Production invariant: No Developer Quick Bypass
+        expect(find.text('Developer Quick Bypass (1-Tap)'), findsNothing);
+        expect(find.text('Developer Quick Bypass'), findsNothing);
+      },
+    );
   });
 }

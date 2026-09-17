@@ -31,9 +31,7 @@ void main() {
         child: MaterialApp.router(routerConfig: router),
       );
     }
-    return ProviderScope(
-      child: MaterialApp.router(routerConfig: router),
-    );
+    return ProviderScope(child: MaterialApp.router(routerConfig: router));
   }
 
   void configurePhoneDimensions(WidgetTester tester) {
@@ -52,7 +50,11 @@ void main() {
     );
   }
 
-  Future<void> enterField(WidgetTester tester, String label, String text) async {
+  Future<void> enterField(
+    WidgetTester tester,
+    String label,
+    String text,
+  ) async {
     final field = findField(label);
     await tester.ensureVisible(field);
     await tester.pump();
@@ -233,7 +235,10 @@ void main() {
           ),
           findsOneWidget,
         );
-        expect(find.textContaining('Languages: Hindi, English'), findsOneWidget);
+        expect(
+          find.textContaining('Languages: Hindi, English'),
+          findsOneWidget,
+        );
         expect(find.text('CHAUFFEUR'), findsOneWidget);
         expect(find.text('Profile Completion'), findsOneWidget);
       },
@@ -253,7 +258,8 @@ void main() {
         MockDriverProfileRepository.setSessionProfile(
           current.copyWithEditableFields(
             fullName: 'Devendra Shekhawat',
-            bio: 'Master of baraat ceremonies and vintage luxury fleet handling.',
+            bio:
+                'Master of baraat ceremonies and vintage luxury fleet handling.',
             operatingArea: 'Jodhpur & Jaisalmer Forts',
             experienceYears: 16,
             weddingExperienceYears: 11,
@@ -418,7 +424,9 @@ void main() {
           findsOneWidget,
         );
         expect(
-          find.textContaining('managed by Compliance and cannot be self-modified'),
+          find.textContaining(
+            'managed by Compliance and cannot be self-modified',
+          ),
           findsOneWidget,
         );
 

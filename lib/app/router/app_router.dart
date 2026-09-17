@@ -60,10 +60,7 @@ GoRouter createShadiRouter({
       );
     },
     routes: [
-      GoRoute(
-        path: '/',
-        redirect: (_, _) => RoutePaths.splash,
-      ),
+      GoRoute(path: '/', redirect: (_, _) => RoutePaths.splash),
       GoRoute(
         path: RoutePaths.splash,
         name: 'splash',

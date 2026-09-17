@@ -96,7 +96,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     // 3. Incomplete profiles go to appropriate profile onboarding/edit screen
     if (session.accountStatus == AccountStatus.profileIncomplete) {
-      if (session.role == UserRole.driver || session.role == UserRole.fleetOwner) {
+      if (session.role == UserRole.driver ||
+          session.role == UserRole.fleetOwner) {
         context.go(RoutePaths.driverProfileEdit);
       } else {
         context.go(RoutePaths.customerProfileEdit);
