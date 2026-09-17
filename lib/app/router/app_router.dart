@@ -42,9 +42,10 @@ GoRouter createShadiRouter({
   String? Function()? userRole,
   AccountStatus Function()? accountStatus,
   Listenable? refreshListenable,
+  GlobalKey<NavigatorState>? navigatorKey,
 }) {
   return GoRouter(
-    navigatorKey: rootNavigatorKey,
+    navigatorKey: navigatorKey ?? rootNavigatorKey,
     initialLocation: initialLocation,
     refreshListenable: refreshListenable,
     redirect: (BuildContext context, GoRouterState state) async {

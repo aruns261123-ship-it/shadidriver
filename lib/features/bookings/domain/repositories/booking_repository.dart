@@ -4,6 +4,10 @@ import '../entities/booking_draft.dart';
 import '../entities/booking_submission_request.dart';
 import '../entities/booking_submission_result.dart';
 import '../entities/booking_summary.dart';
+import '../entities/customer_fleet_intent.dart';
+import '../entities/fleet_availability_result.dart';
+import '../entities/group_booking.dart';
+import '../entities/group_booking_submission_request.dart';
 
 /// Pure Dart domain contract for booking lifecycle and draft operations.
 abstract interface class BookingRepository {
@@ -78,4 +82,17 @@ abstract interface class BookingRepository {
     required DriverDeclineReason reason,
     String? notes,
   });
+
+  /// Checks fleet availability for a multi-vehicle / group booking intent.
+  Future<Result<FleetAvailabilityResult>> checkFleetAvailability(
+    CustomerFleetIntent intent,
+  );
+
+  /// Submits a multi-vehicle / group booking with parent booking and individual vehicle assignments.
+  Future<Result<GroupBooking>> submitGroupBooking(
+    GroupBookingSubmissionRequest request,
+  );
+
+  /// Retrieves a group booking and its vehicle assignments by ID.
+  Future<Result<GroupBooking?>> getGroupBooking(String parentBookingId);
 }

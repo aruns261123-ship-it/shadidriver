@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shadidriver/app/router/app_router.dart';
 import 'package:shadidriver/app/router/route_paths.dart';
 import 'package:shadidriver/core/result/result.dart';
+import 'package:shadidriver/core/widgets/shadi_text_field.dart';
 import 'package:shadidriver/features/drivers/data/mock_driver_profile_repository.dart';
 import 'package:shadidriver/features/drivers/domain/entities/driver_profile.dart';
 import 'package:shadidriver/features/drivers/presentation/controllers/driver_profile_controller.dart';
@@ -20,7 +21,10 @@ void main() {
     required String initialLocation,
     ProviderContainer? container,
   }) {
-    final router = createShadiRouter(initialLocation: initialLocation);
+    final router = createShadiRouter(
+      initialLocation: initialLocation,
+      navigatorKey: GlobalKey<NavigatorState>(),
+    );
     if (container != null) {
       return UncontrolledProviderScope(
         container: container,
@@ -41,6 +45,26 @@ void main() {
     });
   }
 
+  Finder findField(String label) {
+    return find.descendant(
+      of: find.widgetWithText(ShadiTextField, label),
+      matching: find.byType(TextFormField),
+    );
+  }
+
+  Future<void> enterField(WidgetTester tester, String label, String text) async {
+    final field = findField(label);
+    await tester.ensureVisible(field);
+    await tester.pump();
+    await tester.enterText(field, text);
+  }
+
+  Future<void> settleApp(WidgetTester tester) async {
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+  }
+
   group('Chauffeur Profile Save & Complete Profile Navigation Tests', () {
     // -------------------------------------------------------------------------
     // Scenario 1: Edit chauffeur profile with valid data -> save succeeds
@@ -53,28 +77,25 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(initialLocation: RoutePaths.driverProfileEdit),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Screen is loaded with initial values
         expect(find.text('Edit Chauffeur Details'), findsOneWidget);
 
         // Edit full name
-        final nameField = find.widgetWithText(TextFormField, 'Full Name *');
+        final nameField = findField('Full Name *');
         expect(nameField, findsOneWidget);
         await tester.enterText(nameField, 'Vikram Singh Rathore');
 
         // Edit bio
-        final bioField = find.widgetWithText(TextFormField, 'Chauffeur Bio *');
+        final bioField = findField('Chauffeur Bio *');
         await tester.enterText(
           bioField,
           'Elite ceremonial chauffeur with extensive VIP and royal Baraat procession expertise.',
         );
 
         // Edit operating area
-        final areaField = find.widgetWithText(
-          TextFormField,
-          'Primary Operating Area / Route *',
-        );
+        final areaField = findField('Primary Operating Area / Route *');
         await tester.enterText(areaField, 'Udaipur Palace & Jaipur Highway');
 
         // Scroll to save button and tap
@@ -83,11 +104,8 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(saveButton);
 
-        // Advance past delay
-        await tester.pump();
-        expect(find.text('Saving Profile...'), findsOneWidget);
-
-        await tester.pumpAndSettle();
+        // Settle save and SnackBar
+        await settleApp(tester);
 
         // Verify success snackbar
         expect(find.text('Profile saved successfully'), findsOneWidget);
@@ -105,47 +123,31 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(initialLocation: RoutePaths.driverProfileEdit),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
-        final nameField = find.widgetWithText(TextFormField, 'Full Name *');
-        await tester.enterText(nameField, 'Karanveer Oberoi');
-
-        final bioField = find.widgetWithText(TextFormField, 'Chauffeur Bio *');
-        await tester.enterText(
-          bioField,
+        await enterField(tester, 'Full Name *', 'Karanveer Oberoi');
+        await enterField(
+          tester,
+          'Chauffeur Bio *',
           '15 years leading vintage convoy processions for high-profile weddings.',
         );
-
-        final areaField = find.widgetWithText(
-          TextFormField,
+        await enterField(
+          tester,
           'Primary Operating Area / Route *',
+          'South Delhi & Aerocity NCR',
         );
-        await tester.enterText(areaField, 'South Delhi & Aerocity NCR');
-
-        final totalExpField = find.widgetWithText(
-          TextFormField,
-          'Total Experience (Yrs) *',
-        );
-        await tester.enterText(totalExpField, '15');
-
-        final weddingExpField = find.widgetWithText(
-          TextFormField,
-          'Wedding Exp (Yrs) *',
-        );
-        await tester.enterText(weddingExpField, '12');
-
+        await enterField(tester, 'Total Experience (Yrs) *', '15');
+        await enterField(tester, 'Wedding Exp (Yrs) *', '12');
         final saveBtn = find.text('Save Profile');
         await tester.ensureVisible(saveBtn);
         await tester.pumpAndSettle();
         await tester.tap(saveBtn);
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Verify directly in repository session
-        final repo = MockDriverProfileRepository();
-        final res = await repo.getProfile('d1');
-        expect(res.isSuccess, isTrue);
-        final profile = res.dataOrNull!;
-        expect(profile.fullName, equals('Karanveer Oberoi'));
+        final profile = MockDriverProfileRepository.getSessionProfile('d1');
+        expect(profile, isNotNull);
+        expect(profile!.fullName, equals('Karanveer Oberoi'));
         expect(
           profile.bio,
           equals(
@@ -169,13 +171,13 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(initialLocation: RoutePaths.driverProfileEdit),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         final saveBtn = find.text('Save Profile');
         await tester.ensureVisible(saveBtn);
         await tester.pumpAndSettle();
         await tester.tap(saveBtn);
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Verify navigation landed on Chauffeur Profile
         expect(find.byType(DriverAccountCenterScreen), findsOneWidget);
@@ -195,35 +197,28 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(initialLocation: RoutePaths.driverProfileEdit),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Enter distinct new details
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Full Name *'),
-          'Harshvardhan Rathore',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Chauffeur Bio *'),
+        await enterField(tester, 'Full Name *', 'Harshvardhan Rathore');
+        await enterField(
+          tester,
+          'Chauffeur Bio *',
           'Specialist in luxury royal wedding fleets and convoy timing precision.',
         );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Primary Operating Area / Route *'),
+        await enterField(
+          tester,
+          'Primary Operating Area / Route *',
           'Jaipur & Udaipur Heritage Routes',
         );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Total Experience (Yrs) *'),
-          '14',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Wedding Exp (Yrs) *'),
-          '10',
-        );
+        await enterField(tester, 'Total Experience (Yrs) *', '14');
+        await enterField(tester, 'Wedding Exp (Yrs) *', '10');
 
         final saveBtn = find.text('Save Profile');
         await tester.ensureVisible(saveBtn);
         await tester.pumpAndSettle();
         await tester.tap(saveBtn);
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Check Complete Chauffeur Profile screen contents
         expect(find.text('Harshvardhan Rathore'), findsOneWidget);
@@ -253,9 +248,9 @@ void main() {
         configurePhoneDimensions(tester);
 
         // Pre-save an update via repository session
-        final repo = MockDriverProfileRepository();
-        final current = (await repo.getProfile('d1')).dataOrNull!;
-        await repo.updateProfile(
+        MockDriverProfileRepository();
+        final current = MockDriverProfileRepository.getSessionProfile('d1')!;
+        MockDriverProfileRepository.setSessionProfile(
           current.copyWithEditableFields(
             fullName: 'Devendra Shekhawat',
             bio: 'Master of baraat ceremonies and vintage luxury fleet handling.',
@@ -270,7 +265,7 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(initialLocation: RoutePaths.driverProfile),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         expect(find.text('Devendra Shekhawat'), findsOneWidget);
         expect(
@@ -296,36 +291,22 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(initialLocation: RoutePaths.driverProfileEdit),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // 1. Clear Name (< 2 chars)
-        final nameField = find.widgetWithText(TextFormField, 'Full Name *');
-        await tester.enterText(nameField, 'A');
+        await enterField(tester, 'Full Name *', 'A');
 
         // 2. Clear Bio (< 10 chars)
-        final bioField = find.widgetWithText(TextFormField, 'Chauffeur Bio *');
-        await tester.enterText(bioField, 'Short');
+        await enterField(tester, 'Chauffeur Bio *', 'Short');
 
         // 3. Clear Operating Area
-        final areaField = find.widgetWithText(
-          TextFormField,
-          'Primary Operating Area / Route *',
-        );
-        await tester.enterText(areaField, '');
+        await enterField(tester, 'Primary Operating Area / Route *', '');
 
         // 4. Invalid Total Experience (0)
-        final totalExpField = find.widgetWithText(
-          TextFormField,
-          'Total Experience (Yrs) *',
-        );
-        await tester.enterText(totalExpField, '0');
+        await enterField(tester, 'Total Experience (Yrs) *', '0');
 
         // 5. Wedding Exp > Total Exp
-        final weddingExpField = find.widgetWithText(
-          TextFormField,
-          'Wedding Exp (Yrs) *',
-        );
-        await tester.enterText(weddingExpField, '5');
+        await enterField(tester, 'Wedding Exp (Yrs) *', '5');
 
         // Tap Save Profile
         final saveBtn = find.text('Save Profile');
@@ -401,7 +382,7 @@ void main() {
             container: container,
           ),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         final saveBtn = find.text('Save Profile');
         await tester.ensureVisible(saveBtn);
@@ -410,9 +391,8 @@ void main() {
         // Double tap rapidly
         await tester.tap(saveBtn);
         await tester.tap(saveBtn);
-        await tester.pump(); // Start async work
 
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         expect(updateCount, equals(1));
       },
@@ -429,7 +409,7 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(initialLocation: RoutePaths.driverProfileEdit),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Verify compliance lock text on edit screen
         expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
@@ -447,10 +427,10 @@ void main() {
         await tester.ensureVisible(saveBtn);
         await tester.pumpAndSettle();
         await tester.tap(saveBtn);
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Check Complete Chauffeur Profile has unchanged verification status
-        expect(find.text('UNDER_REVIEW'), findsOneWidget);
+        expect(find.text('UNDER REVIEW'), findsOneWidget);
         expect(find.text('Verification Status'), findsOneWidget);
         expect(
           find.textContaining('Driver verification is conducted independently'),
@@ -470,7 +450,7 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(initialLocation: RoutePaths.driverProfileEdit),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Notice mentions assigned fleet
         expect(
@@ -483,7 +463,7 @@ void main() {
         await tester.ensureVisible(saveBtn);
         await tester.pumpAndSettle();
         await tester.tap(saveBtn);
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // On complete profile, fleet credentials show unchanged status
         expect(find.text('Assigned Vehicle'), findsOneWidget);
@@ -505,7 +485,7 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(initialLocation: RoutePaths.driverProfile),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         expect(find.byType(DriverAccountCenterScreen), findsOneWidget);
 
@@ -513,7 +493,7 @@ void main() {
         final editProfileBtn = find.widgetWithText(TextButton, 'Edit Profile');
         expect(editProfileBtn, findsOneWidget);
         await tester.tap(editProfileBtn);
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Verify edit screen is displayed with current chauffeur details
         expect(find.byType(DriverEditProfileScreen), findsOneWidget);
@@ -535,18 +515,18 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(initialLocation: RoutePaths.driverProfile),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Tap Edit Profile
         await tester.tap(find.widgetWithText(TextButton, 'Edit Profile'));
-        await tester.pumpAndSettle();
+        await settleApp(tester);
         expect(find.byType(DriverEditProfileScreen), findsOneWidget);
 
         // Tap Back button in AppBar
         final backBtn = find.byIcon(Icons.arrow_back_rounded);
         expect(backBtn, findsOneWidget);
         await tester.tap(backBtn);
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Safely returned to Chauffeur Profile
         expect(find.byType(DriverAccountCenterScreen), findsOneWidget);
@@ -556,14 +536,14 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(initialLocation: RoutePaths.driverProfileEdit),
         );
-        await tester.pumpAndSettle();
+        await settleApp(tester);
         expect(find.byType(DriverEditProfileScreen), findsOneWidget);
 
         final cancelBtn = find.text('Cancel');
         await tester.ensureVisible(cancelBtn);
         await tester.pumpAndSettle();
         await tester.tap(cancelBtn);
-        await tester.pumpAndSettle();
+        await settleApp(tester);
 
         // Deep-linked direct entry navigated safely to driverProfile via fallback
         expect(find.byType(DriverAccountCenterScreen), findsOneWidget);

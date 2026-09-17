@@ -10,6 +10,10 @@ import 'package:shadidriver/features/bookings/domain/entities/booking_submission
 import 'package:shadidriver/features/bookings/domain/entities/booking_submission_result.dart';
 import 'package:shadidriver/features/bookings/domain/entities/booking_summary.dart';
 import 'package:shadidriver/features/bookings/domain/repositories/booking_repository.dart';
+import 'package:shadidriver/features/bookings/domain/entities/customer_fleet_intent.dart';
+import 'package:shadidriver/features/bookings/domain/entities/fleet_availability_result.dart';
+import 'package:shadidriver/features/bookings/domain/entities/group_booking.dart';
+import 'package:shadidriver/features/bookings/domain/entities/group_booking_submission_request.dart';
 import 'package:shadidriver/features/drivers/domain/entities/driver_decline_reason.dart';
 import 'package:shadidriver/core/errors/failures.dart';
 
@@ -243,6 +247,51 @@ class FakeBookingRepository implements BookingRepository {
     required DriverDeclineReason reason,
     String? notes,
   }) async {
+    return const Result.success(null);
+  }
+
+  @override
+  Future<Result<FleetAvailabilityResult>> checkFleetAvailability(
+    CustomerFleetIntent intent,
+  ) async {
+    return Result.success(
+      FleetAvailabilityResult.available(
+        model: intent.preferredModel,
+        count: intent.totalRequestedUnits,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<GroupBooking>> submitGroupBooking(
+    GroupBookingSubmissionRequest request,
+  ) async {
+    return Result.success(
+      GroupBooking(
+        parentBookingId: 'grp_test_1',
+        bookingReference: 'SD-GRP-2026-0001',
+        status: BookingStatus.requested,
+        customerIntent: request.fleetIntent,
+        totalPassengers: request.fleetIntent.passengerCount,
+        totalVehicles: 1,
+        assignments: const [],
+        ceremonyType: request.ceremonyType,
+        serviceStartDateTime: request.serviceStartDateTime,
+        serviceEndDateTime: request.serviceEndDateTime,
+        city: request.city,
+        pickupAddress: request.pickupAddress,
+        destinationAddress: request.destinationAddress,
+        primaryContactName: request.primaryContactName,
+        primaryContactPhone: request.primaryContactPhone,
+        estimatedTotalPaise: 5000000,
+        advanceTokenPaise: 1000000,
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
+  @override
+  Future<Result<GroupBooking?>> getGroupBooking(String parentBookingId) async {
     return const Result.success(null);
   }
 }

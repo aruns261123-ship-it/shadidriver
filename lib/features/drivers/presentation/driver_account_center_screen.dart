@@ -253,22 +253,27 @@ class DriverAccountCenterScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.star_rounded,
-                    color: AppColors.warmGold,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${profile.rating} Rating (${profile.totalTrips} Ceremonies)',
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.textPrimaryLight,
-                      fontWeight: FontWeight.w600,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.star_rounded,
+                      color: AppColors.warmGold,
+                      size: 18,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        '${profile.rating} Rating (${profile.totalTrips} Ceremonies)',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.textPrimaryLight,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               TextButton.icon(
                 onPressed: () => context.push(RoutePaths.driverProfileEdit),

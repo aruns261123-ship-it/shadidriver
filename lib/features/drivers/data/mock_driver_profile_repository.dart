@@ -19,6 +19,15 @@ class MockDriverProfileRepository implements DriverProfileRepository {
     _sessionProfiles.clear();
   }
 
+  /// Direct session getter for synchronous test verification without FakeTimer deadlock.
+  static DriverProfile? getSessionProfile(String driverId) => _sessionProfiles[driverId];
+
+  /// Direct session setter for synchronous test fixture preparation.
+  static void setSessionProfile(DriverProfile profile) {
+    _sessionProfiles[profile.id] = profile;
+    MockDriverRepository.setMockDriver(profile.id, profile);
+  }
+
   void _seedDefaultDriverProfile() {
     _sessionProfiles['d1'] = const DriverProfile(
       id: 'd1',

@@ -6,6 +6,11 @@ import '../domain/entities/booking_status.dart';
 import '../domain/entities/booking_submission_request.dart';
 import '../domain/entities/booking_submission_result.dart';
 import '../domain/entities/booking_summary.dart';
+import '../domain/entities/customer_fleet_intent.dart';
+import '../domain/entities/fleet_availability_result.dart';
+import '../domain/entities/group_booking.dart';
+import '../domain/entities/group_booking_submission_request.dart';
+import '../domain/entities/vehicle_assignment.dart';
 import '../domain/repositories/booking_repository.dart';
 
 /// In-memory mock implementation of [BookingRepository] for Milestones 4A, 4B & 5.
@@ -18,7 +23,31 @@ class MockBookingRepository implements BookingRepository {
   final Map<String, BookingSubmissionResult> _idempotentSubmissions = {};
   final Map<String, BookingSubmissionResult> _submissionResults = {};
   final Map<String, Set<String>> _driverDeclines = {};
+  final Map<String, GroupBooking> _groupBookings = {};
+  final Map<String, GroupBooking> _idempotentGroupSubmissions = {};
   int _referenceCounter = 101;
+  int _groupCounter = 1;
+
+  static const Map<String, int> _mockInventory = {
+    'Toyota Innova Crysta': 5,
+    'Toyota Camry': 4,
+    'BMW 5 Series': 3,
+    'Mercedes-Benz E-Class': 2,
+  };
+
+  static const Map<String, int> _modelCapacity = {
+    'Toyota Innova Crysta': 6,
+    'Toyota Camry': 4,
+    'BMW 5 Series': 4,
+    'Mercedes-Benz E-Class': 4,
+  };
+
+  static const Map<String, int> _modelPricePaise = {
+    'Toyota Innova Crysta': 2500000,
+    'Toyota Camry': 3000000,
+    'BMW 5 Series': 4500000,
+    'Mercedes-Benz E-Class': 5500000,
+  };
 
   MockBookingRepository() {
     _seedMockBookings();
@@ -432,5 +461,218 @@ class MockBookingRepository implements BookingRepository {
 
     _driverDeclines.putIfAbsent(driverId, () => <String>{}).add(bookingId);
     return const Result.success(null);
+  }
+
+  @override
+  Future<Result<FleetAvailabilityResult>> checkFleetAvailability(
+    CustomerFleetIntent intent,
+  ) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    if (intent.preference == CustomerFleetPreference.preferredModel) {
+      final model = intent.preferredModel ?? 'Toyota Innova Crysta';
+      final requestedCount = intent.requestedUnits[model] ?? (intent.passengerCount / 6).ceil();
+      final availableCount = _mockInventory[model] ?? 2;
+
+      if (requestedCount <= availableCount) {
+        return Result.success(
+          FleetAvailabilityResult.available(
+            model: model,
+            count: requestedCount,
+          ),
+        );
+      } else {
+        final shortfall = requestedCount - availableCount;
+        // Find alternative suggestions to cover shortfall without silent substitution
+        final alternatives = <FleetAlternativeSuggestion>[];
+        for (final entry in _mockInventory.entries) {
+          if (entry.key != model && entry.value >= shortfall) {
+            alternatives.add(
+              FleetAlternativeSuggestion(
+                modelName: entry.key,
+                suggestedCount: shortfall,
+                capacityPerUnit: _modelCapacity[entry.key] ?? 4,
+                rationale:
+                    'Premium luxury vehicle available to fulfill capacity requirement without ceremony disruption.',
+              ),
+            );
+          }
+        }
+        if (alternatives.isEmpty) {
+          alternatives.add(
+            const FleetAlternativeSuggestion(
+              modelName: 'Toyota Camry',
+              suggestedCount: 2,
+              capacityPerUnit: 4,
+              rationale: 'Complementary executive fleet option.',
+            ),
+          );
+        }
+
+        return Result.success(
+          FleetAvailabilityResult.partial(
+            model: model,
+            requestedCount: requestedCount,
+            availableCount: availableCount,
+            alternativeSuggestions: alternatives,
+          ),
+        );
+      }
+    } else if (intent.preference == CustomerFleetPreference.customFleet) {
+      // Check each requested unit
+      bool anyShortfall = false;
+      int totalRequested = 0;
+      int totalAvailable = 0;
+      final alternatives = <FleetAlternativeSuggestion>[];
+
+      for (final entry in intent.requestedUnits.entries) {
+        final model = entry.key;
+        final requested = entry.value;
+        final available = _mockInventory[model] ?? 2;
+        totalRequested += requested;
+        totalAvailable += (requested <= available ? requested : available);
+
+        if (requested > available) {
+          anyShortfall = true;
+          final diff = requested - available;
+          alternatives.add(
+            FleetAlternativeSuggestion(
+              modelName: 'Toyota Camry',
+              suggestedCount: diff,
+              capacityPerUnit: 4,
+              rationale: 'Substitute option for unavailable $model unit(s).',
+            ),
+          );
+        }
+      }
+
+      if (!anyShortfall) {
+        return Result.success(
+          FleetAvailabilityResult(
+            isFullyAvailable: true,
+            requestedCount: totalRequested,
+            availableCount: totalRequested,
+            shortfall: 0,
+            message:
+                'Custom ceremonial fleet composition is confirmed and available.',
+          ),
+        );
+      } else {
+        final shortfall = totalRequested - totalAvailable;
+        return Result.success(
+          FleetAvailabilityResult(
+            isFullyAvailable: false,
+            requestedCount: totalRequested,
+            availableCount: totalAvailable,
+            shortfall: shortfall,
+            alternativeSuggestions: alternatives,
+            message:
+                'Partial fleet available ($totalAvailable of $totalRequested units). Review suggested alternatives.',
+          ),
+        );
+      }
+    } else {
+      // anySuitable
+      final requestedCount = (intent.passengerCount / 4).ceil();
+      return Result.success(
+        FleetAvailabilityResult.available(
+          model: 'Mixed Luxury Fleet',
+          count: requestedCount,
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<Result<GroupBooking>> submitGroupBooking(
+    GroupBookingSubmissionRequest request,
+  ) async {
+    await Future.delayed(const Duration(milliseconds: 150));
+
+    // Idempotency check
+    final existing = _idempotentGroupSubmissions[request.idempotencyKey];
+    if (existing != null) {
+      return Result.success(existing);
+    }
+
+    final parentBookingId = 'grp_${_groupCounter++}';
+    final bookingReference = 'SD-GRP-2026-00$_groupCounter';
+    final assignments = <VehicleAssignment>[];
+    int assignmentSeq = 1;
+
+    final unitsMap = request.fleetIntent.requestedUnits.isNotEmpty
+        ? request.fleetIntent.requestedUnits
+        : (request.fleetIntent.preferredModel != null
+            ? {
+                request.fleetIntent.preferredModel!:
+                    (request.fleetIntent.passengerCount / 6).ceil()
+              }
+            : {
+                'Toyota Innova Crysta':
+                    (request.fleetIntent.passengerCount / 6).ceil()
+              });
+
+    int estimatedTotalPaise = 0;
+
+    unitsMap.forEach((model, count) {
+      for (var i = 1; i <= count; i++) {
+        final assignmentId = 'asgn_${parentBookingId}_$assignmentSeq';
+        final capacity = _modelCapacity[model] ?? 4;
+        final price = _modelPricePaise[model] ?? 2500000;
+        estimatedTotalPaise += price;
+
+        assignments.add(
+          VehicleAssignment(
+            assignmentId: assignmentId,
+            parentBookingId: parentBookingId,
+            vehicleId: 'veh_${model.replaceAll(' ', '_').toLowerCase()}_$i',
+            vehicleName: '$model #$i',
+            vehicleModel: model,
+            capacity: capacity,
+            ownerName: 'PB Ceremonial Fleet',
+            chauffeurId: 'drv_$assignmentSeq',
+            chauffeurName: 'Chauffeur Unit $assignmentSeq',
+            pricePaise: price,
+            status: 'ASSIGNED',
+          ),
+        );
+        assignmentSeq++;
+      }
+    });
+
+    final advanceTokenPaise = (estimatedTotalPaise * 0.20).round();
+
+    final groupBooking = GroupBooking(
+      parentBookingId: parentBookingId,
+      bookingReference: bookingReference,
+      status: BookingStatus.requested,
+      customerIntent: request.fleetIntent,
+      totalPassengers: request.fleetIntent.passengerCount,
+      totalVehicles: assignments.length,
+      assignments: assignments,
+      ceremonyType: request.ceremonyType,
+      serviceStartDateTime: request.serviceStartDateTime,
+      serviceEndDateTime: request.serviceEndDateTime,
+      city: request.city,
+      pickupAddress: request.pickupAddress,
+      destinationAddress: request.destinationAddress,
+      primaryContactName: request.primaryContactName,
+      primaryContactPhone: request.primaryContactPhone,
+      estimatedTotalPaise: estimatedTotalPaise,
+      advanceTokenPaise: advanceTokenPaise,
+      advanceTokenLabel: 'Advance Token (20%)',
+      createdAt: DateTime.now(),
+    );
+
+    _groupBookings[parentBookingId] = groupBooking;
+    _idempotentGroupSubmissions[request.idempotencyKey] = groupBooking;
+
+    return Result.success(groupBooking);
+  }
+
+  @override
+  Future<Result<GroupBooking?>> getGroupBooking(String parentBookingId) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    return Result.success(_groupBookings[parentBookingId]);
   }
 }

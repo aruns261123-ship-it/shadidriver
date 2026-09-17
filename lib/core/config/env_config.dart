@@ -78,26 +78,4 @@ class EnvironmentConfig {
       useMockData: false,
     );
   }
-
-  /// Resolves the active environment from a compile-time `--dart-define`.
-  ///
-  /// Usage:
-  ///   flutter run --dart-define=APP_FLAVOR=staging
-  ///   flutter build appbundle --dart-define=APP_FLAVOR=production
-  ///
-  /// Defaults to development when no flavor is supplied, so a plain
-  /// `flutter run` during day-to-day frontend work keeps working unchanged.
-  /// This is the single switch point for which backend the app targets —
-  /// nothing else in the app should read `String.fromEnvironment` directly.
-  factory EnvironmentConfig.current() {
-    const flavorName = String.fromEnvironment(
-      'APP_FLAVOR',
-      defaultValue: 'development',
-    );
-    return switch (flavorName) {
-      'staging' => EnvironmentConfig.staging(),
-      'production' => EnvironmentConfig.production(),
-      _ => EnvironmentConfig.development(),
-    };
-  }
 }
