@@ -32,24 +32,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1600),
+      duration: const Duration(milliseconds: 300),
     );
 
     _fadeAnimation = CurvedAnimation(
       parent: _animController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      curve: Curves.easeOut,
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animController,
-        curve: const Interval(0.0, 0.7, curve: Curves.easeOutCubic),
-      ),
+    _scaleAnimation = Tween<double>(begin: 0.92, end: 1.0).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
     );
 
     _textFadeAnimation = CurvedAnimation(
       parent: _animController,
-      curve: const Interval(0.4, 1.0, curve: Curves.easeIn),
+      curve: Curves.easeOut,
     );
 
     _animController.forward();
@@ -65,15 +62,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _initializeApp() async {
-    // Attempt session restoration in background with minimum ceremonial display time
+    // Restore session asynchronously without artificial delay
     try {
-      await Future.wait([
-        ref
-            .read(authControllerProvider.notifier)
-            .restoreSession()
-            .catchError((_) {}),
-        Future.delayed(const Duration(milliseconds: 1200)),
-      ]);
+      await ref
+          .read(authControllerProvider.notifier)
+          .restoreSession()
+          .catchError((_) {});
     } catch (_) {
       // Ignored for graceful splash fallback
     }

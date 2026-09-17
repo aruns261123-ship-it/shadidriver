@@ -262,19 +262,24 @@ class MockAuthRepository implements AuthRepository {
 
   @override
   Future<Result<AuthSession?>> restoreSession() async {
-    await _simulateDelay(100);
-
     if (_currentSession != null) {
       return Result.success(_currentSession);
     }
 
     if (_storage != null) {
-      final userId = await _storage.read('auth_user_id');
+      final results = await Future.wait([
+        _storage.read('auth_user_id'),
+        _storage.read('auth_role'),
+        _storage.read('auth_phone'),
+        _storage.read('auth_status'),
+        _storage.read('auth_display_name'),
+      ]);
+      final userId = results[0];
       if (userId != null && userId.isNotEmpty) {
-        final roleKey = await _storage.read('auth_role');
-        final phone = await _storage.read('auth_phone') ?? '';
-        final statusKey = await _storage.read('auth_status');
-        final displayName = await _storage.read('auth_display_name');
+        final roleKey = results[1];
+        final phone = results[2] ?? '';
+        final statusKey = results[3];
+        final displayName = results[4];
 
         final role = UserRole.fromStorageKey(roleKey);
         final status = AccountStatus.fromStorageKey(statusKey);

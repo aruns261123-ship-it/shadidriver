@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/shadi_scroll_behavior.dart';
 import 'providers/app_providers.dart';
 
 /// Root application widget for ShadiDriver.
@@ -19,6 +20,7 @@ class ShadiDriverApp extends ConsumerWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
       routerConfig: router,
+      scrollBehavior: const ShadiScrollBehavior(),
     );
   }
 }

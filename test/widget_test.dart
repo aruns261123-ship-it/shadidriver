@@ -11,7 +11,7 @@ void main() {
 
       // pumpAndSettle drives all pending timers to completion, including:
       //   • GoRouter's async redirect (resolves /splash route)
-      // Note: SplashScreen has a 1200ms delay. SearchController may trigger searches.
+      // Note: SplashScreen restores session asynchronously without artificial delay.
       // We pump for a sufficient duration to let timers fire.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 2000));
