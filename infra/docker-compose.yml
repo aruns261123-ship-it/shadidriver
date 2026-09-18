@@ -13,7 +13,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./migrations/0001_init.sql:/docker-entrypoint-initdb.d/0001_init.sql:ro
+      - ./migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shadidriver_admin} -d ${POSTGRES_DB:-shadidriver}"]
       interval: 10s
@@ -40,18 +40,30 @@ services:
       - shadidriver-network
 
   backend:
-    image: node:20-alpine
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
     container_name: shadidriver-backend
     restart: unless-stopped
     working_dir: /app
-    command: sh -c "echo 'Backend service placeholder: replace with NestJS entrypoint' && tail -f /dev/null"
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     environment:
       NODE_ENV: ${NODE_ENV:-development}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-shadidriver_admin}:${POSTGRES_PASSWORD:-shadidriver_secret}@postgres:5432/${POSTGRES_DB:-shadidriver}?schema=public
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-shadidriver_admin}:${POSTGRES_PASSWORD:-shadidriver_secret}@postgres:5432/${POSTGRES_DB:-shadidriver}
       REDIS_URL: redis://:${REDIS_PASSWORD:-shadidriver_redis_secret}@redis:6379
-      JWT_SECRET: ${JWT_SECRET:-super_secret_ceremonial_jwt_key_32bytes}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-super_secret_ceremonial_jwt_key_32bytes}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-super_secret_refresh_jwt_key_32bytes}
+      PAYMENT_GATEWAY: ${PAYMENT_GATEWAY:-mock}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_placeholder}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-rzp_test_secret_placeholder}
+      SMS_PROVIDER: ${SMS_PROVIDER:-console}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_PATH: /app/uploads
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    volumes:
+      - backend_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,6 +96,8 @@ volumes:
   caddy_data:
     driver: local
   caddy_config:
+    driver: local
+  backend_uploads:
     driver: local
 
 networks:

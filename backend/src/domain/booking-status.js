@@ -1,0 +1,342 @@
+import { ROLES } from './roles.js';
+
+export const BOOKING_STATUS = {
+  DRAFT: 'DRAFT',
+  REQUESTED: 'REQUESTED',
+  DRIVER_ACCEPTED: 'DRIVER_ACCEPTED',
+  REJECTED: 'REJECTED',
+  EXPIRED: 'EXPIRED',
+  PAYMENT_PENDING: 'PAYMENT_PENDING',
+  PAYMENT_FAILED: 'PAYMENT_FAILED',
+  CONFIRMED: 'CONFIRMED',
+  DRIVER_ASSIGNED: 'DRIVER_ASSIGNED',
+  DRIVER_ARRIVING: 'DRIVER_ARRIVING',
+  EN_ROUTE: 'EN_ROUTE',
+  ARRIVED: 'ARRIVED',
+  TRIP_STARTED: 'TRIP_STARTED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  EMERGENCY_REPLACEMENT: 'EMERGENCY_REPLACEMENT',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+};
+
+export const CANCELLABLE_STATUSES = [
+  BOOKING_STATUS.REQUESTED,
+  BOOKING_STATUS.DRIVER_ACCEPTED,
+  BOOKING_STATUS.PAYMENT_PENDING,
+  BOOKING_STATUS.PAYMENT_FAILED,
+  BOOKING_STATUS.CONFIRMED,
+  BOOKING_STATUS.DRIVER_ASSIGNED,
+];
+
+export const EMERGENCY_SOURCE_STATUSES = [
+  BOOKING_STATUS.DRIVER_ASSIGNED,
+  BOOKING_STATUS.DRIVER_ARRIVING,
+  BOOKING_STATUS.EN_ROUTE,
+  BOOKING_STATUS.ARRIVED,
+  BOOKING_STATUS.TRIP_STARTED,
+  BOOKING_STATUS.IN_PROGRESS,
+];
+
+export const TERMINAL_STATUSES = [
+  BOOKING_STATUS.COMPLETED,
+  BOOKING_STATUS.CANCELLED,
+  BOOKING_STATUS.REJECTED,
+  BOOKING_STATUS.EXPIRED,
+];
+
+export const ACTIONS = {
+  ACCEPT: 'ACCEPT',
+  DECLINE: 'DECLINE',
+  EXPIRE: 'EXPIRE',
+  CREATE_PAYMENT_ORDER: 'CREATE_PAYMENT_ORDER',
+  CONFIRM_PAYMENT: 'CONFIRM_PAYMENT',
+  FAIL_PAYMENT: 'FAIL_PAYMENT',
+  EXPIRE_PAYMENT: 'EXPIRE_PAYMENT',
+  RETRY_PAYMENT: 'RETRY_PAYMENT',
+  ASSIGN_DRIVER: 'ASSIGN_DRIVER',
+  START_ROUTE: 'START_ROUTE',
+  ARRIVE: 'ARRIVE',
+  START_TRIP: 'START_TRIP',
+  COMPLETE: 'COMPLETE',
+  TRIGGER_EMERGENCY: 'TRIGGER_EMERGENCY',
+  REASSIGN: 'REASSIGN',
+  CANCEL_EMERGENCY: 'CANCEL_EMERGENCY',
+  CANCEL: 'CANCEL',
+  ABANDON: 'ABANDON',
+};
+
+const DRIVERISH = [ROLES.DRIVER, ROLES.FLEET_OWNER];
+const OPS = [ROLES.OPERATIONS_ADMIN, ROLES.SUPER_ADMIN];
+const CUSTOMER_OR_ADMIN = [ROLES.CUSTOMER, ...OPS];
+
+export const TRANSITION_TABLE = {
+  [BOOKING_STATUS.REQUESTED]: {
+    [ACTIONS.ACCEPT]: {
+      to: BOOKING_STATUS.DRIVER_ACCEPTED,
+      actors: DRIVERISH,
+      auditEvent: 'DRIVER_ACCEPTED_OFFER',
+      rejectionCode: 'DRIVER_UNAVAILABLE_OR_OVERLAPPING',
+    },
+    [ACTIONS.DECLINE]: {
+      to: BOOKING_STATUS.REJECTED,
+      actors: DRIVERISH,
+      auditEvent: 'DRIVER_REJECTED_OFFER',
+      rejectionCode: 'OFFER_ALREADY_RESOLVED',
+    },
+    [ACTIONS.EXPIRE]: {
+      to: BOOKING_STATUS.EXPIRED,
+      actors: [ROLES.SYSTEM],
+      auditEvent: 'BOOKING_TIMEOUT_EXPIRED',
+      rejectionCode: 'BOOKING_NOT_IN_REQUESTED_STATE',
+    },
+    [ACTIONS.CANCEL]: {
+      to: BOOKING_STATUS.CANCELLED,
+      actors: CUSTOMER_OR_ADMIN,
+      auditEvent: 'BOOKING_USER_CANCELLED',
+      rejectionCode: 'NON_CANCELLABLE_STATE',
+    },
+  },
+  [BOOKING_STATUS.DRIVER_ACCEPTED]: {
+    [ACTIONS.CREATE_PAYMENT_ORDER]: {
+      to: BOOKING_STATUS.PAYMENT_PENDING,
+      actors: [ROLES.CUSTOMER, ROLES.SYSTEM],
+      auditEvent: 'PAYMENT_PENDING_ORDER_CREATED',
+      rejectionCode: 'PAYMENT_ORDER_CREATION_FAILED',
+    },
+    [ACTIONS.CANCEL]: {
+      to: BOOKING_STATUS.CANCELLED,
+      actors: CUSTOMER_OR_ADMIN,
+      auditEvent: 'BOOKING_USER_CANCELLED',
+      rejectionCode: 'NON_CANCELLABLE_STATE',
+    },
+  },
+  [BOOKING_STATUS.PAYMENT_PENDING]: {
+    [ACTIONS.CONFIRM_PAYMENT]: {
+      to: BOOKING_STATUS.CONFIRMED,
+      actors: [ROLES.SYSTEM],
+      auditEvent: 'PAYMENT_TOKEN_CAPTURED',
+      rejectionCode: 'PAYMENT_SIGNATURE_MISMATCH',
+    },
+    [ACTIONS.FAIL_PAYMENT]: {
+      to: BOOKING_STATUS.PAYMENT_FAILED,
+      actors: [ROLES.SYSTEM],
+      auditEvent: 'PAYMENT_TOKEN_FAILED',
+      rejectionCode: 'GATEWAY_WEBHOOK_INVALID',
+    },
+    [ACTIONS.EXPIRE_PAYMENT]: {
+      to: BOOKING_STATUS.EXPIRED,
+      actors: [ROLES.SYSTEM],
+      auditEvent: 'PAYMENT_WINDOW_EXPIRED',
+      rejectionCode: 'PAYMENT_ALREADY_FINALIZED',
+    },
+  },
+  [BOOKING_STATUS.PAYMENT_FAILED]: {
+    [ACTIONS.RETRY_PAYMENT]: {
+      to: BOOKING_STATUS.PAYMENT_PENDING,
+      actors: [ROLES.CUSTOMER],
+      auditEvent: 'PAYMENT_RETRY_INITIATED',
+      rejectionCode: 'RETRY_WINDOW_EXPIRED',
+    },
+    [ACTIONS.ABANDON]: {
+      to: BOOKING_STATUS.CANCELLED,
+      actors: [ROLES.CUSTOMER, ...OPS],
+      auditEvent: 'BOOKING_USER_CANCELLED',
+      rejectionCode: 'NON_CANCELLABLE_STATE',
+    },
+    [ACTIONS.CANCEL]: {
+      to: BOOKING_STATUS.CANCELLED,
+      actors: CUSTOMER_OR_ADMIN,
+      auditEvent: 'BOOKING_USER_CANCELLED',
+      rejectionCode: 'NON_CANCELLABLE_STATE',
+    },
+  },
+  [BOOKING_STATUS.CONFIRMED]: {
+    [ACTIONS.ASSIGN_DRIVER]: {
+      to: BOOKING_STATUS.DRIVER_ASSIGNED,
+      actors: [ROLES.FLEET_OWNER, ...OPS, ROLES.SYSTEM, ROLES.DRIVER],
+      auditEvent: 'CHAUFFEUR_ASSIGNED_AND_BRIEFED',
+      rejectionCode: 'DRIVER_KYC_SUSPENDED_OR_EXPIRED',
+    },
+    [ACTIONS.CANCEL]: {
+      to: BOOKING_STATUS.CANCELLED,
+      actors: CUSTOMER_OR_ADMIN,
+      auditEvent: 'BOOKING_USER_CANCELLED',
+      rejectionCode: 'NON_CANCELLABLE_STATE',
+    },
+  },
+  [BOOKING_STATUS.DRIVER_ASSIGNED]: {
+    [ACTIONS.START_ROUTE]: {
+      to: BOOKING_STATUS.DRIVER_ARRIVING,
+      actors: [ROLES.DRIVER],
+      auditEvent: 'CHAUFFEUR_DEPARTED_FOR_VENUE',
+      rejectionCode: 'PRE_TRIP_CHECKLIST_INCOMPLETE',
+    },
+    [ACTIONS.TRIGGER_EMERGENCY]: {
+      to: BOOKING_STATUS.EMERGENCY_REPLACEMENT,
+      actors: [ROLES.DRIVER, ...OPS],
+      auditEvent: 'EMERGENCY_DISPATCH_TRIGGERED',
+      rejectionCode: 'INVALID_EMERGENCY_TRIGGER',
+    },
+    [ACTIONS.CANCEL]: {
+      to: BOOKING_STATUS.CANCELLED,
+      actors: CUSTOMER_OR_ADMIN,
+      auditEvent: 'BOOKING_USER_CANCELLED',
+      rejectionCode: 'NON_CANCELLABLE_STATE',
+    },
+  },
+  [BOOKING_STATUS.DRIVER_ARRIVING]: {
+    [ACTIONS.ARRIVE]: {
+      to: BOOKING_STATUS.ARRIVED,
+      actors: [ROLES.DRIVER],
+      auditEvent: 'CHAUFFEUR_ARRIVED_AT_VENUE',
+      rejectionCode: 'GEOFENCE_PROXIMITY_FAILED',
+    },
+    [ACTIONS.TRIGGER_EMERGENCY]: {
+      to: BOOKING_STATUS.EMERGENCY_REPLACEMENT,
+      actors: [ROLES.DRIVER, ...OPS],
+      auditEvent: 'EMERGENCY_DISPATCH_TRIGGERED',
+      rejectionCode: 'INVALID_EMERGENCY_TRIGGER',
+    },
+  },
+  [BOOKING_STATUS.EN_ROUTE]: {
+    [ACTIONS.ARRIVE]: {
+      to: BOOKING_STATUS.ARRIVED,
+      actors: [ROLES.DRIVER],
+      auditEvent: 'CHAUFFEUR_ARRIVED_AT_VENUE',
+      rejectionCode: 'GEOFENCE_PROXIMITY_FAILED',
+    },
+    [ACTIONS.TRIGGER_EMERGENCY]: {
+      to: BOOKING_STATUS.EMERGENCY_REPLACEMENT,
+      actors: [ROLES.DRIVER, ...OPS],
+      auditEvent: 'EMERGENCY_DISPATCH_TRIGGERED',
+      rejectionCode: 'INVALID_EMERGENCY_TRIGGER',
+    },
+  },
+  [BOOKING_STATUS.ARRIVED]: {
+    [ACTIONS.START_TRIP]: {
+      to: BOOKING_STATUS.TRIP_STARTED,
+      actors: [ROLES.DRIVER],
+      auditEvent: 'CEREMONY_TRIP_STARTED',
+      rejectionCode: 'INVALID_START_OTP',
+    },
+    [ACTIONS.TRIGGER_EMERGENCY]: {
+      to: BOOKING_STATUS.EMERGENCY_REPLACEMENT,
+      actors: [ROLES.DRIVER, ...OPS],
+      auditEvent: 'EMERGENCY_DISPATCH_TRIGGERED',
+      rejectionCode: 'INVALID_EMERGENCY_TRIGGER',
+    },
+  },
+  [BOOKING_STATUS.TRIP_STARTED]: {
+    [ACTIONS.COMPLETE]: {
+      to: BOOKING_STATUS.COMPLETED,
+      actors: [ROLES.DRIVER, ROLES.CUSTOMER, ...OPS],
+      auditEvent: 'CEREMONY_SERVICE_COMPLETED',
+      rejectionCode: 'TRIP_ALREADY_COMPLETED',
+    },
+    [ACTIONS.TRIGGER_EMERGENCY]: {
+      to: BOOKING_STATUS.EMERGENCY_REPLACEMENT,
+      actors: [ROLES.DRIVER, ...OPS],
+      auditEvent: 'EMERGENCY_DISPATCH_TRIGGERED',
+      rejectionCode: 'INVALID_EMERGENCY_TRIGGER',
+    },
+  },
+  [BOOKING_STATUS.IN_PROGRESS]: {
+    [ACTIONS.COMPLETE]: {
+      to: BOOKING_STATUS.COMPLETED,
+      actors: [ROLES.DRIVER, ROLES.CUSTOMER, ...OPS],
+      auditEvent: 'CEREMONY_SERVICE_COMPLETED',
+      rejectionCode: 'TRIP_ALREADY_COMPLETED',
+    },
+    [ACTIONS.TRIGGER_EMERGENCY]: {
+      to: BOOKING_STATUS.EMERGENCY_REPLACEMENT,
+      actors: [ROLES.DRIVER, ...OPS],
+      auditEvent: 'EMERGENCY_DISPATCH_TRIGGERED',
+      rejectionCode: 'INVALID_EMERGENCY_TRIGGER',
+    },
+  },
+  [BOOKING_STATUS.EMERGENCY_REPLACEMENT]: {
+    [ACTIONS.REASSIGN]: {
+      to: BOOKING_STATUS.DRIVER_ASSIGNED,
+      actors: [...OPS, ROLES.SYSTEM],
+      auditEvent: 'STANDBY_CHAUFFEUR_REASSIGNED',
+      rejectionCode: 'STANDBY_CHAUFFEUR_UNAVAILABLE',
+    },
+    [ACTIONS.CANCEL_EMERGENCY]: {
+      to: BOOKING_STATUS.CANCELLED,
+      actors: [...OPS, ROLES.SYSTEM],
+      auditEvent: 'EMERGENCY_AUTO_REFUND_CANCELLED',
+      rejectionCode: 'REPLACEMENT_ALREADY_ASSIGNED',
+    },
+  },
+};
+
+export function resolveTransition(from, action, actorRole) {
+  const rule = TRANSITION_TABLE[from]?.[action];
+  if (!rule) {
+    const err = new Error('INVALID_TRANSITION');
+    err.code = 'INVALID_TRANSITION';
+    throw err;
+  }
+  const allowed = rule.actors.includes(actorRole) || actorRole === ROLES.SUPER_ADMIN;
+  if (!allowed) {
+    const err = new Error('ROLE_FORBIDDEN');
+    err.code = 'ROLE_FORBIDDEN';
+    throw err;
+  }
+  return rule;
+}
+
+export function normalizeActionAlias(action) {
+  const key = String(action || '')
+    .trim()
+    .toUpperCase()
+    .replace(/-/g, '_');
+  const aliases = {
+    DRIVER_ACCEPT: ACTIONS.ACCEPT,
+    ACCEPT_OFFER: ACTIONS.ACCEPT,
+    DRIVER_DECLINE: ACTIONS.DECLINE,
+    REJECT: ACTIONS.DECLINE,
+    START_ROUTE: ACTIONS.START_ROUTE,
+    DEPARTED: ACTIONS.START_ROUTE,
+    EN_ROUTE: ACTIONS.START_ROUTE,
+    ARRIVED: ACTIONS.ARRIVE,
+    MARK_ARRIVED: ACTIONS.ARRIVE,
+    START: ACTIONS.START_TRIP,
+    COMPLETE_TRIP: ACTIONS.COMPLETE,
+    EMERGENCY: ACTIONS.TRIGGER_EMERGENCY,
+    EMERGENCY_REASSIGN: ACTIONS.REASSIGN,
+    CREATE_ORDER: ACTIONS.CREATE_PAYMENT_ORDER,
+  };
+  return aliases[key] || key;
+}
+
+export const CEREMONY_TO_CATEGORY = {
+  baraat: 'SVC_BARAAT',
+  'baraat procession': 'SVC_BARAAT',
+  vidai: 'SVC_VIDAI',
+  entry: 'SVC_ENTRY',
+  'bride & groom entry': 'SVC_ENTRY',
+  reception: 'SVC_RECEPTION',
+  'reception vip': 'SVC_RECEPTION',
+  'multi-day': 'SVC_MULTIDAY',
+  multiday: 'SVC_MULTIDAY',
+  'multi-day wedding': 'SVC_MULTIDAY',
+};
+
+export function tripStageFromStatus(status) {
+  switch (status) {
+    case BOOKING_STATUS.DRIVER_ARRIVING:
+    case BOOKING_STATUS.EN_ROUTE:
+      return 'enRouteToPickup';
+    case BOOKING_STATUS.ARRIVED:
+      return 'arrivedAtPickup';
+    case BOOKING_STATUS.TRIP_STARTED:
+    case BOOKING_STATUS.IN_PROGRESS:
+      return 'ceremonyInProgress';
+    case BOOKING_STATUS.COMPLETED:
+      return 'completed';
+    default:
+      return 'assigned';
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "shadidriver-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ShadiDriver Node.js API — in-memory, server-authoritative booking, pricing, payments, and KYC.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "start:dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.18.0"
+  }
+}

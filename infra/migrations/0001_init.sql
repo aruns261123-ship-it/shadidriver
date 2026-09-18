@@ -380,14 +380,22 @@ CREATE TABLE IF NOT EXISTS bookings (
     final_settled_paise BIGINT,
     
     -- State Machine & Security
-    status VARCHAR(30) NOT NULL DEFAULT 'REQUESTED' CHECK (status IN (
+    status VARCHAR(40) NOT NULL DEFAULT 'REQUESTED' CHECK (status IN (
         'DRAFT',
         'REQUESTED',
         'DRIVER_ACCEPTED',
+        'REJECTED',
+        'EXPIRED',
+        'PAYMENT_PENDING',
+        'PAYMENT_FAILED',
         'CONFIRMED',
+        'DRIVER_ASSIGNED',
+        'DRIVER_ARRIVING',
         'EN_ROUTE',
         'ARRIVED',
+        'TRIP_STARTED',
         'IN_PROGRESS',
+        'EMERGENCY_REPLACEMENT',
         'COMPLETED',
         'CANCELLED'
     )),
