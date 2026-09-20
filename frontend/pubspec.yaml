@@ -1,0 +1,59 @@
+name: shadidriver
+description: "ShadiDriver - Premium Indian Wedding & Event Chauffeur Marketplace"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State Management & DI
+  flutter_riverpod: ^2.6.1
+
+  # Declarative Routing
+  go_router: ^14.8.1
+
+  # Immutability & Serialization Annotations
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # HTTP Client & Interceptors
+  dio: ^5.8.0+1
+
+  # Secure Storage Abstraction
+  flutter_secure_storage: ^9.2.4
+
+  # Logging Abstraction
+  logger: ^2.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Code Generation
+  build_runner: ^2.4.15
+  freezed: ^2.5.8
+  json_serializable: ^6.9.4
+
+  # Testing & Mocking
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
+
+  # Asset & Font Declarations (Documented in Design System)
+  # Both families ship as single variable-font (wght axis) TTFs.
+  # Flutter >= 3.41 maps TextStyle.fontWeight onto the wght axis automatically.
+  fonts:
+    - family: Playfair Display
+      fonts:
+        - asset: assets/fonts/PlayfairDisplay-VariableFont.ttf
+    - family: Plus Jakarta Sans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-VariableFont.ttf
