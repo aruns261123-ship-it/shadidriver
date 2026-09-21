@@ -61,6 +61,14 @@ abstract interface class BookingRepository {
     required String driverId,
   });
 
+  /// Fetches the chauffeur's completed ceremonial assignments, newest first.
+  ///
+  /// Used by the Chauffeur Console to render the "Completed Assignments"
+  /// history section. Returns an empty list when the chauffeur has no history.
+  Future<Result<List<BookingSubmissionResult>>> getCompletedBookings({
+    required String driverId,
+  });
+
   /// Retrieves booking request details for a chauffeur review.
   Future<Result<BookingSubmissionResult>> getDriverBookingDetails({
     required String bookingId,

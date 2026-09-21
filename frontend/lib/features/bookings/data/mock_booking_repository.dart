@@ -23,6 +23,10 @@ class MockBookingRepository implements BookingRepository {
   final Map<String, BookingSubmissionResult> _idempotentSubmissions = {};
   final Map<String, BookingSubmissionResult> _submissionResults = {};
   final Map<String, Set<String>> _driverDeclines = {};
+
+  /// Bookings transitioned to COMPLETED via [completeTrip]; survives even if
+  /// the status snapshot is not updated, so history is never lost.
+  final Set<String> _completedBookings = {};
   final Map<String, GroupBooking> _groupBookings = {};
   final Map<String, GroupBooking> _idempotentGroupSubmissions = {};
   int _referenceCounter = 101;
@@ -354,6 +358,58 @@ class MockBookingRepository implements BookingRepository {
         )
         .toList();
     return Result.success(requests);
+  }
+
+  @override
+  Future<Result<List<BookingSubmissionResult>>> getCompletedBookings({
+    required String driverId,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    final completed = _submissionResults.values
+        .where(
+          (r) =>
+              r.chauffeurId == driverId &&
+              (r.status == BookingStatus.completed ||
+                  _completedBookings.contains(r.bookingId)),
+        )
+        .toList()
+      ..sort((a, b) => b.serviceEndDateTime.compareTo(a.serviceEndDateTime));
+    return Result.success(completed);
+  }
+
+  /// Marks a booking as completed in the in-memory store.
+  ///
+  /// Called by [MockTripRepository.completeTrip] and available as a test seam
+  /// for seeding completed assignment history.
+  void markBookingCompleted(String bookingId) {
+    final existing = _submissionResults[bookingId];
+    if (existing != null) {
+      _submissionResults[bookingId] = BookingSubmissionResult(
+        bookingId: existing.bookingId,
+        bookingReference: existing.bookingReference,
+        status: BookingStatus.completed,
+        submittedAt: existing.submittedAt,
+        vehicleId: existing.vehicleId,
+        vehicleName: existing.vehicleName,
+        vehicleClass: existing.vehicleClass,
+        chauffeurId: existing.chauffeurId,
+        ceremonyType: existing.ceremonyType,
+        ceremonialAttire: existing.ceremonialAttire,
+        serviceStartDateTime: existing.serviceStartDateTime,
+        serviceEndDateTime: existing.serviceEndDateTime,
+        routeDistanceKm: existing.routeDistanceKm,
+        pickupAddress: existing.pickupAddress,
+        destinationAddress: existing.destinationAddress,
+        primaryContactName: existing.primaryContactName,
+        primaryContactPhone: existing.primaryContactPhone,
+        estimatedTotalPaise: existing.estimatedTotalPaise,
+        advanceTokenPaise: existing.advanceTokenPaise,
+        advanceTokenLabel: existing.advanceTokenLabel,
+        nextStepMessage: existing.nextStepMessage,
+        isIdempotentReplay: existing.isIdempotentReplay,
+      );
+    }
+    _completedBookings.add(bookingId);
   }
 
   @override

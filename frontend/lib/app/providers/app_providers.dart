@@ -190,7 +190,8 @@ final reviewRepositoryProvider = Provider<ReviewRepository>((ref) {
 });
 
 final tripRepositoryProvider = Provider<TripRepository>((ref) {
-  return MockTripRepository();
+  final bookingStore = ref.watch(bookingRepositoryProvider) as MockBookingRepository;
+  return MockTripRepository(bookingRepository: bookingStore);
 });
 
 final profilePhotoServiceProvider = Provider<ProfilePhotoService>((ref) {

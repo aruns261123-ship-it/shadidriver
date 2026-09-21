@@ -11,6 +11,18 @@ import '../../domain/repositories/driver_repository.dart';
 /// In production, this would be wired to the Auth/Session state.
 final currentDriverIdProvider = Provider<String>((ref) => 'd1');
 
+/// Live operational duty status for a chauffeur, shared between the Chauffeur
+/// Console (duty chips) and the Chauffeur Profile (availability badge).
+final driverDutyStatusProvider = FutureProvider.autoDispose
+    .family<DriverDutyStatus, String>((ref, driverId) async {
+  final driverRepo = ref.watch(driverRepositoryProvider);
+  final result = await driverRepo.getDutyStatus(driverId);
+  return result.fold(
+    (failure) => DriverDutyStatus.available,
+    (status) => status,
+  );
+});
+
 /// State representation for the Chauffeur / Driver Dashboard.
 @immutable
 class DriverDashboardState {
@@ -72,6 +84,8 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
       (currentStatus) => currentStatus,
     );
 
+    if (!mounted) return; // disposed mid-flight (e.g. cross-screen refresh)
+
     // 2. If available, fetch offers
     List<DriverBookingOffer> loadedOffers = [];
     String? fetchError;
@@ -92,6 +106,8 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
             .toList(),
       );
     }
+
+    if (!mounted) return;
 
     state = state.copyWith(
       dutyStatus: status,
@@ -173,11 +189,11 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
 }
 
 /// Riverpod provider for [DriverDashboardController].
+///
+/// Kept alive (not autoDispose) so trip completions made in the Active Trip
+/// Console are reflected when the chauffeur returns to this dashboard.
 final driverDashboardControllerProvider =
-    StateNotifierProvider.autoDispose<
-      DriverDashboardController,
-      DriverDashboardState
-    >((ref) {
+    StateNotifierProvider<DriverDashboardController, DriverDashboardState>((ref) {
       final driverRepo = ref.watch(driverRepositoryProvider);
       final bookingRepo = ref.watch(bookingRepositoryProvider);
       final pricingPolicy = ref.watch(bookingPricingPolicyProvider);

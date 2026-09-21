@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import '../../../bookings/domain/entities/booking_status.dart';
+import '../../../bookings/domain/entities/booking_submission_result.dart';
 import 'driver_trip_stage.dart';
 
 /// Immutable domain model representing a chauffeur's active ceremonial trip assignment.
@@ -76,6 +78,40 @@ class DriverActiveTrip {
       tripCompletedAt: tripCompletedAt ?? this.tripCompletedAt,
       ceremonialAttireConfirmed:
           ceremonialAttireConfirmed ?? this.ceremonialAttireConfirmed,
+    );
+  }
+
+  /// Factory building a chauffeur trip view from the shared booking record.
+  ///
+  /// [stage] overrides the derived lifecycle stage; when omitted, the stage is
+  /// resolved from the server-authoritative booking status.
+  factory DriverActiveTrip.fromBookingResult(
+    BookingSubmissionResult result, {
+    DriverTripStage? stage,
+  }) {
+    final resolvedStage = stage ??
+        switch (result.status) {
+          BookingStatus.completed => DriverTripStage.completed,
+          BookingStatus.tripStarted => DriverTripStage.ceremonyInProgress,
+          BookingStatus.arrived => DriverTripStage.arrivedAtPickup,
+          BookingStatus.driverArriving => DriverTripStage.enRouteToPickup,
+          _ => DriverTripStage.assigned,
+        };
+
+    return DriverActiveTrip(
+      bookingId: result.bookingId,
+      bookingReference: result.bookingReference,
+      ceremonyType: result.ceremonyType,
+      ceremonialAttire: result.ceremonialAttire,
+      stage: resolvedStage,
+      pickupAddress: result.pickupAddress,
+      destinationAddress: result.destinationAddress,
+      primaryContactName: result.primaryContactName,
+      primaryContactPhone: result.primaryContactPhone,
+      serviceStartDateTime: result.serviceStartDateTime,
+      serviceEndDateTime: result.serviceEndDateTime,
+      routeDistanceKm: result.routeDistanceKm,
+      vehicleName: result.vehicleName,
     );
   }
 
