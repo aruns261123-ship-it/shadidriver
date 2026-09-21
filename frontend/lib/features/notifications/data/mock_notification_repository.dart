@@ -2,7 +2,11 @@ import '../../../../core/result/result.dart';
 import '../domain/entities/notification_item.dart';
 import '../domain/repositories/notification_repository.dart';
 
-/// In-memory mock implementation of NotificationRepository with pre-seeded ceremonial alerts.
+/// In-memory mock implementation of NotificationRepository.
+///
+/// Seeded with ceremonial alerts and shared as the app-wide event sink:
+/// booking lifecycle events (offers, acceptances, payments, milestones) push
+/// items here so the notification center stays live across portals.
 class MockNotificationRepository implements NotificationRepository {
   final List<NotificationItem> _notifications = [
     NotificationItem(
@@ -30,13 +34,17 @@ class MockNotificationRepository implements NotificationRepository {
     ),
   ];
 
+  int _idCounter = 100;
+
   @override
   Future<Result<List<NotificationItem>>> getNotifications({
     int page = 1,
     int limit = 20,
   }) async {
     await Future.delayed(const Duration(milliseconds: 100));
-    return Result.success(List.unmodifiable(_notifications));
+    final sorted = [..._notifications]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return Result.success(List.unmodifiable(sorted));
   }
 
   @override
@@ -54,5 +62,25 @@ class MockNotificationRepository implements NotificationRepository {
       );
     }
     return const Result.success(null);
+  }
+
+  /// Pushes a lifecycle event into the feed (newest first).
+  ///
+  /// Called by controllers when notable events happen: offer received,
+  /// offer accepted, payment confirmed, trip milestones, ceremony completed.
+  void pushEvent({
+    required String title,
+    required String body,
+  }) {
+    _notifications.insert(
+      0,
+      NotificationItem(
+        id: 'notif_evt_${_idCounter++}',
+        title: title,
+        body: body,
+        isRead: false,
+        createdAt: DateTime.now(),
+      ),
+    );
   }
 }

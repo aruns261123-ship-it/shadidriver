@@ -560,6 +560,10 @@ class MockDriverRepository implements DriverRepository {
     _mockDrivers[id] = profile;
   }
 
+  /// Synchronous roster lookup for seams that must mutate profiles without
+  /// awaiting (e.g. KYC approval flipping verification status).
+  static DriverProfile? getProfileSync(String id) => _mockDrivers[id];
+
   static final Map<String, DriverDutyStatus> _dutyStatuses = {
     'd1': DriverDutyStatus.available,
     'd2': DriverDutyStatus.available,

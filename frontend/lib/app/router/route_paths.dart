@@ -22,6 +22,17 @@ abstract final class RoutePaths {
       '/customer/bookings/review/:draftId';
   static const String customerBookingResult =
       '/customer/bookings/result/:bookingId';
+  static const String customerPaymentCheckout =
+      '/customer/bookings/payment/:bookingId';
+  static const String customerBookingDetail =
+      '/customer/bookings/detail/:bookingId';
+  static const String customerUrgentDispatch = '/customer/urgent-dispatch';
+  static const String customerSupportTicket = '/customer/support';
+
+  static String customerPaymentCheckoutPath(String bookingId) =>
+      '/customer/bookings/payment/$bookingId';
+  static String customerBookingDetailPath(String bookingId) =>
+      '/customer/bookings/detail/$bookingId';
 
   static String customerVehicleDetailsPath(String vehicleId) =>
       '/customer/vehicles/$vehicleId';

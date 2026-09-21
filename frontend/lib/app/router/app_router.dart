@@ -8,7 +8,9 @@ import '../../features/drivers/presentation/driver_booking_request_screen.dart';
 import '../../features/drivers/presentation/driver_dashboard_screen.dart';
 import '../../features/home/presentation/customer_home_screen.dart';
 import '../../features/home/presentation/customer_home_shell.dart';
-import '../../features/home/presentation/customer_tabs_placeholder.dart';
+import '../../features/messages/presentation/customer_messages_screen.dart';
+import '../../features/support/presentation/support_ticket_screen.dart';
+import '../../features/urgent_dispatch/presentation/urgent_dispatch_sos_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/search/presentation/search_results_screen.dart';
 import '../../features/vehicles/presentation/vehicle_details_screen.dart';
@@ -17,6 +19,8 @@ import '../../features/bookings/presentation/booking_entry_screen.dart';
 import '../../features/bookings/presentation/booking_review_screen.dart';
 import '../../features/bookings/presentation/booking_result_screen.dart';
 import '../../features/bookings/presentation/customer_bookings_screen.dart';
+import '../../features/payments/presentation/payment_checkout_screen.dart';
+import '../../features/bookings/presentation/booking_detail_screen.dart';
 import '../../features/home/presentation/splash_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/admin_dashboard_screen.dart';
@@ -113,7 +117,17 @@ GoRouter createShadiRouter({
           GoRoute(
             path: RoutePaths.customerMessages,
             name: 'customerMessages',
-            builder: (context, state) => const CustomerMessagesPlaceholder(),
+            builder: (context, state) => const CustomerMessagesScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.customerUrgentDispatch,
+            name: 'customerUrgentDispatch',
+            builder: (context, state) => const UrgentDispatchSosScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.customerSupportTicket,
+            name: 'customerSupportTicket',
+            builder: (context, state) => const SupportTicketScreen(),
           ),
           GoRoute(
             path: RoutePaths.customerProfile,
@@ -163,6 +177,20 @@ GoRouter createShadiRouter({
             path: RoutePaths.customerBookingResult,
             name: 'customerBookingResult',
             builder: (context, state) => BookingResultScreen(
+              bookingId: state.pathParameters['bookingId'] ?? '',
+            ),
+          ),
+          GoRoute(
+            path: RoutePaths.customerPaymentCheckout,
+            name: 'customerPaymentCheckout',
+            builder: (context, state) => PaymentCheckoutScreen(
+              bookingId: state.pathParameters['bookingId'] ?? '',
+            ),
+          ),
+          GoRoute(
+            path: RoutePaths.customerBookingDetail,
+            name: 'customerBookingDetail',
+            builder: (context, state) => BookingDetailScreen(
               bookingId: state.pathParameters['bookingId'] ?? '',
             ),
           ),

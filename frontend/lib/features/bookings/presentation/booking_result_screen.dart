@@ -131,9 +131,13 @@ class BookingResultScreen extends ConsumerWidget {
                 const SizedBox(height: 4),
 
                 Text(
-                  result.status == BookingStatus.driverAccepted
-                      ? 'Chauffeur Confirmed • Ceremonial Chauffeur Assigned'
-                      : 'Booking Request Received • Awaiting Confirmation',
+                  switch (result.status) {
+                    BookingStatus.driverAccepted =>
+                      'Chauffeur Confirmed • Complete the advance token to secure your date',
+                    BookingStatus.confirmed =>
+                      'Reservation Secured • See you at the ceremony!',
+                    _ => 'Booking Request Received • Awaiting Confirmation',
+                  },
                   style: AppTypography.labelMedium.copyWith(
                     color: AppColors.textSecondaryLight,
                   ),
@@ -267,6 +271,20 @@ class BookingResultScreen extends ConsumerWidget {
                 ),
 
                 const SizedBox(height: 16),
+
+                // Advance Token Checkout CTA — offered once the chauffeur has
+                // accepted; hidden after the reservation is CONFIRMED.
+                if (result.status == BookingStatus.driverAccepted)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: ShadiPrimaryButton(
+                      key: const Key('pay_advance_token_cta'),
+                      text: 'Pay Advance Token • ${CurrencyFormatter.formatPaise(result.advanceTokenPaise)}',
+                      onPressed: () => context.push(
+                        RoutePaths.customerPaymentCheckoutPath(result.bookingId),
+                      ),
+                    ),
+                  ),
 
                 // Pricing Summary Card
                 ShadiCard(

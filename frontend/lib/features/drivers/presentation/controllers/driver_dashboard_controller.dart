@@ -9,9 +9,30 @@ import '../../domain/entities/driver_duty_status.dart';
 import '../../domain/entities/driver_trip_stage.dart';
 import '../../domain/repositories/driver_repository.dart';
 
-/// Provider exposing the current logged-in driver ID.
-/// In production, this would be wired to the Auth/Session state.
-final currentDriverIdProvider = Provider<String>((ref) => 'd1');
+/// Phone → roster-ID resolution for demo driver accounts.
+///
+/// The mock auth store issues sessions keyed by phone; this maps registered
+/// driver accounts onto the chauffeur roster. Unauthenticated/dev-harness
+/// sessions fall back to the primary demo chauffeur.
+const _demoDriverAccounts = <String, String>{
+  '9810000002': 'd1',
+  '9876500002': 'd1',
+};
+
+/// Provider exposing the current logged-in driver ID, resolved from the auth
+/// session's masked phone so the driver portal shows the logged-in chauffeur's
+/// data. Falls back to the demo chauffeur when no session is active (tests,
+/// dev harness).
+final currentDriverIdProvider = Provider<String>((ref) {
+  final session = ref.watch(activeSessionProvider);
+  if (!session.isAuthenticated) return 'd1';
+  // Masked format: "+91 XXXXX XXXXX" — recover the 10-digit local number.
+  final digits = session.phone.replaceAll(RegExp(r'\D'), '');
+  final local10 = digits.length > 10
+      ? digits.substring(digits.length - 10)
+      : digits;
+  return _demoDriverAccounts[local10] ?? 'd1';
+});
 
 /// Live operational duty status for a chauffeur, shared between the Chauffeur
 /// Console (duty chips) and the Chauffeur Profile (availability badge).

@@ -21,6 +21,9 @@ class DriverActiveTrip {
   final DateTime serviceEndDateTime;
   final double? routeDistanceKm;
   final String vehicleName;
+
+  /// Estimated booking total in paise — drives the chauffeur earnings summary.
+  final int? estimatedTotalPaise;
   final String startOtp;
   final DateTime? tripStartedAt;
   final DateTime? tripCompletedAt;
@@ -42,6 +45,7 @@ class DriverActiveTrip {
     required this.serviceEndDateTime,
     this.routeDistanceKm,
     required this.vehicleName,
+    this.estimatedTotalPaise,
     this.startOtp = '1234',
     this.tripStartedAt,
     this.tripCompletedAt,
@@ -73,6 +77,7 @@ class DriverActiveTrip {
       serviceEndDateTime: serviceEndDateTime,
       routeDistanceKm: routeDistanceKm,
       vehicleName: vehicleName,
+      estimatedTotalPaise: estimatedTotalPaise,
       startOtp: startOtp,
       tripStartedAt: tripStartedAt ?? this.tripStartedAt,
       tripCompletedAt: tripCompletedAt ?? this.tripCompletedAt,
@@ -112,6 +117,7 @@ class DriverActiveTrip {
       serviceEndDateTime: result.serviceEndDateTime,
       routeDistanceKm: result.routeDistanceKm,
       vehicleName: result.vehicleName,
+      estimatedTotalPaise: result.estimatedTotalPaise,
     );
   }
 

@@ -32,6 +32,10 @@ class MockBookingRepository implements BookingRepository {
   int _referenceCounter = 101;
   int _groupCounter = 1;
 
+  /// Optional lifecycle event sink (wired to the notification center in the
+  /// app composition; nullable so domain tests stay dependency-free).
+  void Function({required String title, required String body})? onLifecycleEvent;
+
   static const Map<String, int> _mockInventory = {
     'Toyota Innova Crysta': 5,
     'Toyota Camry': 4,
@@ -458,6 +462,130 @@ class MockBookingRepository implements BookingRepository {
     );
   }
 
+  /// Admin dispatch override: marks an emergency standby chauffeur as
+  /// dispatched for a booking (PRD: emergency SOS / manual overrides).
+  ///
+  /// Only allowed for bookings awaiting chauffeur acceptance. Returns the
+  /// authoritative updated record.
+  Result<BookingSubmissionResult> dispatchEmergencyReplacement({
+    required String bookingId,
+    required String driverId,
+  }) {
+    final existing = _submissionResults[bookingId];
+    if (existing == null) {
+      return Result.failure(
+        NotFoundFailure('Booking not found for ID: $bookingId'),
+      );
+    }
+    if (existing.status != BookingStatus.requested) {
+      return Result.failure(
+        ConflictFailure(
+          'Emergency dispatch is only available for bookings awaiting acceptance.',
+        ),
+      );
+    }
+
+    final emergencyResult = BookingSubmissionResult(
+      bookingId: existing.bookingId,
+      bookingReference: existing.bookingReference,
+      status: BookingStatus.emergencyReplacement,
+      submittedAt: existing.submittedAt,
+      vehicleId: existing.vehicleId,
+      vehicleName: existing.vehicleName,
+      vehicleClass: existing.vehicleClass,
+      chauffeurId: driverId,
+      ceremonyType: existing.ceremonyType,
+      ceremonialAttire: existing.ceremonialAttire,
+      serviceStartDateTime: existing.serviceStartDateTime,
+      serviceEndDateTime: existing.serviceEndDateTime,
+      routeDistanceKm: existing.routeDistanceKm,
+      pickupAddress: existing.pickupAddress,
+      destinationAddress: existing.destinationAddress,
+      primaryContactName: existing.primaryContactName,
+      primaryContactPhone: existing.primaryContactPhone,
+      estimatedTotalPaise: existing.estimatedTotalPaise,
+      advanceTokenPaise: existing.advanceTokenPaise,
+      advanceTokenLabel: existing.advanceTokenLabel,
+      nextStepMessage:
+          'Emergency standby chauffeur dispatched by operations.',
+    );
+    _submissionResults[bookingId] = emergencyResult;
+
+    onLifecycleEvent?.call(
+      title: 'Emergency Standby Dispatched',
+      body:
+          'Operations dispatched an emergency standby chauffeur for '
+          '${emergencyResult.bookingReference}.',
+    );
+
+    return Result.success(emergencyResult);
+  }
+
+  /// Marks a booking as CONFIRMED after successful advance-token payment.
+  ///
+  /// Only transitions from DRIVER_ACCEPTED (or PAYMENT_PENDING) — mirrors the
+  /// server state machine where the advance token locks the reservation.
+  /// Available as a seam for the payment checkout flow and tests.
+  void markBookingConfirmed(String bookingId) {
+    final existing = _submissionResults[bookingId];
+    if (existing != null &&
+        (existing.status == BookingStatus.driverAccepted ||
+            existing.status == BookingStatus.paymentPending)) {
+      _submissionResults[bookingId] = BookingSubmissionResult(
+        bookingId: existing.bookingId,
+        bookingReference: existing.bookingReference,
+        status: BookingStatus.confirmed,
+        submittedAt: existing.submittedAt,
+        vehicleId: existing.vehicleId,
+        vehicleName: existing.vehicleName,
+        vehicleClass: existing.vehicleClass,
+        chauffeurId: existing.chauffeurId,
+        ceremonyType: existing.ceremonyType,
+        ceremonialAttire: existing.ceremonialAttire,
+        serviceStartDateTime: existing.serviceStartDateTime,
+        serviceEndDateTime: existing.serviceEndDateTime,
+        routeDistanceKm: existing.routeDistanceKm,
+        pickupAddress: existing.pickupAddress,
+        destinationAddress: existing.destinationAddress,
+        primaryContactName: existing.primaryContactName,
+        primaryContactPhone: existing.primaryContactPhone,
+        estimatedTotalPaise: existing.estimatedTotalPaise,
+        advanceTokenPaise: existing.advanceTokenPaise,
+        advanceTokenLabel: existing.advanceTokenLabel,
+        nextStepMessage:
+            'Advance token received. Your ceremonial reservation is officially secured.',
+        isIdempotentReplay: existing.isIdempotentReplay,
+      );
+
+      onLifecycleEvent?.call(
+        title: 'Reservation Secured',
+        body:
+            'Advance token received for ${existing.bookingReference}. '
+            'Your ceremony is officially confirmed.',
+      );
+    }
+
+    final summary = _bookings[bookingId];
+    if (summary != null) {
+      _bookings[bookingId] = BookingSummary(
+        id: summary.id,
+        reference: summary.reference,
+        serviceCategory: summary.serviceCategory,
+        status: 'CONFIRMED',
+        eventStartTime: summary.eventStartTime,
+        eventEndTime: summary.eventEndTime,
+        pickupAddress: summary.pickupAddress,
+        destinationAddress: summary.destinationAddress,
+        routeDistanceKm: summary.routeDistanceKm,
+        vehicleName: summary.vehicleName,
+        chauffeurName: summary.chauffeurName,
+        totalAmountCents: summary.totalAmountCents,
+        advanceTokenCents: summary.advanceTokenCents,
+        version: summary.version + 1,
+      );
+    }
+  }
+
   /// Marks a booking as completed in the in-memory store.
   ///
   /// Called by [MockTripRepository.completeTrip] and available as a test seam
@@ -560,6 +688,14 @@ class MockBookingRepository implements BookingRepository {
     );
 
     _submissionResults[bookingId] = acceptedResult;
+
+    // Lifecycle event → notification center (best-effort).
+    onLifecycleEvent?.call(
+      title: 'Offer Accepted',
+      body:
+          'Chauffeur accepted ceremonial offer ${acceptedResult.bookingReference}. '
+          'The host can now complete the advance token.',
+    );
 
     // Update synchronized booking summary
     final existingSummary = _bookings[bookingId];

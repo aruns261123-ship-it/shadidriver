@@ -47,12 +47,13 @@ void main() {
 
         expect(find.text('APPROVED'), findsOneWidget);
 
-        // Switch to Fleet Registry Tab
+        // Switch to Fleet Registry Tab — sourced from the live vehicle store.
         await tester.tap(find.text('Fleet Registry'));
         await tester.pumpAndSettle();
 
+        expect(find.text('BMW 5 Series'), findsOneWidget);
         expect(find.text('Mercedes-Benz S-Class'), findsOneWidget);
-        expect(find.text('Rolls-Royce Ghost'), findsOneWidget);
+        expect(find.textContaining('AVAILABLE'), findsWidgets);
       },
     );
   });

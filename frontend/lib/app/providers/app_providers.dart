@@ -30,6 +30,8 @@ import '../../features/profile/domain/repositories/customer_profile_repository.d
 import '../../features/profile/data/mock_customer_profile_repository.dart';
 import '../../features/drivers/domain/repositories/driver_profile_repository.dart';
 import '../../features/drivers/data/mock_driver_profile_repository.dart';
+import '../../features/drivers/domain/repositories/chauffeur_kyc_repository.dart';
+import '../../features/drivers/data/mock_chauffeur_kyc_repository.dart';
 import '../../features/profile/domain/repositories/admin_profile_repository.dart';
 import '../../features/profile/data/mock_admin_profile_repository.dart';
 import '../../features/auth/domain/entities/auth_session.dart';
@@ -146,7 +148,19 @@ final routeDistanceServiceProvider = Provider<RouteDistanceService>((ref) {
 });
 
 final bookingRepositoryProvider = Provider<BookingRepository>((ref) {
-  return MockBookingRepository();
+  final store = MockBookingRepository();
+
+  // Mirror booking lifecycle events into the notification center feed.
+  final notificationRepo = ref.watch(notificationRepositoryProvider)
+      as MockNotificationRepository;
+  store.onLifecycleEvent =
+      ({required String title, required String body}) {
+        notificationRepo.pushEvent(title: title, body: body);
+        // Refresh any live notification listeners.
+        ref.notifyListeners();
+      };
+
+  return store;
 });
 
 final driverRepositoryProvider = Provider<DriverRepository>((ref) {
@@ -168,7 +182,8 @@ final serviceAddonRepositoryProvider = Provider<ServiceAddonRepository>((ref) {
 });
 
 final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
-  return MockPaymentRepository();
+  final bookingStore = ref.watch(bookingRepositoryProvider) as MockBookingRepository;
+  return MockPaymentRepository(bookingRepository: bookingStore);
 });
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
@@ -218,6 +233,13 @@ final driverProfileRepositoryProvider = Provider<DriverProfileRepository>((
 
 final adminProfileRepositoryProvider = Provider<AdminProfileRepository>((ref) {
   return MockAdminProfileRepository();
+});
+
+/// Chauffeur KYC repository — adjudicates applications against the shared
+/// driver roster so approval flips the real profile's verification status.
+final chauffeurKycRepositoryProvider = Provider<ChauffeurKycRepository>((ref) {
+  final driverStore = ref.watch(driverRepositoryProvider) as MockDriverRepository;
+  return MockChauffeurKycRepository(driverRepository: driverStore);
 });
 
 final activeSessionProvider = StateProvider<AuthSession>((ref) {

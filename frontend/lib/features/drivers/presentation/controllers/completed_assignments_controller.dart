@@ -79,9 +79,7 @@ class CompletedAssignmentsController
       ),
     );
   }
-}
-
-/// Provider exposing completed assignments for the Chauffeur Console.
+}  /// Provider exposing completed assignments for the Chauffeur Console.
 final completedAssignmentsControllerProvider =
     StateNotifierProvider.autoDispose<
       CompletedAssignmentsController,
@@ -95,3 +93,58 @@ final completedAssignmentsControllerProvider =
         driverId: driverId,
       );
     });
+
+/// Aggregate payout view over the chauffeur's completed assignments.
+///
+/// The chauffeur earns 70% of each booking's estimated total (the platform
+/// commission mirrors the PRD's revenue-share note); advance tokens are
+/// already collected and excluded from the payout figure.
+@immutable
+class DriverEarningsSummary {
+  static const double chauffeurShare = 0.70;
+
+  final int assignmentCount;
+  final int grossPaise;
+  final int hoursOnDuty;
+
+  const DriverEarningsSummary({
+    required this.assignmentCount,
+    required this.grossPaise,
+    required this.hoursOnDuty,
+  });
+
+  /// 70% chauffeur share of gross booking value, in paise.
+  int get netPayoutPaise => (grossPaise * chauffeurShare).round();
+
+  double get grossRupees => grossPaise / 100;
+  double get netPayoutRupees => netPayoutPaise / 100;
+
+  String get netPayoutFormatted {
+    final rupees = netPayoutPaise / 100;
+    return '₹${rupees.toStringAsFixed(rupees == rupees.roundToDouble() ? 0 : 2)}';
+  }
+
+  factory DriverEarningsSummary.fromAssignments(
+    List<DriverActiveTrip> assignments,
+  ) {
+    var gross = 0;
+    var hours = 0;
+    for (final trip in assignments) {
+      gross += trip.estimatedTotalPaise ?? 0;
+      hours += trip.serviceEndDateTime
+          .difference(trip.serviceStartDateTime)
+          .inHours;
+    }
+    return DriverEarningsSummary(
+      assignmentCount: assignments.length,
+      grossPaise: gross,
+      hoursOnDuty: hours,
+    );
+  }
+}
+
+/// Provider deriving the earnings summary from the completed assignments.
+final driverEarningsSummaryProvider = Provider<DriverEarningsSummary>((ref) {
+  final state = ref.watch(completedAssignmentsControllerProvider);
+  return DriverEarningsSummary.fromAssignments(state.assignments);
+});

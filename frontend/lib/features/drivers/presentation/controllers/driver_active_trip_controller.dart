@@ -1,7 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
-import '../../../bookings/data/mock_booking_repository.dart';
-import '../../../bookings/domain/entities/booking_status.dart';
 import '../../domain/entities/driver_active_trip.dart';
 import '../../domain/entities/driver_duty_status.dart';
 import '../../domain/entities/driver_trip_stage.dart';
@@ -34,8 +34,18 @@ class DriverActiveTripState {
 }
 
 /// Controller managing chauffeur trip lifecycle transitions.
+///
+/// All milestone transitions are routed through [TripRepository] — the single
+/// source of truth — so when the real backend lands, only the repository
+/// implementation changes. Post-transition side effects (duty engagement/
+/// release, dashboard refresh, completed-history invalidation) are triggered
+/// after the repository confirms each transition.
 class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
   final Ref _ref;
+
+  /// Set once the pre-trip checklist (fuel / dual-AC / grooming) is submitted;
+  /// gates the "Start Journey" action per the PRD's pre-trip protocol.
+  bool preTripChecklistSubmitted = false;
 
   DriverActiveTripController(this._ref, {String bookingId = 'bk_mock_req_1'})
     : super(
@@ -46,72 +56,120 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
 
   /// 1. Start journey to the customer's pickup address
   ///
-  /// Engages the chauffeur's profile duty status to BUSY ("On Active
-  /// Assignment") so dispatch stops queueing further offers mid-assignment,
-  /// and records the DRIVER_ARRIVING milestone on the booking store so the
-  /// admin dispatch monitor mirrors the live ceremony stage.
+  /// Records the EN_ROUTE milestone via [TripRepository] and engages the
+  /// chauffeur's profile duty status to BUSY ("On Active Assignment") so
+  /// dispatch stops queueing further offers mid-assignment.
   Future<void> startEnRoute() async {
     state = state.copyWith(isUpdating: true, errorMessage: null);
-    await Future.delayed(const Duration(milliseconds: 200));
+
+    final result = await _ref
+        .read(tripRepositoryProvider)
+        .startRouteToPickup(state.trip.bookingId);
+
+    if (!mounted) return;
+    final failure = result.fold((f) => f, (_) => null);
+    if (failure != null) {
+      state = state.copyWith(
+        isUpdating: false,
+        errorMessage: failure.message,
+      );
+      return;
+    }
+
     state = state.copyWith(
       isUpdating: false,
       trip: state.trip.copyWith(stage: DriverTripStage.enRouteToPickup),
     );
-
-    _syncBookingStage(BookingStatus.driverArriving);
     await _engageDuty();
+    _startTelemetry();
   }
 
-  /// Writes the current trip milestone to the shared booking store so admin
-  /// and dashboard surfaces derive live stage info. Best-effort in the mock
-  /// layer; never blocks the driver's trip progression.
-  void _syncBookingStage(BookingStatus status) {
-    try {
-      final bookingStore =
-          _ref.read(bookingRepositoryProvider) as MockBookingRepository;
-      bookingStore.updateBookingStage(state.trip.bookingId, status);
-    } catch (_) {
-      // Booking store is only a mock-composition detail.
+  /// Submits the PRD pre-trip checklist (fuel, dual-AC, grooming) before the
+  /// journey may begin. Returns false on repository failure.
+  Future<bool> submitPreTripChecklist({
+    required bool isFuelChecked,
+    required bool isDualAcChecked,
+    required bool isGroomingChecked,
+  }) async {
+    state = state.copyWith(isUpdating: true, errorMessage: null);
+
+    final result = await _ref.read(driverRepositoryProvider).submitPreTripChecklist(
+          bookingId: state.trip.bookingId,
+          isFuelChecked: isFuelChecked,
+          isDualAcChecked: isDualAcChecked,
+          isGroomingChecked: isGroomingChecked,
+        );
+
+    if (!mounted) return false;
+    final failure = result.fold((f) => f, (_) => null);
+    if (failure != null) {
+      state = state.copyWith(isUpdating: false, errorMessage: failure.message);
+      return false;
     }
+
+    preTripChecklistSubmitted = true;
+    state = state.copyWith(isUpdating: false, errorMessage: null);
+    return true;
   }
 
-  /// Marks the chauffeur BUSY on the profile and refreshes every live duty
-  /// surface (Chauffeur Profile availability badge, dashboard duty banner).
-  Future<void> _engageDuty() async {
-    try {
-      final driverRepo = _ref.read(driverRepositoryProvider);
-      final driverId = _ref.read(currentDriverIdProvider);
-      await driverRepo.updateDutyStatus(
-        driverId: driverId,
-        status: DriverDutyStatus.busy,
-      );
-      _refreshDutySurfaces(driverId);
-    } catch (_) {
-      // Duty engagement is best-effort in the mock layer; never block the trip.
-    }
+  Timer? _telemetryTimer;
+
+  /// Fire-and-forget GPS telemetry while the chauffeur is en route.
+  ///
+  /// A ping is emitted immediately on entering the en-route stage; a light
+  /// periodic loop then runs until the stage advances (arrived / stopped).
+  /// Demo devices have no location permission wiring, so a fixed Delhi NCR
+  /// waypoint with a plausible cruise speed is used — real devices swap in
+  /// geolocator values.
+  void _startTelemetry() {
+    _telemetryTimer?.cancel();
+    _sendPing();
+    _telemetryTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+      if (!mounted ||
+          state.trip.stage != DriverTripStage.enRouteToPickup) {
+        timer.cancel();
+        return;
+      }
+      _sendPing();
+    });
   }
 
-  /// Refreshes live duty watchers so the profile badge and dashboard chips
-  /// reflect the change immediately instead of on next screen entry.
-  void _refreshDutySurfaces(String driverId) {
-    try {
-      _ref.invalidate(driverDutyStatusProvider(driverId));
-      _ref.read(driverDashboardControllerProvider.notifier).loadDashboard();
-    } catch (_) {
-      // Dashboard may not be alive yet; badge refetches on navigation anyway.
-    }
+  void _sendPing() {
+    _ref
+        .read(driverRepositoryProvider)
+        .sendTelemetryPing(
+          latitude: 28.6139,
+          longitude: 77.2090,
+          speedKmh: 32,
+          bearing: 274,
+        );
+  }
+
+  @override
+  void dispose() {
+    _telemetryTimer?.cancel();
+    super.dispose();
   }
 
   /// 2. Mark arrived at venue / pickup point
   Future<void> markArrived() async {
     state = state.copyWith(isUpdating: true, errorMessage: null);
-    await Future.delayed(const Duration(milliseconds: 200));
-    state = state.copyWith(
-      isUpdating: false,
-      trip: state.trip.copyWith(stage: DriverTripStage.arrivedAtPickup),
-    );
 
-    _syncBookingStage(BookingStatus.arrived);
+    final result = await _ref
+        .read(tripRepositoryProvider)
+        .markMilestoneArrived(state.trip.bookingId);
+
+    if (!mounted) return;
+    result.fold(
+      (failure) => state = state.copyWith(
+        isUpdating: false,
+        errorMessage: failure.message,
+      ),
+      (_) => state = state.copyWith(
+        isUpdating: false,
+        trip: state.trip.copyWith(stage: DriverTripStage.arrivedAtPickup),
+      ),
+    );
   }
 
   /// 3. Verify customer OTP & attire check to begin service
@@ -120,7 +178,6 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
     required bool attireConfirmed,
   }) async {
     state = state.copyWith(isUpdating: true, errorMessage: null);
-    await Future.delayed(const Duration(milliseconds: 300));
 
     if (otp != state.trip.startOtp && otp != '0000') {
       state = state.copyWith(
@@ -139,6 +196,20 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
       return false;
     }
 
+    final result = await _ref
+        .read(tripRepositoryProvider)
+        .startCeremonyTrip(state.trip.bookingId, otp);
+
+    if (!mounted) return false;
+    final failure = result.fold((f) => f, (_) => null);
+    if (failure != null) {
+      state = state.copyWith(
+        isUpdating: false,
+        errorMessage: failure.message,
+      );
+      return false;
+    }
+
     state = state.copyWith(
       isUpdating: false,
       errorMessage: null,
@@ -148,19 +219,31 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
         ceremonialAttireConfirmed: true,
       ),
     );
-
-    _syncBookingStage(BookingStatus.tripStarted);
     return true;
   }
 
   /// 4. Complete ceremonial service
   ///
-  /// On conclusion the booking is recorded as COMPLETED (so it appears in the
-  /// Completed Assignments history) and the chauffeur's duty status is released
-  /// from BUSY back to AVAILABLE for future dispatch offers.
+  /// On conclusion the booking is recorded as COMPLETED via [TripRepository]
+  /// (driving the Completed Assignments history), the Active Assignment card
+  /// is dropped on the next dashboard read, and the chauffeur's duty status is
+  /// released from BUSY back to AVAILABLE for future dispatch offers.
   Future<void> completeService() async {
     state = state.copyWith(isUpdating: true, errorMessage: null);
-    await Future.delayed(const Duration(milliseconds: 300));
+
+    final result = await _ref
+        .read(tripRepositoryProvider)
+        .completeTrip(state.trip.bookingId);
+
+    if (!mounted) return;
+    final failure = result.fold((f) => f, (_) => null);
+    if (failure != null) {
+      state = state.copyWith(
+        isUpdating: false,
+        errorMessage: failure.message,
+      );
+      return;
+    }
 
     state = state.copyWith(
       isUpdating: false,
@@ -170,17 +253,40 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
       ),
     );
 
-    // Record completion in the booking store (drives the Completed
-    // Assignments section on the Chauffeur Console).
-    try {
-      final bookingStore =
-          _ref.read(bookingRepositoryProvider) as MockBookingRepository;
-      bookingStore.markBookingCompleted(state.trip.bookingId);
-    } catch (_) {
-      // Booking store is only a mock-composition detail; never block completion.
-    }
-
     // Release the chauffeur: BUSY → AVAILABLE so dispatch offers resume.
+    await _releaseDuty();
+
+    // Drop the cached "Completed Assignments" history so the freshly
+    // concluded service appears when the chauffeur returns to the console,
+    // and refresh the dashboard's Active Assignment card, which derives
+    // from the booking store the repository just updated.
+    _ref.invalidate(completedAssignmentsControllerProvider);
+    try {
+      _ref.read(driverDashboardControllerProvider.notifier).loadDashboard();
+    } catch (_) {
+      // Dashboard may not be alive yet; it refreshes on navigation.
+    }
+  }
+
+  /// Marks the chauffeur BUSY on the profile and refreshes every live duty
+  /// surface (Chauffeur Profile availability badge, dashboard duty banner).
+  Future<void> _engageDuty() async {
+    try {
+      final driverRepo = _ref.read(driverRepositoryProvider);
+      final driverId = _ref.read(currentDriverIdProvider);
+      await driverRepo.updateDutyStatus(
+        driverId: driverId,
+        status: DriverDutyStatus.busy,
+      );
+      if (!mounted) return;
+      _ref.invalidate(driverDutyStatusProvider(driverId));
+    } catch (_) {
+      // Duty engagement is best-effort in the mock layer; never block the trip.
+    }
+  }
+
+  /// Releases the chauffeur from BUSY back to AVAILABLE after completion.
+  Future<void> _releaseDuty() async {
     try {
       final driverRepo = _ref.read(driverRepositoryProvider);
       final driverId = _ref.read(currentDriverIdProvider);
@@ -192,19 +298,11 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
           status: DriverDutyStatus.available,
         );
       }
-      // Refresh the dashboard and profile badge so the duty banner, offer
-      // queue, and availability chip reflect the release immediately when the
-      // chauffeur returns.
-      _refreshDutySurfaces(driverId);
+      if (!mounted) return;
+      _ref.invalidate(driverDutyStatusProvider(driverId));
     } catch (_) {
       // Duty release is best-effort in the mock layer.
     }
-
-    // Drop the cached "Completed Assignments" history so the freshly concluded
-    // service appears when the chauffeur returns to the console. Also refresh
-    // the dashboard's Active Assignment card, which derives from the store.
-    _ref.invalidate(completedAssignmentsControllerProvider);
-    _ref.read(driverDashboardControllerProvider.notifier).loadDashboard();
   }
 }
 

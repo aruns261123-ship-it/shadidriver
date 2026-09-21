@@ -123,10 +123,12 @@ void main() {
         router.go(RoutePaths.customerBookingResultPath(bookingId));
         await tester.pumpAndSettle();
 
-        // Customer screen displays Driver Accepted and Confirmed Chauffeur
+        // Customer screen displays Driver Accepted and the advance-token CTA
         expect(find.text('Driver Accepted'), findsOneWidget);
         expect(
-          find.text('Chauffeur Confirmed • Ceremonial Chauffeur Assigned'),
+          find.textContaining(
+            'Chauffeur Confirmed • Complete the advance token',
+          ),
           findsOneWidget,
         );
         expect(find.text('Confirmed (ID: d1)'), findsOneWidget);

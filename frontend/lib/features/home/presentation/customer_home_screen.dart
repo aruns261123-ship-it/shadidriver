@@ -125,17 +125,8 @@ class CustomerHomeScreen extends ConsumerWidget {
                       data: (availability) => ShadiUrgentDispatchCard(
                         availableCount: availability.availableCount,
                         eta: availability.eta,
-                        onTap: () {
-                          ref
-                              .read(searchControllerProvider.notifier)
-                              .updateQuery(
-                                const VehicleSearchQuery(
-                                  pickupLocation: 'Delhi NCR',
-                                  availableNow: true,
-                                ),
-                              );
-                          context.push(RoutePaths.customerSearchResults);
-                        },
+                        onTap: () =>
+                            context.push(RoutePaths.customerUrgentDispatch),
                       ),
                       loading: () => const SizedBox.shrink(),
                       error: (_, _) => const SizedBox.shrink(),

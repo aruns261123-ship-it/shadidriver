@@ -104,7 +104,13 @@ class DriverActiveTripScreen extends ConsumerWidget {
           _buildCeremonialStandardsCard(trip),
           const SizedBox(height: 24),
 
-          // 6. Action Button Section based on Stage
+          // 6. Pre-trip Checklist (assigned stage only, PRD pre-trip protocol)
+          if (trip.stage == DriverTripStage.assigned) ...[
+            _buildPreTripChecklistCard(context, controller),
+            const SizedBox(height: 14),
+          ],
+
+          // 7. Action Button Section based on Stage
           _buildActionSection(
             context,
             trip.stage,
@@ -113,6 +119,144 @@ class DriverActiveTripScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+
+  /// Pre-trip checklist card (fuel / dual-AC / grooming). The driver must
+  /// confirm all three before the Start Journey button becomes available —
+  /// mirrors the PRD's mandatory pre-trip protocol.
+  Widget _buildPreTripChecklistCard(
+    BuildContext context,
+    DriverActiveTripController controller,
+  ) {
+    final submitted = controller.preTripChecklistSubmitted;
+    return ShadiCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.checklist_rounded,
+                color: AppColors.primaryBurgundy,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Pre-Trip Checklist',
+                  style: AppTypography.titleSmall.copyWith(
+                    color: AppColors.primaryBurgundy,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (submitted)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.verifiedEmerald,
+                  size: 20,
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            submitted
+                ? 'All checks confirmed. You are clear to start the journey.'
+                : 'Confirm all three checks before starting the journey.',
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondaryLight,
+            ),
+          ),
+          if (!submitted) ...[
+            const SizedBox(height: 12),
+            ShadiSecondaryButton(
+              text: 'Open Pre-Trip Checklist',
+              onPressed: () => _showPreTripChecklistSheet(context, controller),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showPreTripChecklistSheet(
+    BuildContext context,
+    DriverActiveTripController controller,
+  ) {
+    bool fuel = false, dualAc = false, grooming = false;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      isDismissible: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pre-Trip Checklist',
+                  style: AppTypography.titleMedium.copyWith(
+                    color: AppColors.primaryBurgundy,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Mandatory before every ceremonial journey.',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                CheckboxListTile(
+                  value: fuel,
+                  onChanged: (v) => setSheetState(() => fuel = v ?? false),
+                  title: const Text('Fuel level sufficient for route'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                CheckboxListTile(
+                  value: dualAc,
+                  onChanged: (v) => setSheetState(() => dualAc = v ?? false),
+                  title: const Text('Dual AC cooling verified'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                CheckboxListTile(
+                  value: grooming,
+                  onChanged: (v) =>
+                      setSheetState(() => grooming = v ?? false),
+                  title: const Text('Grooming & ceremonial attire inspected'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+                const SizedBox(height: 12),
+                ShadiPrimaryButton(
+                  text: 'Confirm Checklist',
+                  isLoading: false,
+                  onPressed: (!fuel || !dualAc || !grooming)
+                      ? null
+                      : () async {
+                          final ok = await controller.submitPreTripChecklist(
+                            isFuelChecked: fuel,
+                            isDualAcChecked: dualAc,
+                            isGroomingChecked: grooming,
+                          );
+                          if (sheetContext.mounted && ok) {
+                            Navigator.pop(sheetContext);
+                          }
+                        },
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

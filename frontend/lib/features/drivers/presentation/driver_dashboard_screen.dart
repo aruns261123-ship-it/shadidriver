@@ -30,7 +30,8 @@ class DriverDashboardScreen extends ConsumerWidget {
     final state = ref.watch(driverDashboardControllerProvider);
     final controller = ref.read(driverDashboardControllerProvider.notifier);
     final completedState = ref.watch(completedAssignmentsControllerProvider);
-    final profileState = ref.watch(driverProfileControllerProvider('d1'));
+    final driverId = ref.watch(currentDriverIdProvider);
+    final profileState = ref.watch(driverProfileControllerProvider(driverId));
     final driverName = profileState.profile?.fullName ?? 'Rajesh Kumar';
 
     return Scaffold(
@@ -143,13 +144,23 @@ class DriverDashboardScreen extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
-            // 5. Completed Assignments History
+            // 5. Completed Assignments History (+ earnings summary)
             ShadiSectionHeader(
               title: 'Completed Assignments',
               subtitle: completedState.assignments.isEmpty
                   ? 'No concluded ceremonial services yet'
                   : '${completedState.assignments.length} concluded ceremony assignment${completedState.assignments.length == 1 ? '' : 's'}',
             ),
+
+            if (!completedState.isLoading &&
+                completedState.assignments.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildEarningsCard(
+                DriverEarningsSummary.fromAssignments(
+                  completedState.assignments,
+                ),
+              ),
+            ],
 
             const SizedBox(height: 12),
 
@@ -601,6 +612,81 @@ class DriverDashboardScreen extends ConsumerWidget {
   }
 
   /// History card for a concluded ceremonial assignment.
+  /// Payout summary over concluded ceremonies (70% chauffeur share).
+  Widget _buildEarningsCard(DriverEarningsSummary earnings) {
+    return ShadiCard(
+      padding: const EdgeInsets.all(16),
+      backgroundColor: AppColors.champagneGold.withValues(alpha: 0.12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: AppColors.primaryBurgundy,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Earnings (Concluded Ceremonies)',
+                style: AppTypography.titleSmall.copyWith(
+                  color: AppColors.primaryBurgundy,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _earningsStat(
+                  'Net Payout (70%)',
+                  earnings.netPayoutFormatted,
+                ),
+              ),
+              Expanded(
+                child: _earningsStat(
+                  'Gross Bookings',
+                  '₹${earnings.grossRupees.toStringAsFixed(0)}',
+                ),
+              ),
+              Expanded(
+                child: _earningsStat(
+                  'Hours on Duty',
+                  '${earnings.hoursOnDuty} h',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _earningsStat(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: AppTypography.titleMedium.copyWith(
+            color: AppColors.primaryBurgundy,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: AppTypography.labelSmall.copyWith(
+            color: AppColors.textSecondaryLight,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildCompletedAssignmentCard(
     BuildContext context,
     DriverActiveTrip trip,

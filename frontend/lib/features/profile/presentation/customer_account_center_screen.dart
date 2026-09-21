@@ -117,8 +117,10 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
                   _MenuItem(
                     icon: Icons.support_agent_rounded,
                     title: '24/7 Royal Concierge Support',
-                    subtitle: 'Direct line to your wedding transport manager',
-                    onTap: () => _showConciergeSheet(context),
+                    subtitle: 'Raise a dispute or get help with a booking',
+                    onTap: () => context.push(
+                      RoutePaths.customerSupportTicket,
+                    ),
                   ),
                 ]),
 
@@ -460,52 +462,6 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
     );
   }
 
-  void _showConciergeSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '24/7 Wedding Concierge Helpline',
-                style: AppTypography.titleMedium.copyWith(
-                  color: AppColors.primaryBurgundy,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                leading: const Icon(
-                  Icons.phone_in_talk_rounded,
-                  color: AppColors.warmGold,
-                ),
-                title: const Text('Call Concierge Desk'),
-                subtitle: const Text('+91 1800-SHADI-CAR (Toll Free)'),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.chat_bubble_rounded,
-                  color: AppColors.verifiedEmerald,
-                ),
-                title: const Text('WhatsApp Wedding Dispatcher'),
-                subtitle: const Text('Live wedding coordinator chat'),
-                onTap: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _MenuItem {

@@ -8,6 +8,13 @@ abstract interface class PaymentRepository {
     required String idempotencyKey,
   });
 
+  /// Runs the hosted gateway checkout for [order] and returns the gateway
+  /// payment reference on success.
+  Future<Result<String>> processGatewayCheckout({
+    required PaymentOrder order,
+    required String payerReference,
+  });
+
   Future<Result<bool>> verifyPaymentSignature({
     required String orderId,
     required String paymentId,
