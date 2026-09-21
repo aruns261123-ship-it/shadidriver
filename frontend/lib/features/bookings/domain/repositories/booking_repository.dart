@@ -69,6 +69,22 @@ abstract interface class BookingRepository {
     required String driverId,
   });
 
+  /// Fetches the chauffeur's live (accepted, not yet completed) assignments.
+  ///
+  /// Used by the Chauffeur Console to render the "Active Assignment" card and
+  /// by operations to know which chauffeurs are currently engaged. An empty
+  /// list means the chauffeur has no in-progress assignment.
+  Future<Result<List<BookingSubmissionResult>>> getDriverActiveAssignments({
+    required String driverId,
+  });
+
+  /// Fetches all live (dispatch-relevant) bookings across the fleet for the
+  /// admin operations monitor, newest first.
+  ///
+  /// Excludes terminal/back-office states (rejected, expired, cancelled) so
+  /// the Operations Command Room only renders actionable ceremony rows.
+  Future<Result<List<BookingSubmissionResult>>> getDispatchMonitorBookings();
+
   /// Retrieves booking request details for a chauffeur review.
   Future<Result<BookingSubmissionResult>> getDriverBookingDetails({
     required String bookingId,

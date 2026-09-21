@@ -20,15 +20,18 @@ void main() {
         expect(find.text('Chauffeur KYC'), findsOneWidget);
         expect(find.text('Fleet Registry'), findsOneWidget);
 
-        // KPI Metric Cards
+        // KPI Metric Cards — computed from the live duty + booking stores:
+        // seeded REQUESTED booking is not yet a live ceremony (0), and the
+        // roster has 4 chauffeurs not OFFLINE (d1-d3 available, d5 busy).
         expect(find.text('Live Ceremonies'), findsOneWidget);
-        expect(find.text('14'), findsOneWidget);
-        expect(find.text('28'), findsOneWidget);
+        expect(find.text('0'), findsOneWidget);
+        expect(find.text('4'), findsOneWidget);
 
-        // Live Dispatch Tab content
+        // Live Dispatch Tab content — sourced from the booking store.
         expect(find.text('SD-2026-0100'), findsOneWidget);
-        expect(find.text('Baraat Ceremony • BMW 5 Series'), findsOneWidget);
+        expect(find.text('Baraat • BMW 5 Series'), findsOneWidget);
         expect(find.textContaining('Rajesh Kumar'), findsOneWidget);
+        expect(find.text('AWAITING ACCEPTANCE'), findsOneWidget);
 
         // Switch to Chauffeur KYC Tab
         await tester.tap(find.text('Chauffeur KYC'));

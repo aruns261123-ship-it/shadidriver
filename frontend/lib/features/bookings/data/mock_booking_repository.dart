@@ -377,6 +377,87 @@ class MockBookingRepository implements BookingRepository {
     return Result.success(completed);
   }
 
+  /// Lifecycle subsets used by the active-assignment and dispatch-monitor
+  /// queries below. Terminal/back-office states never render as live work.
+  static const _nonActiveStatuses = {
+    BookingStatus.requested, // still an unclaimed dispatch offer
+    BookingStatus.rejected,
+    BookingStatus.expired,
+    BookingStatus.cancelled,
+    BookingStatus.paymentFailed,
+    BookingStatus.completed,
+  };
+
+  static const _terminalStatuses = {
+    BookingStatus.rejected,
+    BookingStatus.expired,
+    BookingStatus.cancelled,
+    BookingStatus.paymentFailed,
+    BookingStatus.completed,
+  };
+
+  @override
+  Future<Result<List<BookingSubmissionResult>>> getDriverActiveAssignments({
+    required String driverId,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    final active = _submissionResults.values
+        .where(
+          (r) =>
+              r.chauffeurId == driverId &&
+              !_nonActiveStatuses.contains(r.status),
+        )
+        .toList()
+      ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+    return Result.success(active);
+  }
+
+  @override
+  Future<Result<List<BookingSubmissionResult>>> getDispatchMonitorBookings() async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    final monitor = _submissionResults.values
+        .where((r) => !_terminalStatuses.contains(r.status))
+        .toList()
+      ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+    return Result.success(monitor);
+  }
+
+  /// Transitions a driver-side trip milestone on the booking record.
+  ///
+  /// Called by the trip controller on stage changes (en route, arrived,
+  /// ceremony started) so the admin dispatch monitor and driver dashboard
+  /// reflect the live ceremony stage. Completed bookings are never reverted.
+  void updateBookingStage(String bookingId, BookingStatus status) {
+    final existing = _submissionResults[bookingId];
+    if (existing == null || existing.status == BookingStatus.completed) {
+      return;
+    }
+    _submissionResults[bookingId] = BookingSubmissionResult(
+      bookingId: existing.bookingId,
+      bookingReference: existing.bookingReference,
+      status: status,
+      submittedAt: existing.submittedAt,
+      vehicleId: existing.vehicleId,
+      vehicleName: existing.vehicleName,
+      vehicleClass: existing.vehicleClass,
+      chauffeurId: existing.chauffeurId,
+      ceremonyType: existing.ceremonyType,
+      ceremonialAttire: existing.ceremonialAttire,
+      serviceStartDateTime: existing.serviceStartDateTime,
+      serviceEndDateTime: existing.serviceEndDateTime,
+      routeDistanceKm: existing.routeDistanceKm,
+      pickupAddress: existing.pickupAddress,
+      destinationAddress: existing.destinationAddress,
+      primaryContactName: existing.primaryContactName,
+      primaryContactPhone: existing.primaryContactPhone,
+      estimatedTotalPaise: existing.estimatedTotalPaise,
+      advanceTokenPaise: existing.advanceTokenPaise,
+      advanceTokenLabel: existing.advanceTokenLabel,
+      nextStepMessage: existing.nextStepMessage,
+      isIdempotentReplay: existing.isIdempotentReplay,
+    );
+  }
+
   /// Marks a booking as completed in the in-memory store.
   ///
   /// Called by [MockTripRepository.completeTrip] and available as a test seam

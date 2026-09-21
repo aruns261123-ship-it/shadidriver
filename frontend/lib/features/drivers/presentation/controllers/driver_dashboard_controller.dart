@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
 import '../../../bookings/domain/policies/booking_pricing_policy.dart';
 import '../../../bookings/domain/repositories/booking_repository.dart';
+import '../../domain/entities/driver_active_trip.dart';
 import '../../domain/entities/driver_booking_offer.dart';
 import '../../domain/entities/driver_duty_status.dart';
+import '../../domain/entities/driver_trip_stage.dart';
 import '../../domain/repositories/driver_repository.dart';
 
 /// Provider exposing the current logged-in driver ID.
@@ -28,22 +30,32 @@ final driverDutyStatusProvider = FutureProvider.autoDispose
 class DriverDashboardState {
   final DriverDutyStatus dutyStatus;
   final List<DriverBookingOffer> offers;
+
+  /// The chauffeur's live (accepted, not completed) assignment, if any.
+  ///
+  /// Derived from the booking store — not a hardcoded placeholder — so it
+  /// disappears the moment the service is concluded and COMPLETED.
+  final DriverActiveTrip? activeAssignment;
   final bool isLoading;
   final String? errorMessage;
 
   const DriverDashboardState({
     this.dutyStatus = DriverDutyStatus.available,
     this.offers = const [],
+    this.activeAssignment,
     this.isLoading = false,
     this.errorMessage,
   });
 
   bool get canReceiveOffers => dutyStatus.canReceiveOffers;
   bool get hasError => errorMessage != null;
+  bool get hasActiveAssignment => activeAssignment != null;
 
   DriverDashboardState copyWith({
     DriverDutyStatus? dutyStatus,
     List<DriverBookingOffer>? offers,
+    DriverActiveTrip? activeAssignment,
+    bool clearActiveAssignment = false,
     bool? isLoading,
     String? errorMessage,
     bool clearError = false,
@@ -51,6 +63,9 @@ class DriverDashboardState {
     return DriverDashboardState(
       dutyStatus: dutyStatus ?? this.dutyStatus,
       offers: offers ?? this.offers,
+      activeAssignment: clearActiveAssignment
+          ? null
+          : (activeAssignment ?? this.activeAssignment),
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
@@ -86,9 +101,29 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
 
     if (!mounted) return; // disposed mid-flight (e.g. cross-screen refresh)
 
-    // 2. If available, fetch offers
-    List<DriverBookingOffer> loadedOffers = [];
     String? fetchError;
+
+    // 2. Fetch the chauffeur's live assignment (accepted, not completed).
+    //    Kept separate from offers so the Active Assignment card reflects real
+    //    booking-store state and disappears on completion.
+    final activeResult = await bookingRepository.getDriverActiveAssignments(
+      driverId: driverId,
+    );
+    DriverActiveTrip? activeAssignment;
+    activeResult.fold(
+      (failure) => fetchError = failure.message,
+      (list) => activeAssignment = list.isEmpty
+          ? null
+          : DriverActiveTrip.fromBookingResult(
+              list.first,
+              stage: DriverTripStage.enRouteToPickup,
+            ),
+    );
+
+    if (!mounted) return; // disposed mid-flight (e.g. cross-screen refresh)
+
+    // 3. If available, fetch offers
+    List<DriverBookingOffer> loadedOffers = [];
 
     if (status.canReceiveOffers) {
       final offersResult = await bookingRepository.getDriverBookingRequests(
@@ -112,6 +147,11 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
     state = state.copyWith(
       dutyStatus: status,
       offers: loadedOffers,
+      activeAssignment: activeAssignment,
+      // A reload must be authoritative: when the store reports no live
+      // assignment (service concluded), the stale card is dropped instead of
+      // being preserved by copyWith's `??` fallback.
+      clearActiveAssignment: activeAssignment == null,
       isLoading: false,
       errorMessage: fetchError,
     );
@@ -154,6 +194,8 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
         state = state.copyWith(
           dutyStatus: newStatus,
           offers: newOffers,
+          // Duty transitions preserve the current assignment view; the card
+          // is refreshed by loadDashboard's authoritative store read.
           isLoading: false,
           errorMessage: fetchError,
         );

@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/router/route_paths.dart';
+import '../../bookings/domain/entities/booking_status.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/shadi_card.dart';
+import '../../../core/widgets/shadi_empty_state.dart';
+import '../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../core/widgets/shadi_primary_button.dart';
 import '../../../core/widgets/shadi_secondary_button.dart';
 import '../../../core/widgets/shadi_status_badge.dart';
+import 'controllers/admin_dashboard_controller.dart';
 
 /// Chauffeur verification applicant item
 class ChauffeurApplicant {
@@ -31,6 +35,10 @@ class ChauffeurApplicant {
 }
 
 /// Admin Operations Control Center & Chauffeur KYC Hub.
+///
+/// The Live Dispatch tab is sourced from the shared booking and chauffeur
+/// stores, so driver-side actions (accepting offers, starting trips,
+/// completing services) are mirrored here in real time.
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -149,82 +157,95 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // Tab 1: Live Dispatch Monitor
+  // Tab 1: Live Dispatch Monitor (live booking + duty store data)
   // ---------------------------------------------------------------------------
   Widget _buildLiveDispatchTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // KPI Stat Cards
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                'Live Ceremonies',
-                '14',
-                Icons.celebration_rounded,
-                AppColors.primaryBurgundy,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildMetricCard(
-                'Chauffeurs On-Duty',
-                '28',
-                Icons.person_pin_rounded,
-                AppColors.warmGold,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildMetricCard(
-                'Pending KYC',
-                '${_applicants.where((a) => a.verificationStatus == 'PENDING').length}',
-                Icons.badge_rounded,
-                Colors.orange.shade700,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
+    final state = ref.watch(adminDashboardControllerProvider);
 
-        // Live Ceremonies List
-        Text(
-          'Active Ceremonial Dispatch',
-          style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 10),
+    return RefreshIndicator(
+      color: AppColors.primaryBurgundy,
+      onRefresh: () => ref
+          .read(adminDashboardControllerProvider.notifier)
+          .loadDashboard(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          // KPI Stat Cards — computed from live duty + booking stores
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricCard(
+                  'Live Ceremonies',
+                  '${state.liveCeremoniesCount}',
+                  Icons.celebration_rounded,
+                  AppColors.primaryBurgundy,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildMetricCard(
+                  'Chauffeurs On-Duty',
+                  '${state.onDutyCount}',
+                  Icons.person_pin_rounded,
+                  AppColors.warmGold,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildMetricCard(
+                  'Pending KYC',
+                  '${_applicants.where((a) => a.verificationStatus == 'PENDING').length}',
+                  Icons.badge_rounded,
+                  Colors.orange.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
 
-        _buildDispatchRow(
-          bookingRef: 'SD-2026-0100',
-          ceremony: 'Baraat Ceremony',
-          vehicle: 'BMW 5 Series',
-          chauffeur: 'Rajesh Kumar (PB-01)',
-          status: 'EN ROUTE',
-          statusColor: Colors.blue.shade700,
-          route: 'The Oberoi → Grand Imperial Banquets',
-        ),
-        const SizedBox(height: 10),
-        _buildDispatchRow(
-          bookingRef: 'SD-2026-0098',
-          ceremony: 'Vidai Ceremony',
-          vehicle: 'Mercedes S-Class',
-          chauffeur: 'Vikram Singh (PB-04)',
-          status: 'CEREMONY IN PROGRESS',
-          statusColor: AppColors.verifiedEmerald,
-          route: 'ITC Maurya → Aerocity Ballroom',
-        ),
-        const SizedBox(height: 10),
-        _buildDispatchRow(
-          bookingRef: 'SD-2026-0095',
-          ceremony: 'Sangeet Procession',
-          vehicle: 'Audi A6',
-          chauffeur: 'Manoj Sharma (PB-02)',
-          status: 'ARRIVED AT PICKUP',
-          statusColor: Colors.purple.shade700,
-          route: 'Taj Palace → Chattarpur Farms',
-        ),
-      ],
+          // Live Ceremonies List
+          Text(
+            'Active Ceremonial Dispatch',
+            style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 10),
+
+          if (state.isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: ShadiLoadingIndicator(
+                  message: 'Syncing dispatch monitor...',
+                ),
+              ),
+            )
+          else if (state.errorMessage != null)
+            ShadiEmptyState(
+              icon: Icons.error_outline_rounded,
+              title: 'Dispatch Monitor Unavailable',
+              description: state.errorMessage!,
+              actionLabel: 'Retry',
+              onAction: () => ref
+                  .read(adminDashboardControllerProvider.notifier)
+                  .loadDashboard(),
+            )
+          else if (state.dispatchEntries.isEmpty)
+            const ShadiEmptyState(
+              icon: Icons.celebration_outlined,
+              title: 'No Active Dispatch',
+              description:
+                  'No ceremonies are currently in motion. New bookings and accepted assignments will appear here.',
+            )
+          else
+            ...state.dispatchEntries.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _buildDispatchRow(entry),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -263,15 +284,21 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
     );
   }
 
-  Widget _buildDispatchRow({
-    required String bookingRef,
-    required String ceremony,
-    required String vehicle,
-    required String chauffeur,
-    required String status,
-    required Color statusColor,
-    required String route,
-  }) {
+  /// Dispatch row rendered from a live booking record, with the status badge
+  /// derived from the authoritative booking lifecycle.
+  Widget _buildDispatchRow(AdminDispatchEntry entry) {
+    final booking = entry.booking;
+    final statusColor = switch (booking.status) {
+      BookingStatus.requested => Colors.orange.shade700,
+      BookingStatus.driverAccepted => Colors.blue.shade700,
+      BookingStatus.driverAssigned => Colors.blue.shade700,
+      BookingStatus.driverArriving => Colors.indigo.shade600,
+      BookingStatus.arrived => Colors.purple.shade700,
+      BookingStatus.tripStarted => AppColors.verifiedEmerald,
+      BookingStatus.emergencyReplacement => Colors.red.shade600,
+      _ => AppColors.warmGold,
+    };
+
     return ShadiCard(
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -281,7 +308,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                bookingRef,
+                entry.bookingReference,
                 style: AppTypography.labelMedium.copyWith(
                   fontWeight: FontWeight.w700,
                   color: AppColors.primaryBurgundy,
@@ -294,7 +321,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  status,
+                  entry.statusLabel,
                   style: AppTypography.labelSmall.copyWith(
                     color: statusColor,
                     fontWeight: FontWeight.w700,
@@ -306,13 +333,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            '$ceremony • $vehicle',
+            '${entry.ceremonyType} • ${entry.vehicleName}',
             style: AppTypography.bodySmall.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
           Text(
-            'Chauffeur: $chauffeur',
+            'Chauffeur: ${entry.chauffeurDisplayName}',
             style: AppTypography.labelSmall.copyWith(
               color: AppColors.textSecondaryLight,
             ),
@@ -328,7 +355,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  route,
+                  entry.route,
                   style: AppTypography.labelSmall.copyWith(
                     color: AppColors.textSecondaryLight,
                   ),

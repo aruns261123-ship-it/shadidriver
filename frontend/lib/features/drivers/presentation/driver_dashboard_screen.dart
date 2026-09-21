@@ -77,7 +77,14 @@ class DriverDashboardScreen extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => controller.loadDashboard(),
+        onRefresh: () async {
+          await controller.loadDashboard();
+          // Completed Assignments uses a separate autoDispose provider; pull-
+          // to-refresh should also refresh it so the history stays current.
+          await ref
+              .read(completedAssignmentsControllerProvider.notifier)
+              .loadCompleted();
+        },
         color: AppColors.primaryBurgundy,
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -90,9 +97,9 @@ class DriverDashboardScreen extends ConsumerWidget {
             // 2. Status Explanation Banner
             _buildStatusBanner(context, state.dutyStatus, controller),
 
-            if (state.dutyStatus == DriverDutyStatus.busy) ...[
+            if (state.hasActiveAssignment) ...[
               const SizedBox(height: 16),
-              _buildActiveTripCard(context),
+              _buildActiveTripCard(context, state.activeAssignment!),
             ],
 
             const SizedBox(height: 20),
@@ -173,7 +180,10 @@ class DriverDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActiveTripCard(BuildContext context) {
+  Widget _buildActiveTripCard(
+    BuildContext context,
+    DriverActiveTrip trip,
+  ) {
     return ShadiCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -206,7 +216,7 @@ class DriverDashboardScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  'SD-2026-0100',
+                  trip.bookingReference,
                   style: AppTypography.labelSmall.copyWith(
                     fontWeight: FontWeight.w700,
                     color: AppColors.primaryBurgundy,
@@ -217,7 +227,7 @@ class DriverDashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Baraat Ceremony • BMW 5 Series • The Oberoi Hotel',
+            '${trip.ceremonyType} Ceremony • ${trip.vehicleName} • ${trip.pickupAddress}',
             style: AppTypography.bodySmall.copyWith(
               color: AppColors.textPrimaryLight,
               fontWeight: FontWeight.w600,
@@ -229,7 +239,7 @@ class DriverDashboardScreen extends ConsumerWidget {
             child: ShadiPrimaryButton(
               text: 'Open Trip Console',
               onPressed: () => context.push(
-                RoutePaths.driverActiveTripPath('bk_mock_req_1'),
+                RoutePaths.driverActiveTripPath(trip.bookingId),
               ),
             ),
           ),

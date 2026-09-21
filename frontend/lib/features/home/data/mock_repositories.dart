@@ -577,6 +577,12 @@ class MockDriverRepository implements DriverRepository {
   }
 
   @override
+  Future<Result<Map<String, DriverDutyStatus>>> getAllDutyStatuses() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return Result.success(Map.unmodifiable(_dutyStatuses));
+  }
+
+  @override
   Future<Result<void>> updateDutyStatus({
     required String driverId,
     required DriverDutyStatus status,

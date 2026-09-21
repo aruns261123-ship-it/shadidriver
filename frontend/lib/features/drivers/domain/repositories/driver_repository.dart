@@ -12,6 +12,12 @@ abstract interface class DriverRepository {
 
   Future<Result<DriverDutyStatus>> getDutyStatus(String driverId);
 
+  /// Fetches the operational duty status of every chauffeur in the roster.
+  ///
+  /// Used by the admin Operations Command Room to compute the live
+  /// "Chauffeurs On-Duty" KPI from real dispatch state.
+  Future<Result<Map<String, DriverDutyStatus>>> getAllDutyStatuses();
+
   Future<Result<void>> updateDutyStatus({
     required String driverId,
     required DriverDutyStatus status,

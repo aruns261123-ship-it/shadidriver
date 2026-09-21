@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
 import '../../../bookings/data/mock_booking_repository.dart';
+import '../../../bookings/domain/entities/booking_status.dart';
 import '../../domain/entities/driver_active_trip.dart';
 import '../../domain/entities/driver_duty_status.dart';
 import '../../domain/entities/driver_trip_stage.dart';
+import 'completed_assignments_controller.dart';
 import 'driver_dashboard_controller.dart';
 
 /// State of the active driver trip
@@ -45,7 +47,9 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
   /// 1. Start journey to the customer's pickup address
   ///
   /// Engages the chauffeur's profile duty status to BUSY ("On Active
-  /// Assignment") so dispatch stops queueing further offers mid-assignment.
+  /// Assignment") so dispatch stops queueing further offers mid-assignment,
+  /// and records the DRIVER_ARRIVING milestone on the booking store so the
+  /// admin dispatch monitor mirrors the live ceremony stage.
   Future<void> startEnRoute() async {
     state = state.copyWith(isUpdating: true, errorMessage: null);
     await Future.delayed(const Duration(milliseconds: 200));
@@ -54,7 +58,21 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
       trip: state.trip.copyWith(stage: DriverTripStage.enRouteToPickup),
     );
 
+    _syncBookingStage(BookingStatus.driverArriving);
     await _engageDuty();
+  }
+
+  /// Writes the current trip milestone to the shared booking store so admin
+  /// and dashboard surfaces derive live stage info. Best-effort in the mock
+  /// layer; never blocks the driver's trip progression.
+  void _syncBookingStage(BookingStatus status) {
+    try {
+      final bookingStore =
+          _ref.read(bookingRepositoryProvider) as MockBookingRepository;
+      bookingStore.updateBookingStage(state.trip.bookingId, status);
+    } catch (_) {
+      // Booking store is only a mock-composition detail.
+    }
   }
 
   /// Marks the chauffeur BUSY on the profile and refreshes every live duty
@@ -92,6 +110,8 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
       isUpdating: false,
       trip: state.trip.copyWith(stage: DriverTripStage.arrivedAtPickup),
     );
+
+    _syncBookingStage(BookingStatus.arrived);
   }
 
   /// 3. Verify customer OTP & attire check to begin service
@@ -128,6 +148,8 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
         ceremonialAttireConfirmed: true,
       ),
     );
+
+    _syncBookingStage(BookingStatus.tripStarted);
     return true;
   }
 
@@ -177,6 +199,12 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
     } catch (_) {
       // Duty release is best-effort in the mock layer.
     }
+
+    // Drop the cached "Completed Assignments" history so the freshly concluded
+    // service appears when the chauffeur returns to the console. Also refresh
+    // the dashboard's Active Assignment card, which derives from the store.
+    _ref.invalidate(completedAssignmentsControllerProvider);
+    _ref.read(driverDashboardControllerProvider.notifier).loadDashboard();
   }
 }
 
