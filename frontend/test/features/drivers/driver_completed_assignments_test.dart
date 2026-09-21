@@ -8,6 +8,7 @@ import 'package:shadidriver/features/drivers/domain/entities/driver_duty_status.
 import 'package:shadidriver/features/drivers/presentation/controllers/completed_assignments_controller.dart';
 import 'package:shadidriver/features/drivers/presentation/controllers/driver_active_trip_controller.dart'
     as trip;
+import 'package:shadidriver/features/drivers/presentation/controllers/driver_booking_action_controller.dart';
 import 'package:shadidriver/features/drivers/presentation/controllers/driver_dashboard_controller.dart'
     show currentDriverIdProvider, driverDutyStatusProvider;
 
@@ -74,6 +75,22 @@ void main() {
 
   group('DriverActiveTripController completion wiring', () {
     test(
+      'startEnRoute engages profile duty to BUSY (On Active Assignment)',
+      () async {
+        final container = makeContainer();
+        addTearDown(container.dispose);
+
+        final tripController = container.read(
+          trip.driverActiveTripControllerProvider('bk_mock_req_1').notifier,
+        );
+        await tripController.startEnRoute();
+
+        final duty = await mockDriverRepo.getDutyStatus(testDriverId);
+        expect(duty.dataOrNull, DriverDutyStatus.busy);
+      },
+    );
+
+    test(
       'completeService records booking as COMPLETED and releases duty to AVAILABLE',
       () async {
         final container = makeContainer();
@@ -94,7 +111,7 @@ void main() {
         final completed =
             await mockBookingRepo.getCompletedBookings(driverId: testDriverId);
         expect(completed.dataOrNull, hasLength(1));
-        expect(completed.dataOrNull!.first.status, BookingStatus.completed);
+        expect(completed.dataOrNull?.first.status, BookingStatus.completed);
 
         // Duty status released back to AVAILABLE.
         final duty = await mockDriverRepo.getDutyStatus(testDriverId);
@@ -144,6 +161,39 @@ void main() {
           driverDutyStatusProvider('d1').future,
         );
         expect(dashboardDuty, DriverDutyStatus.available);
+      },
+    );
+
+    test(
+      'duty lifecycle: accept offer engages BUSY, completion releases AVAILABLE',
+      () async {
+        final container = makeContainer();
+        addTearDown(container.dispose);
+
+        // Accepting an offer engages the chauffeur BUSY via the action
+        // controller, mirroring the real accept-offer screen flow.
+        container.listen(driverBookingActionControllerProvider, (_, _) {});
+        final actionController = container.read(
+          driverBookingActionControllerProvider.notifier,
+        );
+        final accepted = await actionController.acceptOffer('bk_mock_req_1');
+        expect(accepted, isTrue);
+
+        // Allow the fire-and-forget duty engagement to land in the store.
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+
+        final busyAfterAccept = await mockDriverRepo.getDutyStatus(testDriverId);
+        expect(busyAfterAccept.dataOrNull, DriverDutyStatus.busy);
+
+        // Completing the assignment releases duty back to AVAILABLE.
+        final tripController = container.read(
+          trip.driverActiveTripControllerProvider('bk_mock_req_1').notifier,
+        );
+        await tripController.completeService();
+
+        final dutyAfterComplete =
+            await mockDriverRepo.getDutyStatus(testDriverId);
+        expect(dutyAfterComplete.dataOrNull, DriverDutyStatus.available);
       },
     );
   });

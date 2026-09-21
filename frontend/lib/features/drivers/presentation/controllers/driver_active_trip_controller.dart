@@ -43,6 +43,9 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
       );
 
   /// 1. Start journey to the customer's pickup address
+  ///
+  /// Engages the chauffeur's profile duty status to BUSY ("On Active
+  /// Assignment") so dispatch stops queueing further offers mid-assignment.
   Future<void> startEnRoute() async {
     state = state.copyWith(isUpdating: true, errorMessage: null);
     await Future.delayed(const Duration(milliseconds: 200));
@@ -50,6 +53,35 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
       isUpdating: false,
       trip: state.trip.copyWith(stage: DriverTripStage.enRouteToPickup),
     );
+
+    await _engageDuty();
+  }
+
+  /// Marks the chauffeur BUSY on the profile and refreshes every live duty
+  /// surface (Chauffeur Profile availability badge, dashboard duty banner).
+  Future<void> _engageDuty() async {
+    try {
+      final driverRepo = _ref.read(driverRepositoryProvider);
+      final driverId = _ref.read(currentDriverIdProvider);
+      await driverRepo.updateDutyStatus(
+        driverId: driverId,
+        status: DriverDutyStatus.busy,
+      );
+      _refreshDutySurfaces(driverId);
+    } catch (_) {
+      // Duty engagement is best-effort in the mock layer; never block the trip.
+    }
+  }
+
+  /// Refreshes live duty watchers so the profile badge and dashboard chips
+  /// reflect the change immediately instead of on next screen entry.
+  void _refreshDutySurfaces(String driverId) {
+    try {
+      _ref.invalidate(driverDutyStatusProvider(driverId));
+      _ref.read(driverDashboardControllerProvider.notifier).loadDashboard();
+    } catch (_) {
+      // Dashboard may not be alive yet; badge refetches on navigation anyway.
+    }
   }
 
   /// 2. Mark arrived at venue / pickup point
@@ -138,9 +170,10 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
           status: DriverDutyStatus.available,
         );
       }
-      // Refresh the dashboard so its duty banner and offer queue reflect the
-      // release immediately when the chauffeur returns.
-      _ref.read(driverDashboardControllerProvider.notifier).loadDashboard();
+      // Refresh the dashboard and profile badge so the duty banner, offer
+      // queue, and availability chip reflect the release immediately when the
+      // chauffeur returns.
+      _refreshDutySurfaces(driverId);
     } catch (_) {
       // Duty release is best-effort in the mock layer.
     }
