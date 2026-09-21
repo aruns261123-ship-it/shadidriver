@@ -6,6 +6,7 @@ import '../../../bookings/domain/entities/booking_submission_result.dart';
 import '../../../bookings/domain/repositories/booking_repository.dart';
 import '../../domain/entities/driver_booking_offer.dart';
 import '../../domain/entities/driver_decline_reason.dart';
+import '../../domain/entities/driver_duty_status.dart';
 import 'driver_dashboard_controller.dart';
 
 /// State representation for driver booking actions (accept / decline).
@@ -50,10 +51,12 @@ class DriverBookingActionState {
 /// Controller managing chauffeur acceptance or decline with mandatory reason.
 class DriverBookingActionController
     extends StateNotifier<DriverBookingActionState> {
+  final Ref _ref;
   final BookingRepository bookingRepository;
   final String driverId;
 
-  DriverBookingActionController({
+  DriverBookingActionController(
+    this._ref, {
     required this.bookingRepository,
     required this.driverId,
   }) : super(const DriverBookingActionState());
@@ -61,6 +64,8 @@ class DriverBookingActionController
   /// Accepts a ceremonial booking request.
   ///
   /// Protects against concurrent driver claims by checking for [ConflictFailure].
+  /// On success the chauffeur's profile duty status is engaged to BUSY
+  /// ("On Active Assignment") so dispatch stops queueing further offers.
   Future<bool> acceptOffer(String bookingId) async {
     if (state.isActing) return false;
 
@@ -73,6 +78,7 @@ class DriverBookingActionController
 
     return result.fold(
       (failure) {
+        if (!mounted) return false; // disposed mid-flight (e.g. screen popped)
         final isConflict = failure is ConflictFailure;
         state = state.copyWith(
           isActing: false,
@@ -82,15 +88,32 @@ class DriverBookingActionController
         return false;
       },
       (acceptedResult) {
+        if (!mounted) return false; // disposed mid-flight (e.g. screen popped)
         state = state.copyWith(
           isActing: false,
           isAccepted: true,
           acceptedResult: acceptedResult,
           clearError: true,
         );
+        _engageDuty();
         return true;
       },
     );
+  }
+
+  /// Engages the chauffeur's duty status to BUSY after a successful acceptance
+  /// and refreshes every live duty surface (profile badge, dashboard chips).
+  Future<void> _engageDuty() async {
+    try {
+      final driverRepo = _ref.read(driverRepositoryProvider);
+      await driverRepo.updateDutyStatus(
+        driverId: driverId,
+        status: DriverDutyStatus.busy,
+      );
+      _ref.invalidate(driverDutyStatusProvider(driverId));
+    } catch (_) {
+      // Duty engagement is best-effort; acceptance must never fail because of it.
+    }
   }
 
   /// Declines a ceremonial booking request with mandatory operational reason.
@@ -110,10 +133,12 @@ class DriverBookingActionController
 
     return result.fold(
       (failure) {
+        if (!mounted) return false; // disposed mid-flight (e.g. screen popped)
         state = state.copyWith(isActing: false, errorMessage: failure.message);
         return false;
       },
       (_) {
+        if (!mounted) return false; // disposed mid-flight (e.g. screen popped)
         state = state.copyWith(
           isActing: false,
           isDeclined: true,
@@ -155,6 +180,7 @@ final driverBookingActionControllerProvider =
       final driverId = ref.watch(currentDriverIdProvider);
 
       return DriverBookingActionController(
+        ref,
         bookingRepository: repo,
         driverId: driverId,
       );

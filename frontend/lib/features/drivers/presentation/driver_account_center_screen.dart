@@ -10,7 +10,9 @@ import '../../../core/widgets/shadi_error_view.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../core/widgets/shadi_status_badge.dart';
 import 'controllers/driver_profile_controller.dart';
+import 'controllers/driver_dashboard_controller.dart';
 import '../domain/entities/driver_profile.dart';
+import '../domain/entities/driver_duty_status.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
 
 /// Chauffeur Account & Profile Center Screen.
@@ -21,6 +23,37 @@ class DriverAccountCenterScreen extends ConsumerWidget {
   final String driverId;
 
   const DriverAccountCenterScreen({super.key, this.driverId = 'd1'});
+
+  /// Resolves the badge label/color from live duty status, falling back to the
+  /// static profile flag while loading or on error.
+  ///
+  /// [profile] may be null while the profile is still loading.
+  (String, Color) _resolveDutyBadge(
+    DriverProfile? profile,
+    AsyncValue<DriverDutyStatus> dutyAsync,
+  ) {
+    final isOnlineFallback = profile?.isOnline ?? true;
+    return dutyAsync.when(
+      data: (duty) => switch (duty) {
+        DriverDutyStatus.available => ('AVAILABLE', AppColors.verifiedEmerald),
+        DriverDutyStatus.availableNow => ('AVAILABLE NOW', AppColors.warmGold),
+        DriverDutyStatus.busy => ('BUSY', Colors.orange),
+        DriverDutyStatus.offline => ('OFFLINE', AppColors.textSecondaryLight),
+      },
+      loading: () => (
+        isOnlineFallback ? 'ON DUTY' : 'OFFLINE',
+        isOnlineFallback
+            ? AppColors.verifiedEmerald
+            : AppColors.textSecondaryLight,
+      ),
+      error: (_, _) => (
+        isOnlineFallback ? 'ON DUTY' : 'OFFLINE',
+        isOnlineFallback
+            ? AppColors.verifiedEmerald
+            : AppColors.textSecondaryLight,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -66,7 +99,7 @@ class DriverAccountCenterScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               children: [
                 // 1. Chauffeur Header
-                _buildHeaderCard(context, state, controller),
+                _buildHeaderCard(context, ref, state, controller),
 
                 const SizedBox(height: 16),
 
@@ -149,10 +182,15 @@ class DriverAccountCenterScreen extends ConsumerWidget {
 
   Widget _buildHeaderCard(
     BuildContext context,
+    WidgetRef ref,
     DriverProfileState state,
     DriverProfileController controller,
   ) {
     final profile = state.profile!;
+    // Live operational duty status (single source of truth: DriverRepository,
+    // the same store the Chauffeur Console duty chips write to).
+    final dutyAsync = ref.watch(driverDutyStatusProvider(driverId));
+    final dutyBadge = _resolveDutyBadge(profile, dutyAsync);
 
     return ShadiCard(
       padding: const EdgeInsets.all(20),
@@ -188,10 +226,8 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                           ),
                         ),
                         ShadiStatusBadge(
-                          status: profile.isOnline ? 'ON DUTY' : 'OFFLINE',
-                          color: profile.isOnline
-                              ? AppColors.verifiedEmerald
-                              : AppColors.textSecondaryLight,
+                          status: dutyBadge.$1,
+                          color: dutyBadge.$2,
                         ),
                       ],
                     ),

@@ -36,6 +36,22 @@ abstract interface class AuthRepository {
     required String otpCode,
   });
 
+  /// Register a new account for [phoneNumber] with the given [displayName].
+  ///
+  /// Public registration is limited to [UserRole.customer] and [UserRole.driver];
+  /// admin roles are always provisioned internally by the platform.
+  ///
+  /// On success: returns an opaque OTP session ID — the caller then completes
+  /// verification through [verifyOtp], mirroring the login flow.
+  /// Returns a [Result.failure] when the phone number is already registered
+  /// (code `PHONE_ALREADY_REGISTERED`), the role is admin (code
+  /// `ADMIN_REGISTRATION_PROHIBITED`), or the input is invalid.
+  Future<Result<String>> signUp({
+    required String phoneNumber,
+    required String displayName,
+    UserRole role = UserRole.customer,
+  });
+
   /// Attempt to restore a previously authenticated session from secure storage.
   ///
   /// Returns [Result.success(null)] when no prior session exists (clean start).

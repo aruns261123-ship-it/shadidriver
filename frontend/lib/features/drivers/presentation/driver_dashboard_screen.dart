@@ -11,8 +11,10 @@ import '../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../core/widgets/shadi_primary_button.dart';
 import '../../../core/widgets/shadi_section_header.dart';
 import '../../../core/widgets/shadi_status_badge.dart';
+import '../domain/entities/driver_active_trip.dart';
 import '../domain/entities/driver_booking_offer.dart';
 import '../domain/entities/driver_duty_status.dart';
+import 'controllers/completed_assignments_controller.dart';
 import 'controllers/driver_dashboard_controller.dart';
 import 'controllers/driver_profile_controller.dart';
 
@@ -27,6 +29,7 @@ class DriverDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(driverDashboardControllerProvider);
     final controller = ref.read(driverDashboardControllerProvider.notifier);
+    final completedState = ref.watch(completedAssignmentsControllerProvider);
     final profileState = ref.watch(driverProfileControllerProvider('d1'));
     final driverName = profileState.profile?.fullName ?? 'Rajesh Kumar';
 
@@ -130,6 +133,38 @@ class DriverDashboardScreen extends ConsumerWidget {
               )
             else
               ...state.offers.map((offer) => _buildOfferCard(context, offer)),
+
+            const SizedBox(height: 20),
+
+            // 5. Completed Assignments History
+            ShadiSectionHeader(
+              title: 'Completed Assignments',
+              subtitle: completedState.assignments.isEmpty
+                  ? 'No concluded ceremonial services yet'
+                  : '${completedState.assignments.length} concluded ceremony assignment${completedState.assignments.length == 1 ? '' : 's'}',
+            ),
+
+            const SizedBox(height: 12),
+
+            if (completedState.isLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: ShadiLoadingIndicator()),
+              )
+            else if (completedState.assignments.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: ShadiEmptyState(
+                  icon: Icons.workspace_premium_outlined,
+                  title: 'Nothing Completed Yet',
+                  description:
+                      'Ceremonial services you conclude will be recorded here as completed assignments with full trip history.',
+                ),
+              )
+            else
+              ...completedState.assignments.map(
+                (trip) => _buildCompletedAssignmentCard(context, trip),
+              ),
 
             const SizedBox(height: 32),
           ],
@@ -549,6 +584,149 @@ class DriverDashboardScreen extends ConsumerWidget {
                 ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// History card for a concluded ceremonial assignment.
+  Widget _buildCompletedAssignmentCard(
+    BuildContext context,
+    DriverActiveTrip trip,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: ShadiCard(
+        key: Key('completed_assignment_card_${trip.bookingId}'),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondarySurface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.champagneGold),
+                      ),
+                      child: Text(
+                        trip.bookingReference,
+                        style: AppTypography.labelSmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryBurgundy,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBurgundy.withValues(
+                          alpha: 0.08,
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        trip.ceremonyType,
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.primaryBurgundy,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const ShadiStatusBadge(
+                  status: 'COMPLETED',
+                  color: AppColors.verifiedEmerald,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            Text(
+              '${trip.ceremonyType} Ceremony • ${trip.vehicleName}',
+              style: AppTypography.titleMedium.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimaryLight,
+              ),
+            ),
+            const SizedBox(height: 4),
+
+            Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today_rounded,
+                  size: 14,
+                  color: AppColors.warmGold,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${DateFormatter.formatCeremonyDate(trip.serviceStartDateTime)} • ${trip.durationHours} hrs duration',
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: AppColors.primaryBurgundy,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    trip.pickupAddress,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textPrimaryLight,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+
+            if (trip.tripCompletedAt != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.verified_rounded,
+                    size: 14,
+                    color: AppColors.verifiedEmerald,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Concluded ${DateFormatter.formatCeremonyDateTime(trip.tripCompletedAt!)}',
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.verifiedEmerald,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

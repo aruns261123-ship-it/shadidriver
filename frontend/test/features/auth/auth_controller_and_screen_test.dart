@@ -139,6 +139,152 @@ void main() {
     });
   });
 
+  group('Sign Up Flow Tests', () {
+    late MockAuthRepository authRepo;
+    late InMemorySecureStorage storage;
+    late ProviderContainer container;
+
+    setUp(() {
+      authRepo = MockAuthRepository();
+      storage = InMemorySecureStorage();
+      container = ProviderContainer(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(authRepo),
+          secureStorageProvider.overrideWithValue(storage),
+        ],
+      );
+    });
+
+    tearDown(() {
+      container.dispose();
+    });
+
+    test('signUp creates account and transitions to OtpSent', () async {
+      final controller = container.read(authControllerProvider.notifier);
+      final result = await controller.signUp(
+        phoneNumber: '9765432109',
+        displayName: 'Aarav Mehta',
+        role: UserRole.customer,
+      );
+
+      expect(result.isSuccess, isTrue);
+      final state = container.read(authControllerProvider);
+      expect(state, isA<OtpSent>());
+      final otpSent = state as OtpSent;
+      expect(otpSent.maskedPhone, contains('2109'));
+    });
+
+    test(
+      'signUp then verifyOtp authenticates with chosen role and name',
+      () async {
+        final controller = container.read(authControllerProvider.notifier);
+        final req = await controller.signUp(
+          phoneNumber: '9765432108',
+          displayName: 'Aarav Mehta',
+          role: UserRole.driver,
+        );
+        expect(req.isSuccess, isTrue);
+
+        final verify = await controller.verifyOtp(
+          otpSessionId: req.dataOrNull!,
+          otpCode: '000000',
+        );
+        expect(verify.isSuccess, isTrue);
+
+        final state = container.read(authControllerProvider);
+        expect(state, isA<Authenticated>());
+        final session = (state as Authenticated).session;
+        expect(session.role, equals(UserRole.driver));
+        expect(session.displayName, equals('Aarav Mehta'));
+      },
+    );
+
+    test('signUp rejects already registered phone number', () async {
+      final controller = container.read(authControllerProvider.notifier);
+
+      // Register a fresh account first, then attempt the same number again.
+      final first = await controller.signUp(
+        phoneNumber: '9765432107',
+        displayName: 'Original User',
+      );
+      expect(first.isSuccess, isTrue);
+
+      final duplicate = await controller.signUp(
+        phoneNumber: '9765432107',
+        displayName: 'Duplicate User',
+      );
+
+      expect(duplicate.isFailure, isTrue);
+      expect(
+        duplicate.failureOrNull?.code,
+        equals('PHONE_ALREADY_REGISTERED'),
+      );
+    });
+
+    test('signUp rejects admin role registration', () async {
+      final controller = container.read(authControllerProvider.notifier);
+      final result = await controller.signUp(
+        phoneNumber: '9765432106',
+        displayName: 'Sneaky Admin',
+        role: UserRole.superAdmin,
+      );
+
+      expect(result.isFailure, isTrue);
+      expect(
+        result.failureOrNull?.code,
+        equals('ADMIN_REGISTRATION_PROHIBITED'),
+      );
+    });
+
+    test('signUp rejects too-short display name', () async {
+      final controller = container.read(authControllerProvider.notifier);
+      final result = await controller.signUp(
+        phoneNumber: '9765432105',
+        displayName: 'A',
+      );
+
+      expect(result.isFailure, isTrue);
+      expect(result.failureOrNull?.code, equals('INVALID_NAME'));
+    });
+
+    test(
+      'signUp account can sign in again on subsequent login',
+      () async {
+        final controller = container.read(authControllerProvider.notifier);
+
+        // Register the new account first.
+        final signUpResult = await controller.signUp(
+          phoneNumber: '9765432104',
+          displayName: 'Aarav Mehta',
+          role: UserRole.customer,
+        );
+        expect(signUpResult.isSuccess, isTrue);
+        await controller.verifyOtp(
+          otpSessionId: signUpResult.dataOrNull!,
+          otpCode: '000000',
+        );
+        await controller.signOut();
+
+        // Sign back in through the normal login flow.
+        final loginResult = await controller.requestOtp(
+          phoneNumber: '9765432104',
+        );
+        expect(loginResult.isSuccess, isTrue);
+        final verify = await controller.verifyOtp(
+          otpSessionId: loginResult.dataOrNull!,
+          otpCode: '000000',
+        );
+        expect(verify.isSuccess, isTrue);
+
+        final state = container.read(authControllerProvider);
+        expect(state, isA<Authenticated>());
+        final session = (state as Authenticated).session;
+        expect(session.role, equals(UserRole.customer));
+        expect(session.displayName, equals('Aarav Mehta'));
+      },
+    );
+  });
+
   group('LoginScreen Widget Tests', () {
     testWidgets(
       'renders brand crest, phone input, and no dev bypass or role chips',
@@ -159,6 +305,11 @@ void main() {
         expect(find.text('🇮🇳 +91'), findsOneWidget);
         expect(find.text('Continue'), findsOneWidget);
 
+        // Mode toggle defaults to Sign In
+        expect(find.text('Sign In'), findsOneWidget);
+        expect(find.text('Create Account'), findsOneWidget);
+        expect(find.text('Full name'), findsNothing);
+
         // Production invariant: No role selector chips
         expect(find.text('Host / Guest'), findsNothing);
         expect(find.text('Chauffeur'), findsNothing);
@@ -169,5 +320,35 @@ void main() {
         expect(find.text('Developer Quick Bypass'), findsNothing);
       },
     );
+
+    testWidgets('toggling to Create Account reveals sign-up form', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const ProviderScope(child: MaterialApp(home: LoginScreen())),
+      );
+
+      await tester.pump();
+      await tester.tap(find.text('Create Account'));
+      await tester.pumpAndSettle();
+
+      // Sign-up form fields ("Create Account" appears as both toggle label
+      // and submit button, so assert presence rather than uniqueness)
+      expect(find.text('Create your account'), findsOneWidget);
+      expect(find.text('Full name'), findsOneWidget);
+      expect(find.text('I am joining as'), findsOneWidget);
+      expect(find.text('Customer'), findsOneWidget);
+      expect(find.text('Chauffeur'), findsOneWidget);
+      expect(find.text('Create Account'), findsWidgets);
+
+      // Phone field still present in sign-up mode
+      expect(find.text('🇮🇳 +91'), findsOneWidget);
+
+      // Back to Sign In restores login form
+      await tester.tap(find.text('Sign In'));
+      await tester.pumpAndSettle();
+      expect(find.text('Welcome to ShadiDriver'), findsOneWidget);
+      expect(find.text('Full name'), findsNothing);
+    });
   });
 }

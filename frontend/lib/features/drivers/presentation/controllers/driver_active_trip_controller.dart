@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../app/providers/app_providers.dart';
+import '../../../bookings/data/mock_booking_repository.dart';
 import '../../domain/entities/driver_active_trip.dart';
+import '../../domain/entities/driver_duty_status.dart';
 import '../../domain/entities/driver_trip_stage.dart';
+import 'driver_dashboard_controller.dart';
 
 /// State of the active driver trip
 class DriverActiveTripState {
@@ -29,7 +33,9 @@ class DriverActiveTripState {
 
 /// Controller managing chauffeur trip lifecycle transitions.
 class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
-  DriverActiveTripController({String bookingId = 'bk_mock_req_1'})
+  final Ref _ref;
+
+  DriverActiveTripController(this._ref, {String bookingId = 'bk_mock_req_1'})
     : super(
         DriverActiveTripState(
           trip: DriverActiveTrip.mockInitial(bookingId: bookingId),
@@ -37,6 +43,9 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
       );
 
   /// 1. Start journey to the customer's pickup address
+  ///
+  /// Engages the chauffeur's profile duty status to BUSY ("On Active
+  /// Assignment") so dispatch stops queueing further offers mid-assignment.
   Future<void> startEnRoute() async {
     state = state.copyWith(isUpdating: true, errorMessage: null);
     await Future.delayed(const Duration(milliseconds: 200));
@@ -44,6 +53,35 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
       isUpdating: false,
       trip: state.trip.copyWith(stage: DriverTripStage.enRouteToPickup),
     );
+
+    await _engageDuty();
+  }
+
+  /// Marks the chauffeur BUSY on the profile and refreshes every live duty
+  /// surface (Chauffeur Profile availability badge, dashboard duty banner).
+  Future<void> _engageDuty() async {
+    try {
+      final driverRepo = _ref.read(driverRepositoryProvider);
+      final driverId = _ref.read(currentDriverIdProvider);
+      await driverRepo.updateDutyStatus(
+        driverId: driverId,
+        status: DriverDutyStatus.busy,
+      );
+      _refreshDutySurfaces(driverId);
+    } catch (_) {
+      // Duty engagement is best-effort in the mock layer; never block the trip.
+    }
+  }
+
+  /// Refreshes live duty watchers so the profile badge and dashboard chips
+  /// reflect the change immediately instead of on next screen entry.
+  void _refreshDutySurfaces(String driverId) {
+    try {
+      _ref.invalidate(driverDutyStatusProvider(driverId));
+      _ref.read(driverDashboardControllerProvider.notifier).loadDashboard();
+    } catch (_) {
+      // Dashboard may not be alive yet; badge refetches on navigation anyway.
+    }
   }
 
   /// 2. Mark arrived at venue / pickup point
@@ -94,9 +132,14 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
   }
 
   /// 4. Complete ceremonial service
+  ///
+  /// On conclusion the booking is recorded as COMPLETED (so it appears in the
+  /// Completed Assignments history) and the chauffeur's duty status is released
+  /// from BUSY back to AVAILABLE for future dispatch offers.
   Future<void> completeService() async {
     state = state.copyWith(isUpdating: true, errorMessage: null);
     await Future.delayed(const Duration(milliseconds: 300));
+
     state = state.copyWith(
       isUpdating: false,
       trip: state.trip.copyWith(
@@ -104,6 +147,36 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
         tripCompletedAt: DateTime.now(),
       ),
     );
+
+    // Record completion in the booking store (drives the Completed
+    // Assignments section on the Chauffeur Console).
+    try {
+      final bookingStore =
+          _ref.read(bookingRepositoryProvider) as MockBookingRepository;
+      bookingStore.markBookingCompleted(state.trip.bookingId);
+    } catch (_) {
+      // Booking store is only a mock-composition detail; never block completion.
+    }
+
+    // Release the chauffeur: BUSY → AVAILABLE so dispatch offers resume.
+    try {
+      final driverRepo = _ref.read(driverRepositoryProvider);
+      final driverId = _ref.read(currentDriverIdProvider);
+      final current = await driverRepo.getDutyStatus(driverId);
+      final isBusy = current.dataOrNull == DriverDutyStatus.busy;
+      if (isBusy || current.isFailure) {
+        await driverRepo.updateDutyStatus(
+          driverId: driverId,
+          status: DriverDutyStatus.available,
+        );
+      }
+      // Refresh the dashboard and profile badge so the duty banner, offer
+      // queue, and availability chip reflect the release immediately when the
+      // chauffeur returns.
+      _refreshDutySurfaces(driverId);
+    } catch (_) {
+      // Duty release is best-effort in the mock layer.
+    }
   }
 }
 
@@ -113,4 +186,5 @@ final driverActiveTripControllerProvider =
       DriverActiveTripController,
       DriverActiveTripState,
       String
-    >((ref, bookingId) => DriverActiveTripController(bookingId: bookingId));
+    >((ref, bookingId) =>
+        DriverActiveTripController(ref, bookingId: bookingId));
