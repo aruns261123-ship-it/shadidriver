@@ -62,6 +62,43 @@ class AuthController extends StateNotifier<AuthState> {
     return result;
   }
 
+  /// Register a new account, then transition to [OtpSent] for verification.
+  ///
+  /// Mirrors [requestOtp]: on success the state machine lands in [OtpSent] so
+  /// the same UI verification step can complete registration + login at once.
+  Future<Result<String>> signUp({
+    required String phoneNumber,
+    required String displayName,
+    UserRole role = UserRole.customer,
+  }) async {
+    state = const AuthLoading(reason: AuthLoadingReason.creatingAccount);
+    final result = await _authRepository.signUp(
+      phoneNumber: phoneNumber,
+      displayName: displayName,
+      role: role,
+    );
+    if (result.isSuccess) {
+      final sessionId = result.dataOrNull!;
+      final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+      final last4 = digits.length >= 4
+          ? digits.substring(digits.length - 4)
+          : digits;
+      final masked = '+91 ••••• $last4';
+      state = OtpSent(
+        maskedPhone: masked,
+        otpSessionId: sessionId,
+        expiresAt: DateTime.now().add(const Duration(minutes: 5)),
+      );
+    } else {
+      state = AuthError(
+        failure:
+            result.failureOrNull ??
+            const UnknownFailure('Sign up failed. Please try again.'),
+      );
+    }
+    return result;
+  }
+
   /// Verify entered OTP code
   Future<Result<AuthSession>> verifyOtp({
     required String otpSessionId,

@@ -43,6 +43,15 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<Result<String>> signUp({
+    required String phoneNumber,
+    required String displayName,
+    UserRole role = UserRole.customer,
+  }) async {
+    return const Result.success('session_test_999');
+  }
+
+  @override
   Future<Result<AuthSession?>> restoreSession() async {
     return Result.success(
       AuthSession(

@@ -25,6 +25,7 @@ final class AuthLoading extends AuthState {
 enum AuthLoadingReason {
   restoringSession,
   requestingOtp,
+  creatingAccount,
   verifyingOtp,
   signingOut,
 }

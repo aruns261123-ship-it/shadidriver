@@ -213,6 +213,71 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<Result<String>> signUp({
+    required String phoneNumber,
+    required String displayName,
+    UserRole role = UserRole.customer,
+  }) async {
+    await _simulateDelay();
+
+    final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    final raw10 = digits.length > 10
+        ? digits.substring(digits.length - 10)
+        : digits;
+
+    final isValid = RegExp(r'^[6-9]\d{9}$').hasMatch(raw10);
+    if (!isValid) {
+      return const Result.failure(
+        ValidationFailure(
+          'Please enter a valid 10-digit Indian mobile number.',
+          code: 'INVALID_PHONE',
+        ),
+      );
+    }
+
+    final name = displayName.trim();
+    if (name.length < 2) {
+      return const Result.failure(
+        ValidationFailure(
+          'Please enter your full name (at least 2 characters).',
+          code: 'INVALID_NAME',
+        ),
+      );
+    }
+
+    // Public sign-up is limited to customer and chauffeur accounts.
+    if (_isAdminRole(role)) {
+      return const Result.failure(
+        UnauthorizedFailure(
+          'Admin accounts cannot be created via public registration.',
+          'ADMIN_REGISTRATION_PROHIBITED',
+        ),
+      );
+    }
+
+    // A phone number can only own one account.
+    if (_registeredAccounts.containsKey(raw10)) {
+      return const Result.failure(
+        ConflictFailure(
+          'An account with this mobile number already exists. Please sign in instead.',
+          'PHONE_ALREADY_REGISTERED',
+        ),
+      );
+    }
+
+    final account = MockAuthAccount(
+      phone: raw10,
+      role: role,
+      accountStatus: AccountStatus.active,
+      displayName: name,
+    );
+    _registeredAccounts[raw10] = account;
+
+    // Newly self-registered accounts log in through the normal OTP flow.
+    return requestOtp(phoneNumber: raw10, role: role);
+  }
+
+  @override
   Future<Result<AuthSession>> verifyOtp({
     required String otpSessionId,
     required String otpCode,

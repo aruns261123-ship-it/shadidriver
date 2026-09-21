@@ -17,8 +17,9 @@ import 'controllers/auth_controller.dart';
 
 /// Ceremonial Authentication screen for ShadiDriver.
 ///
-/// Features a login-first flow with authoritative server/account role determination,
-/// phone number input (+91), and 6-digit OTP verification.
+/// Features a login-first flow with an explicit "Create Account" (sign-up) mode:
+/// name + phone + role selection for new users, phone + OTP for returning users,
+/// and authoritative server/account role determination after verification.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -29,6 +30,16 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final FocusNode _nameFocusNode = FocusNode();
+  final FocusNode _phoneFocusNode = FocusNode();
+
+  /// Whether the screen is in "Create account" mode instead of "Sign in".
+  bool _isSignUpMode = false;
+
+  /// Role chosen during sign-up: customer (host) or chauffeur (driver).
+  UserRole _signUpRole = UserRole.customer;
+
   String? _errorMessage;
   int _resendCountdown = 30;
   Timer? _countdownTimer;
@@ -43,6 +54,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void dispose() {
     _phoneController.dispose();
     _otpController.dispose();
+    _nameController.dispose();
+    _nameFocusNode.dispose();
+    _phoneFocusNode.dispose();
     _countdownTimer?.cancel();
     super.dispose();
   }
@@ -107,6 +121,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.read(authControllerProvider.notifier).requestOtp(phoneNumber: phone);
   }
 
+  void _onSignUp() {
+    final name = _nameController.text.trim();
+    if (name.length < 2) {
+      setState(() {
+        _errorMessage = 'Please enter your full name.';
+      });
+      _nameFocusNode.requestFocus();
+      return;
+    }
+    final phone = _phoneController.text.trim();
+    if (phone.length < 10) {
+      setState(() {
+        _errorMessage = 'Please enter a valid 10-digit mobile number.';
+      });
+      _phoneFocusNode.requestFocus();
+      return;
+    }
+    setState(() => _errorMessage = null);
+    ref
+        .read(authControllerProvider.notifier)
+        .signUp(phoneNumber: phone, displayName: name, role: _signUpRole);
+  }
+
   void _onVerifyOtp(String otpSessionId) {
     final code = _otpController.text.trim();
     if (code.length != 6) {
@@ -159,7 +196,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     padding: const EdgeInsets.all(28),
                     child: authState is OtpSent
                         ? _buildOtpStep(authState, isLoading)
-                        : _buildPhoneStep(isLoading),
+                        : _isSignUpMode
+                            ? _buildSignUpStep(isLoading)
+                            : _buildPhoneStep(isLoading),
                   ),
                   const SizedBox(height: 24),
                   _buildTermsNotice(),
@@ -224,6 +263,122 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  Widget _buildModeToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.borderLight.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _buildModeToggleSegment('Sign In', !_isSignUpMode)),
+          Expanded(
+            child: _buildModeToggleSegment('Create Account', _isSignUpMode),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeToggleSegment(String label, bool selected) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (selected) return;
+        setState(() {
+          _isSignUpMode = !_isSignUpMode;
+          _errorMessage = null;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: AppTypography.labelMedium.copyWith(
+              color: selected
+                  ? AppColors.primaryBurgundy
+                  : AppColors.textSecondaryLight,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return TextField(
+      controller: _phoneController,
+      focusNode: _phoneFocusNode,
+      keyboardType: TextInputType.phone,
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(10),
+      ],
+      decoration: InputDecoration(
+        prefixIcon: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          alignment: Alignment.centerLeft,
+          width: 76,
+          child: Text(
+            '🇮🇳 +91',
+            style: AppTypography.bodyMedium.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.primaryBurgundy,
+            ),
+          ),
+        ),
+        hintText: 'Enter your mobile number',
+        hintStyle: AppTypography.bodyMedium.copyWith(
+          color: AppColors.textSecondaryLight.withValues(alpha: 0.7),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(
+            color: AppColors.primaryBurgundy,
+            width: 1.5,
+          ),
+        ),
+      ),
+      onSubmitted: (_) => _isSignUpMode ? _onSignUp() : _onRequestOtp(),
+    );
+  }
+
+  Widget _buildErrorSection() {
+    if (_errorMessage == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: _buildErrorAlert(_errorMessage!),
+    );
+  }
+
   Widget _buildPhoneStep(bool isLoading) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,7 +398,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
+        _buildModeToggle(),
+        const SizedBox(height: 20),
         Text(
           'Mobile number',
           style: AppTypography.labelMedium.copyWith(
@@ -252,27 +409,71 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(10),
-          ],
-          decoration: InputDecoration(
-            prefixIcon: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              alignment: Alignment.centerLeft,
-              width: 76,
-              child: Text(
-                '🇮🇳 +91',
-                style: AppTypography.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryBurgundy,
-                ),
-              ),
+        _buildPhoneField(),
+        _buildErrorSection(),
+        const SizedBox(height: 24),
+        ShadiPrimaryButton(
+          text: 'Continue',
+          isLoading: isLoading,
+          onPressed: isLoading ? null : _onRequestOtp,
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: Text(
+            "We'll send a secure verification code to verify your number.",
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondaryLight,
             ),
-            hintText: 'Enter your mobile number',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSignUpStep(bool isLoading) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Create your account',
+          style: AppTypography.titleLarge.copyWith(
+            color: AppColors.primaryBurgundy,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Join ShadiDriver in under a minute',
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.textSecondaryLight,
+            letterSpacing: 0.2,
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildModeToggle(),
+        const SizedBox(height: 20),
+        Text(
+          'Full name',
+          style: AppTypography.labelMedium.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimaryLight,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _nameController,
+          focusNode: _nameFocusNode,
+          keyboardType: TextInputType.name,
+          textCapitalization: TextCapitalization.words,
+          autofillHints: const [AutofillHints.name],
+          decoration: InputDecoration(
+            prefixIcon: const Icon(
+              Icons.person_outline_rounded,
+              size: 20,
+              color: AppColors.textSecondaryLight,
+            ),
+            hintText: 'Enter your full name',
             hintStyle: AppTypography.bodyMedium.copyWith(
               color: AppColors.textSecondaryLight.withValues(alpha: 0.7),
             ),
@@ -294,17 +495,56 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
-          onSubmitted: (_) => _onRequestOtp(),
+          onSubmitted: (_) => _phoneFocusNode.requestFocus(),
         ),
-        if (_errorMessage != null) ...[
-          const SizedBox(height: 14),
-          _buildErrorAlert(_errorMessage!),
-        ],
+        const SizedBox(height: 16),
+        Text(
+          'Mobile number',
+          style: AppTypography.labelMedium.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimaryLight,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildPhoneField(),
+        const SizedBox(height: 16),
+        Text(
+          'I am joining as',
+          style: AppTypography.labelMedium.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimaryLight,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildRoleOption(
+                icon: Icons.celebration_outlined,
+                label: 'Customer',
+                subtitle: 'Book luxury rides',
+                selected: _signUpRole == UserRole.customer,
+                onTap: () => setState(() => _signUpRole = UserRole.customer),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildRoleOption(
+                icon: Icons.directions_car_filled_outlined,
+                label: 'Chauffeur',
+                subtitle: 'Drive & earn',
+                selected: _signUpRole == UserRole.driver,
+                onTap: () => setState(() => _signUpRole = UserRole.driver),
+              ),
+            ),
+          ],
+        ),
+        _buildErrorSection(),
         const SizedBox(height: 24),
         ShadiPrimaryButton(
-          text: 'Continue',
+          text: 'Create Account',
           isLoading: isLoading,
-          onPressed: isLoading ? null : _onRequestOtp,
+          onPressed: isLoading ? null : _onSignUp,
         ),
         const SizedBox(height: 16),
         Center(
@@ -317,6 +557,71 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildRoleOption({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryBurgundy.withValues(alpha: 0.06)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected
+                ? AppColors.primaryBurgundy
+                : AppColors.borderLight,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: selected
+                  ? AppColors.primaryBurgundy
+                  : AppColors.textSecondaryLight,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppTypography.labelMedium.copyWith(
+                      color: selected
+                          ? AppColors.primaryBurgundy
+                          : AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.textSecondaryLight,
+                      fontSize: 10,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
