@@ -151,14 +151,13 @@ final bookingRepositoryProvider = Provider<BookingRepository>((ref) {
   final store = MockBookingRepository();
 
   // Mirror booking lifecycle events into the notification center feed.
-  final notificationRepo = ref.watch(notificationRepositoryProvider)
-      as MockNotificationRepository;
-  store.onLifecycleEvent =
-      ({required String title, required String body}) {
-        notificationRepo.pushEvent(title: title, body: body);
-        // Refresh any live notification listeners.
-        ref.notifyListeners();
-      };
+  final notificationRepo =
+      ref.watch(notificationRepositoryProvider) as MockNotificationRepository;
+  store.onLifecycleEvent = ({required String title, required String body}) {
+    notificationRepo.pushEvent(title: title, body: body);
+    // Refresh any live notification listeners.
+    ref.notifyListeners();
+  };
 
   return store;
 });
@@ -182,7 +181,8 @@ final serviceAddonRepositoryProvider = Provider<ServiceAddonRepository>((ref) {
 });
 
 final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
-  final bookingStore = ref.watch(bookingRepositoryProvider) as MockBookingRepository;
+  final bookingStore =
+      ref.watch(bookingRepositoryProvider) as MockBookingRepository;
   return MockPaymentRepository(bookingRepository: bookingStore);
 });
 
@@ -205,7 +205,8 @@ final reviewRepositoryProvider = Provider<ReviewRepository>((ref) {
 });
 
 final tripRepositoryProvider = Provider<TripRepository>((ref) {
-  final bookingStore = ref.watch(bookingRepositoryProvider) as MockBookingRepository;
+  final bookingStore =
+      ref.watch(bookingRepositoryProvider) as MockBookingRepository;
   return MockTripRepository(bookingRepository: bookingStore);
 });
 
@@ -238,7 +239,8 @@ final adminProfileRepositoryProvider = Provider<AdminProfileRepository>((ref) {
 /// Chauffeur KYC repository — adjudicates applications against the shared
 /// driver roster so approval flips the real profile's verification status.
 final chauffeurKycRepositoryProvider = Provider<ChauffeurKycRepository>((ref) {
-  final driverStore = ref.watch(driverRepositoryProvider) as MockDriverRepository;
+  final driverStore =
+      ref.watch(driverRepositoryProvider) as MockDriverRepository;
   return MockChauffeurKycRepository(driverRepository: driverStore);
 });
 

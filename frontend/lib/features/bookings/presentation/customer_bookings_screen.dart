@@ -206,9 +206,8 @@ class _CustomerBookingsScreenState extends ConsumerState<CustomerBookingsScreen>
 
     return ShadiCard(
       padding: const EdgeInsets.all(16),
-      onTap: () => context.push(
-        RoutePaths.customerBookingDetailPath(booking.id),
-      ),
+      onTap: () =>
+          context.push(RoutePaths.customerBookingDetailPath(booking.id)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -94,7 +94,8 @@ class DriverActiveTrip {
     BookingSubmissionResult result, {
     DriverTripStage? stage,
   }) {
-    final resolvedStage = stage ??
+    final resolvedStage =
+        stage ??
         switch (result.status) {
           BookingStatus.completed => DriverTripStage.completed,
           BookingStatus.tripStarted => DriverTripStage.ceremonyInProgress,

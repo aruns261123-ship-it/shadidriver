@@ -34,7 +34,8 @@ class MockBookingRepository implements BookingRepository {
 
   /// Optional lifecycle event sink (wired to the notification center in the
   /// app composition; nullable so domain tests stay dependency-free).
-  void Function({required String title, required String body})? onLifecycleEvent;
+  void Function({required String title, required String body})?
+  onLifecycleEvent;
 
   static const Map<String, int> _mockInventory = {
     'Toyota Innova Crysta': 5,
@@ -369,15 +370,18 @@ class MockBookingRepository implements BookingRepository {
     required String driverId,
   }) async {
     await Future.delayed(const Duration(milliseconds: 150));
-    final completed = _submissionResults.values
-        .where(
-          (r) =>
-              r.chauffeurId == driverId &&
-              (r.status == BookingStatus.completed ||
-                  _completedBookings.contains(r.bookingId)),
-        )
-        .toList()
-      ..sort((a, b) => b.serviceEndDateTime.compareTo(a.serviceEndDateTime));
+    final completed =
+        _submissionResults.values
+            .where(
+              (r) =>
+                  r.chauffeurId == driverId &&
+                  (r.status == BookingStatus.completed ||
+                      _completedBookings.contains(r.bookingId)),
+            )
+            .toList()
+          ..sort(
+            (a, b) => b.serviceEndDateTime.compareTo(a.serviceEndDateTime),
+          );
     return Result.success(completed);
   }
 
@@ -405,24 +409,27 @@ class MockBookingRepository implements BookingRepository {
     required String driverId,
   }) async {
     await Future.delayed(const Duration(milliseconds: 120));
-    final active = _submissionResults.values
-        .where(
-          (r) =>
-              r.chauffeurId == driverId &&
-              !_nonActiveStatuses.contains(r.status),
-        )
-        .toList()
-      ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+    final active =
+        _submissionResults.values
+            .where(
+              (r) =>
+                  r.chauffeurId == driverId &&
+                  !_nonActiveStatuses.contains(r.status),
+            )
+            .toList()
+          ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
     return Result.success(active);
   }
 
   @override
-  Future<Result<List<BookingSubmissionResult>>> getDispatchMonitorBookings() async {
+  Future<Result<List<BookingSubmissionResult>>>
+  getDispatchMonitorBookings() async {
     await Future.delayed(const Duration(milliseconds: 120));
-    final monitor = _submissionResults.values
-        .where((r) => !_terminalStatuses.contains(r.status))
-        .toList()
-      ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+    final monitor =
+        _submissionResults.values
+            .where((r) => !_terminalStatuses.contains(r.status))
+            .toList()
+          ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
     return Result.success(monitor);
   }
 
@@ -460,6 +467,36 @@ class MockBookingRepository implements BookingRepository {
       nextStepMessage: existing.nextStepMessage,
       isIdempotentReplay: existing.isIdempotentReplay,
     );
+
+    final summary = _bookings[bookingId];
+    if (summary != null) {
+      final statusStr = switch (status) {
+        BookingStatus.driverArriving => 'DRIVER_ARRIVING',
+        BookingStatus.arrived => 'ARRIVED',
+        BookingStatus.tripStarted => 'TRIP_STARTED',
+        BookingStatus.completed => 'COMPLETED',
+        BookingStatus.confirmed => 'CONFIRMED',
+        BookingStatus.driverAccepted => 'DRIVER_ACCEPTED',
+        BookingStatus.cancelled => 'CANCELLED',
+        _ => status.name.toUpperCase(),
+      };
+      _bookings[bookingId] = BookingSummary(
+        id: summary.id,
+        reference: summary.reference,
+        serviceCategory: summary.serviceCategory,
+        status: statusStr,
+        eventStartTime: summary.eventStartTime,
+        eventEndTime: summary.eventEndTime,
+        pickupAddress: summary.pickupAddress,
+        destinationAddress: summary.destinationAddress,
+        routeDistanceKm: summary.routeDistanceKm,
+        vehicleName: summary.vehicleName,
+        chauffeurName: summary.chauffeurName,
+        totalAmountCents: summary.totalAmountCents,
+        advanceTokenCents: summary.advanceTokenCents,
+        version: summary.version + 1,
+      );
+    }
   }
 
   /// Admin dispatch override: marks an emergency standby chauffeur as
@@ -506,8 +543,7 @@ class MockBookingRepository implements BookingRepository {
       estimatedTotalPaise: existing.estimatedTotalPaise,
       advanceTokenPaise: existing.advanceTokenPaise,
       advanceTokenLabel: existing.advanceTokenLabel,
-      nextStepMessage:
-          'Emergency standby chauffeur dispatched by operations.',
+      nextStepMessage: 'Emergency standby chauffeur dispatched by operations.',
     );
     _submissionResults[bookingId] = emergencyResult;
 
@@ -519,6 +555,60 @@ class MockBookingRepository implements BookingRepository {
     );
 
     return Result.success(emergencyResult);
+  }
+
+  /// Synchronously marks a booking as DRIVER_ACCEPTED for tests and local state wiring.
+  void markBookingAccepted(String bookingId, [String driverId = 'd1']) {
+    final existing = _submissionResults[bookingId];
+    if (existing != null) {
+      _submissionResults[bookingId] = BookingSubmissionResult(
+        bookingId: existing.bookingId,
+        bookingReference: existing.bookingReference,
+        status: BookingStatus.driverAccepted,
+        submittedAt: existing.submittedAt,
+        vehicleId: existing.vehicleId,
+        vehicleName: existing.vehicleName,
+        vehicleClass: existing.vehicleClass,
+        chauffeurId: driverId,
+        ceremonyType: existing.ceremonyType,
+        ceremonialAttire: existing.ceremonialAttire,
+        serviceStartDateTime: existing.serviceStartDateTime,
+        serviceEndDateTime: existing.serviceEndDateTime,
+        routeDistanceKm: existing.routeDistanceKm,
+        pickupAddress: existing.pickupAddress,
+        destinationAddress: existing.destinationAddress,
+        primaryContactName: existing.primaryContactName,
+        primaryContactPhone: existing.primaryContactPhone,
+        estimatedTotalPaise: existing.estimatedTotalPaise,
+        advanceTokenPaise: existing.advanceTokenPaise,
+        advanceTokenLabel: existing.advanceTokenLabel,
+        nextStepMessage:
+            'Chauffeur offer confirmed. Customer will proceed with advance token lock.',
+        isIdempotentReplay: existing.isIdempotentReplay,
+      );
+    }
+
+    final summary = _bookings[bookingId];
+    if (summary != null) {
+      _bookings[bookingId] = BookingSummary(
+        id: summary.id,
+        reference: summary.reference,
+        serviceCategory: summary.serviceCategory,
+        status: 'DRIVER_ACCEPTED',
+        eventStartTime: summary.eventStartTime,
+        eventEndTime: summary.eventEndTime,
+        pickupAddress: summary.pickupAddress,
+        destinationAddress: summary.destinationAddress,
+        routeDistanceKm: summary.routeDistanceKm,
+        vehicleName: summary.vehicleName,
+        chauffeurName: summary.chauffeurName.isNotEmpty
+            ? summary.chauffeurName
+            : 'Rajesh Kumar',
+        totalAmountCents: summary.totalAmountCents,
+        advanceTokenCents: summary.advanceTokenCents,
+        version: summary.version + 1,
+      );
+    }
   }
 
   /// Marks a booking as CONFIRMED after successful advance-token payment.
@@ -619,6 +709,26 @@ class MockBookingRepository implements BookingRepository {
       );
     }
     _completedBookings.add(bookingId);
+
+    final summary = _bookings[bookingId];
+    if (summary != null) {
+      _bookings[bookingId] = BookingSummary(
+        id: summary.id,
+        reference: summary.reference,
+        serviceCategory: summary.serviceCategory,
+        status: 'COMPLETED',
+        eventStartTime: summary.eventStartTime,
+        eventEndTime: summary.eventEndTime,
+        pickupAddress: summary.pickupAddress,
+        destinationAddress: summary.destinationAddress,
+        routeDistanceKm: summary.routeDistanceKm,
+        vehicleName: summary.vehicleName,
+        chauffeurName: summary.chauffeurName,
+        totalAmountCents: summary.totalAmountCents,
+        advanceTokenCents: summary.advanceTokenCents,
+        version: summary.version + 1,
+      );
+    }
   }
 
   @override
@@ -708,9 +818,32 @@ class MockBookingRepository implements BookingRepository {
         eventStartTime: existingSummary.eventStartTime,
         eventEndTime: existingSummary.eventEndTime,
         pickupAddress: existingSummary.pickupAddress,
+        destinationAddress: existingSummary.destinationAddress,
+        routeDistanceKm: existingSummary.routeDistanceKm,
+        vehicleName: existingSummary.vehicleName,
+        chauffeurName: existingSummary.chauffeurName.isNotEmpty
+            ? existingSummary.chauffeurName
+            : 'Rajesh Kumar',
         totalAmountCents: existingSummary.totalAmountCents,
         advanceTokenCents: existingSummary.advanceTokenCents,
         version: existingSummary.version + 1,
+      );
+    } else {
+      _bookings[bookingId] = BookingSummary(
+        id: acceptedResult.bookingId,
+        reference: acceptedResult.bookingReference,
+        serviceCategory: acceptedResult.ceremonyType,
+        status: 'DRIVER_ACCEPTED',
+        eventStartTime: acceptedResult.serviceStartDateTime,
+        eventEndTime: acceptedResult.serviceEndDateTime,
+        pickupAddress: acceptedResult.pickupAddress,
+        destinationAddress: acceptedResult.destinationAddress,
+        routeDistanceKm: acceptedResult.routeDistanceKm,
+        vehicleName: acceptedResult.vehicleName,
+        chauffeurName: 'Rajesh Kumar',
+        totalAmountCents: acceptedResult.estimatedTotalPaise,
+        advanceTokenCents: acceptedResult.advanceTokenPaise,
+        version: 1,
       );
     }
 

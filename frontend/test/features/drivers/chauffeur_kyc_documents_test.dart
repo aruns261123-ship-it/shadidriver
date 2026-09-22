@@ -35,31 +35,34 @@ void main() {
       fail('KYC applications failed to load in time');
     }
 
-    test('uploadDocument attaches a file reference to a pending application',
-        () async {
-      final controller = makeController();
-      await pumpUntilLoaded();
+    test(
+      'uploadDocument attaches a file reference to a pending application',
+      () async {
+        final controller = makeController();
+        await pumpUntilLoaded();
 
-      final first = controller.state.applications
-          .firstWhere((a) => a.status == ChauffeurKycStatus.pending);
+        final first = controller.state.applications.firstWhere(
+          (a) => a.status == ChauffeurKycStatus.pending,
+        );
 
-      final ok = await controller.uploadDocument(
-        applicationId: first.applicationId,
-        documentType: KycDocumentType.drivingLicense,
-        fileReference: 'dl_gurpreet_2026.pdf',
-      );
+        final ok = await controller.uploadDocument(
+          applicationId: first.applicationId,
+          documentType: KycDocumentType.drivingLicense,
+          fileReference: 'dl_gurpreet_2026.pdf',
+        );
 
-      expect(ok, isTrue);
+        expect(ok, isTrue);
 
-      final updated = container
-          .read(chauffeurKycControllerProvider)
-          .applications
-          .firstWhere((a) => a.applicationId == first.applicationId);
-      expect(
-        updated.documents[KycDocumentType.drivingLicense],
-        'dl_gurpreet_2026.pdf',
-      );
-    });
+        final updated = container
+            .read(chauffeurKycControllerProvider)
+            .applications
+            .firstWhere((a) => a.applicationId == first.applicationId);
+        expect(
+          updated.documents[KycDocumentType.drivingLicense],
+          'dl_gurpreet_2026.pdf',
+        );
+      },
+    );
 
     test('uploadDocument rejects an empty file reference', () async {
       final controller = makeController();
@@ -79,8 +82,7 @@ void main() {
   });
 
   group('Driver Earnings Summary', () {
-    test('computes 70% net payout, gross, and duty hours from assignments',
-        () {
+    test('computes 70% net payout, gross, and duty hours from assignments', () {
       // Direct model test via the provider-derived factory.
       final summary = DriverEarningsSummary(
         assignmentCount: 0,

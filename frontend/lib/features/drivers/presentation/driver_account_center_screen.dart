@@ -109,7 +109,10 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
 
                 // 3. Verification & Compliance Card (Separate State!)
-                _buildVerificationCard(state.profile!.verificationStatus),
+                _buildVerificationCard(
+                  context,
+                  state.profile!.verificationStatus,
+                ),
 
                 const SizedBox(height: 20),
 
@@ -122,21 +125,25 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                     title: 'Assigned Vehicle',
                     subtitle:
                         '${state.profile!.vehicleStatus} • Inspected for Ceremonies',
-                    onTap: () {},
+                    onTap: () =>
+                        _showAssignedVehicleSheet(context, state.profile!),
                   ),
                   _MenuItem(
                     icon: Icons.badge_rounded,
                     title: 'Chauffeur Documents',
                     subtitle:
                         '${state.profile!.documentStatus} • Commercial Badge & License',
-                    onTap: () {},
+                    onTap: () => _showKycComplianceSheet(
+                      context,
+                      state.profile!.verificationStatus == 'VERIFIED',
+                    ),
                   ),
                   _MenuItem(
                     icon: Icons.currency_rupee_rounded,
                     title: 'Payouts & Earnings',
                     subtitle:
                         'Direct deposit bank details and weekly earnings summary',
-                    onTap: () {},
+                    onTap: () => _showPayoutsSheet(context),
                   ),
                 ]),
 
@@ -150,20 +157,20 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                     icon: Icons.notifications_active_rounded,
                     title: 'Dispatch Alerts',
                     subtitle: 'Urgent ceremony dispatch ringers and SMS',
-                    onTap: () {},
+                    onTap: () => _showDispatchAlertsSheet(context),
                   ),
                   _MenuItem(
                     icon: Icons.security_rounded,
                     title: 'Chauffeur Code of Conduct',
                     subtitle: 'Royal ceremonial protocol & etiquette standards',
-                    onTap: () {},
+                    onTap: () => _showCodeOfConductSheet(context),
                   ),
                   _MenuItem(
                     icon: Icons.support_agent_rounded,
                     title: 'Chauffeur Support Desk',
                     subtitle:
                         'Direct emergency line to operations control room',
-                    onTap: () {},
+                    onTap: () => _showSupportDeskSheet(context),
                   ),
                   _MenuItem(
                     icon: Icons.logout_rounded,
@@ -405,7 +412,10 @@ class DriverAccountCenterScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildVerificationCard(String verificationStatus) {
+  Widget _buildVerificationCard(
+    BuildContext context,
+    String verificationStatus,
+  ) {
     final isVerified = verificationStatus == 'VERIFIED';
 
     return Container(
@@ -464,10 +474,470 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                     height: 1.4,
                   ),
                 ),
+                const SizedBox(height: 10),
+                InkWell(
+                  key: const Key('driver_view_kyc_compliance_button'),
+                  onTap: () => _showKycComplianceSheet(context, isVerified),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.description_outlined,
+                        size: 16,
+                        color: AppColors.primaryBurgundy,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'View Verification Documents & Compliance',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.primaryBurgundy,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showKycComplianceSheet(BuildContext context, bool isVerified) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Chauffeur KYC & Compliance',
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.primaryBurgundy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(sheetContext),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Mandatory credentials audited by ShadiDriver Compliance before wedding assignments.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              const Divider(height: 24),
+              _buildComplianceDocRow(
+                'Commercial Driving License',
+                'DL-04202100892 • Valid till 2031',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Vehicle RC (Commercial PSV)',
+                'DL-01-AB-1234 • Luxury Sedan Permit',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Commercial Passenger Insurance',
+                'Comprehensive ₹50L Coverage Active',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Police Background Clearance (NOC)',
+                'Verified by Delhi Police Licensing Branch',
+                isVerified,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Ceremonial Attire & Safa Inspection',
+                'Royal Bandhgala & Gold Safa Standard Passed',
+                isVerified,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildComplianceDocRow(String title, String subtitle, bool passed) {
+    return Row(
+      children: [
+        Icon(
+          passed ? Icons.check_circle_rounded : Icons.pending_rounded,
+          color: passed ? AppColors.verifiedEmerald : AppColors.urgentSaffron,
+          size: 20,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTypography.labelMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimaryLight,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAssignedVehicleSheet(BuildContext context, DriverProfile profile) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Assigned Ceremonial Vehicle',
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.primaryBurgundy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Vehicle allocation and ceremonial inspection certificate for duty.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              const Divider(height: 24),
+              _buildComplianceDocRow(
+                'Vehicle Model',
+                'BMW 5 Series (Luxury Ceremonial Sedan)',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Fleet Plate & Permit',
+                'DL-01-AB-1920 • Delhi NCR Commercial PSV',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Hygiene & White Glove Standard',
+                'Sanitized & Floral Ribbon Mounting Verified',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Vehicle Fitness Status',
+                '${profile.vehicleStatus} • Valid through 2026',
+                true,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPayoutsSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Payouts & Bank Settlement',
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.primaryBurgundy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Direct deposit bank details and weekly earnings distribution.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              const Divider(height: 24),
+              _buildComplianceDocRow(
+                'Settlement Account',
+                'HDFC Bank ••••••1234 (Verified)',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Payout Cycle',
+                'Weekly direct deposit every Monday 10:00 AM',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Muhurat Punctuality Bonus',
+                'Eligible for ₹500 extra on every on-time arrival',
+                true,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDispatchAlertsSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Dispatch & Alert Settings',
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.primaryBurgundy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Urgent ceremony dispatch ringers, SMS, and departure timers.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              const Divider(height: 24),
+              _buildComplianceDocRow(
+                'High-Priority Ringer',
+                'Audible loud chime on incoming ceremonial requests',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'SMS Backup Notification',
+                'Fallback SMS alert with venue GPS pin link',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Muhurat Reminders',
+                '60-minute & 30-minute departure chime before event start',
+                true,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCodeOfConductSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Chauffeur Code of Conduct',
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.primaryBurgundy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Royal ceremonial protocol and white glove etiquette standards.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              const Divider(height: 24),
+              _buildComplianceDocRow(
+                '1. Royal Attire & Safa Discipline',
+                'Mandatory ceremonial Bandhgala & Gold Safa turban',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                '2. Muhurat Punctuality',
+                'Arrive at pickup gate exactly 30 minutes in advance',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                '3. Host & Bride Assistance',
+                'Umbrella canopy & royal door greeting on every stop',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                '4. Absolute Privacy & Discretion',
+                'Zero photography or discussion of VIP guests & gifts',
+                true,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSupportDeskSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Chauffeur Support Desk',
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.primaryBurgundy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Direct lines to operations control room and emergency dispatch.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              const Divider(height: 24),
+              _buildComplianceDocRow(
+                'Operations Room Hotline (24/7)',
+                '+91 1800-SHADI-DRIVER (1800-742-3437)',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Emergency Standby Replacement',
+                'Instant backup car dispatch in under 20 mins',
+                true,
+              ),
+              const SizedBox(height: 12),
+              _buildComplianceDocRow(
+                'Compliance & Document Desk',
+                'driver-support@shadidriver.com',
+                true,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
       ),
     );
   }

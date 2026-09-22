@@ -21,8 +21,9 @@ Future<void> showReviewSubmissionSheet(
     ),
     builder: (sheetContext) => Consumer(
       builder: (context, sheetRef, _) {
-        final controller =
-            sheetRef.read(reviewControllerProvider(bookingId).notifier);
+        final controller = sheetRef.read(
+          reviewControllerProvider(bookingId).notifier,
+        );
         final state = sheetRef.watch(reviewControllerProvider(bookingId));
 
         int overall = 5;

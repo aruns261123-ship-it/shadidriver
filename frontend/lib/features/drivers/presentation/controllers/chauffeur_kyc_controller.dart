@@ -36,8 +36,9 @@ class ChauffeurKycState {
       applications: applications ?? this.applications,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
-      actingApplicationId:
-          clearActing ? null : (actingApplicationId ?? this.actingApplicationId),
+      actingApplicationId: clearActing
+          ? null
+          : (actingApplicationId ?? this.actingApplicationId),
     );
   }
 }
@@ -180,10 +181,11 @@ class ChauffeurKycController extends StateNotifier<ChauffeurKycState> {
 
 /// Provider for the admin KYC verification queue.
 final chauffeurKycControllerProvider =
-    StateNotifierProvider.autoDispose<ChauffeurKycController, ChauffeurKycState>(
-      (ref) {
-        return ChauffeurKycController(
-          repository: ref.watch(chauffeurKycRepositoryProvider),
-        );
-      },
-    );
+    StateNotifierProvider.autoDispose<
+      ChauffeurKycController,
+      ChauffeurKycState
+    >((ref) {
+      return ChauffeurKycController(
+        repository: ref.watch(chauffeurKycRepositoryProvider),
+      );
+    });

@@ -118,9 +118,7 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
                     icon: Icons.support_agent_rounded,
                     title: '24/7 Royal Concierge Support',
                     subtitle: 'Raise a dispute or get help with a booking',
-                    onTap: () => context.push(
-                      RoutePaths.customerSupportTicket,
-                    ),
+                    onTap: () => context.push(RoutePaths.customerSupportTicket),
                   ),
                 ]),
 
@@ -378,48 +376,52 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
   }
 
   void _showNotificationSheet(BuildContext context) {
-    showModalBottomSheet(
+    bool smsAlerts = true;
+    bool reminders = true;
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Notification Preferences',
-                style: AppTypography.titleMedium.copyWith(
-                  color: AppColors.primaryBurgundy,
-                  fontWeight: FontWeight.w700,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Notification Preferences',
+                  style: AppTypography.titleMedium.copyWith(
+                    color: AppColors.primaryBurgundy,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                value: true,
-                onChanged: (_) {},
-                activeTrackColor: AppColors.warmGold,
-                activeThumbColor: Colors.white,
-                title: const Text('Chauffeur Arrival SMS'),
-                subtitle: const Text(
-                  'Real-time alerts when chauffeur reaches venue',
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  value: smsAlerts,
+                  onChanged: (val) => setSheetState(() => smsAlerts = val),
+                  activeTrackColor: AppColors.warmGold,
+                  activeThumbColor: Colors.white,
+                  title: const Text('Chauffeur Arrival SMS'),
+                  subtitle: const Text(
+                    'Real-time alerts when chauffeur reaches venue',
+                  ),
                 ),
-              ),
-              SwitchListTile(
-                value: true,
-                onChanged: (_) {},
-                activeTrackColor: AppColors.warmGold,
-                activeThumbColor: Colors.white,
-                title: const Text('Baraat Schedule Reminders'),
-                subtitle: const Text(
-                  'Advance notifications for wedding timelines',
+                SwitchListTile(
+                  value: reminders,
+                  onChanged: (val) => setSheetState(() => reminders = val),
+                  activeTrackColor: AppColors.warmGold,
+                  activeThumbColor: Colors.white,
+                  title: const Text('Baraat Schedule Reminders'),
+                  subtitle: const Text(
+                    'Advance notifications for wedding timelines',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -461,7 +463,6 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 class _MenuItem {

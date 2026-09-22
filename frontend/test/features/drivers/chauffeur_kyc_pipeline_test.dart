@@ -13,9 +13,7 @@ void main() {
   setUp(() {
     driverStore = MockDriverRepository();
     container = ProviderContainer(
-      overrides: [
-        driverRepositoryProvider.overrideWithValue(driverStore),
-      ],
+      overrides: [driverRepositoryProvider.overrideWithValue(driverStore)],
     );
   });
 
@@ -64,8 +62,7 @@ void main() {
       expect(profile.identityVerified, isTrue);
     });
 
-    test('rejection requires a reason and flips status to REJECTED',
-        () async {
+    test('rejection requires a reason and flips status to REJECTED', () async {
       final controller = makeController();
       await controller.loadApplications();
 

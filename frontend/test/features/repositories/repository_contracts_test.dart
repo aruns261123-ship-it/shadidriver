@@ -208,14 +208,13 @@ class FakeBookingRepository implements BookingRepository {
     required String driverId,
   }) async {
     return Result.success(
-      _submissions.values
-          .where((s) => s.chauffeurId == driverId)
-          .toList(),
+      _submissions.values.where((s) => s.chauffeurId == driverId).toList(),
     );
   }
 
   @override
-  Future<Result<List<BookingSubmissionResult>>> getDispatchMonitorBookings() async {
+  Future<Result<List<BookingSubmissionResult>>>
+  getDispatchMonitorBookings() async {
     return Result.success(_submissions.values.toList());
   }
 

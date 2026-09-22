@@ -5,15 +5,20 @@ enum ChauffeurKycStatus { pending, approved, rejected }
 
 /// Canonical KYC document types collected during chauffeur onboarding
 /// (roadmap Phase 2A).
-enum KycDocumentType { drivingLicense, vehicleRc, insuranceCertificate, policeNoc }
+enum KycDocumentType {
+  drivingLicense,
+  vehicleRc,
+  insuranceCertificate,
+  policeNoc,
+}
 
 extension KycDocumentTypeLabel on KycDocumentType {
   String get label => switch (this) {
-        KycDocumentType.drivingLicense => 'Driving License',
-        KycDocumentType.vehicleRc => 'Vehicle RC',
-        KycDocumentType.insuranceCertificate => 'Insurance Certificate',
-        KycDocumentType.policeNoc => 'Police NOC',
-      };
+    KycDocumentType.drivingLicense => 'Driving License',
+    KycDocumentType.vehicleRc => 'Vehicle RC',
+    KycDocumentType.insuranceCertificate => 'Insurance Certificate',
+    KycDocumentType.policeNoc => 'Police NOC',
+  };
 }
 
 /// Domain representation of a chauffeur verification (KYC) application.

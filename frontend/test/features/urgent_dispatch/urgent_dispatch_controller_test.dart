@@ -23,8 +23,7 @@ void main() {
   }
 
   group('Urgent Dispatch SOS', () {
-    test('successful request stores a dispatch ID and clears errors',
-        () async {
+    test('successful request stores a dispatch ID and clears errors', () async {
       final controller = makeController();
 
       expect(controller.state.isSuccess, isFalse);
@@ -40,23 +39,25 @@ void main() {
       expect(controller.state.isSubmitting, isFalse);
     });
 
-    test('repository failure path keeps the controller clean for retry',
-        () async {
-      final controller = makeController();
+    test(
+      'repository failure path keeps the controller clean for retry',
+      () async {
+        final controller = makeController();
 
-      // Direct repository call — the SOS screen renders repository errors;
-      // the controller state stays clean for a fresh submission.
-      final result = await container
-          .read(urgentDispatchRepositoryProvider)
-          .requestUrgentChauffeur(
-            serviceCategory: 'fail_Category',
-            latitude: 28.6,
-            longitude: 77.2,
-            address: 'x',
-          );
+        // Direct repository call — the SOS screen renders repository errors;
+        // the controller state stays clean for a fresh submission.
+        final result = await container
+            .read(urgentDispatchRepositoryProvider)
+            .requestUrgentChauffeur(
+              serviceCategory: 'fail_Category',
+              latitude: 28.6,
+              longitude: 77.2,
+              address: 'x',
+            );
 
-      expect(result.dataOrNull, isNotNull);
-      expect(controller.state.isSuccess, isFalse);
-    });
+        expect(result.dataOrNull, isNotNull);
+        expect(controller.state.isSuccess, isFalse);
+      },
+    );
   });
 }

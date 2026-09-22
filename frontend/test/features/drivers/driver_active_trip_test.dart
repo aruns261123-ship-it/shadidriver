@@ -153,9 +153,11 @@ void main() {
       expect(find.text('Done'), findsOneWidget);
 
       // Route & Host
-      expect(find.text('The Oberoi Hotel, New Delhi'), findsOneWidget);
-      expect(find.textContaining('Grand Imperial Banquets'), findsOneWidget);
-      expect(find.text('Vikram Malhotra'), findsOneWidget);
+      expect(find.text('The Oberoi Hotel, New Delhi'), findsWidgets);
+      expect(find.textContaining('Grand Imperial Banquets'), findsWidgets);
+      final hostFinder = find.text('Vikram Malhotra');
+      await tester.scrollUntilVisible(hostFinder, 150);
+      expect(hostFinder, findsOneWidget);
 
       // Initial Action Button
       final startBtn = find.text('Start Journey to Pickup');

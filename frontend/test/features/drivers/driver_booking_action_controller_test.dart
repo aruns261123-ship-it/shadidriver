@@ -107,21 +107,18 @@ void main() {
       },
     );
 
-    test(
-      'acceptOffer engages profile duty status to BUSY',
-      () async {
-        // Keep the autoDispose provider alive for the duration of the test.
-        container.listen(driverBookingActionControllerProvider, (_, _) {});
-        final controller = container.read(
-          driverBookingActionControllerProvider.notifier,
-        );
+    test('acceptOffer engages profile duty status to BUSY', () async {
+      // Keep the autoDispose provider alive for the duration of the test.
+      container.listen(driverBookingActionControllerProvider, (_, _) {});
+      final controller = container.read(
+        driverBookingActionControllerProvider.notifier,
+      );
 
-        final success = await controller.acceptOffer(validBookingId);
-        expect(success, isTrue);
+      final success = await controller.acceptOffer(validBookingId);
+      expect(success, isTrue);
 
-        final duty = await mockDriverRepo.getDutyStatus(driver1);
-        expect(duty.dataOrNull, DriverDutyStatus.busy);
-      },
-    );
+      final duty = await mockDriverRepo.getDutyStatus(driver1);
+      expect(duty.dataOrNull, DriverDutyStatus.busy);
+    });
   });
 }

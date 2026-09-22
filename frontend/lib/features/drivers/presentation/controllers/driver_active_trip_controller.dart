@@ -69,10 +69,7 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
     if (!mounted) return;
     final failure = result.fold((f) => f, (_) => null);
     if (failure != null) {
-      state = state.copyWith(
-        isUpdating: false,
-        errorMessage: failure.message,
-      );
+      state = state.copyWith(isUpdating: false, errorMessage: failure.message);
       return;
     }
 
@@ -93,7 +90,9 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
   }) async {
     state = state.copyWith(isUpdating: true, errorMessage: null);
 
-    final result = await _ref.read(driverRepositoryProvider).submitPreTripChecklist(
+    final result = await _ref
+        .read(driverRepositoryProvider)
+        .submitPreTripChecklist(
           bookingId: state.trip.bookingId,
           isFuelChecked: isFuelChecked,
           isDualAcChecked: isDualAcChecked,
@@ -125,8 +124,7 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
     _telemetryTimer?.cancel();
     _sendPing();
     _telemetryTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
-      if (!mounted ||
-          state.trip.stage != DriverTripStage.enRouteToPickup) {
+      if (!mounted || state.trip.stage != DriverTripStage.enRouteToPickup) {
         timer.cancel();
         return;
       }
@@ -203,10 +201,7 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
     if (!mounted) return false;
     final failure = result.fold((f) => f, (_) => null);
     if (failure != null) {
-      state = state.copyWith(
-        isUpdating: false,
-        errorMessage: failure.message,
-      );
+      state = state.copyWith(isUpdating: false, errorMessage: failure.message);
       return false;
     }
 
@@ -238,10 +233,7 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
     if (!mounted) return;
     final failure = result.fold((f) => f, (_) => null);
     if (failure != null) {
-      state = state.copyWith(
-        isUpdating: false,
-        errorMessage: failure.message,
-      );
+      state = state.copyWith(isUpdating: false, errorMessage: failure.message);
       return;
     }
 
@@ -312,5 +304,6 @@ final driverActiveTripControllerProvider =
       DriverActiveTripController,
       DriverActiveTripState,
       String
-    >((ref, bookingId) =>
-        DriverActiveTripController(ref, bookingId: bookingId));
+    >(
+      (ref, bookingId) => DriverActiveTripController(ref, bookingId: bookingId),
+    );

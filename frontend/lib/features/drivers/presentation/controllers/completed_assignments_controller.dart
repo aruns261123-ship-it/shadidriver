@@ -79,7 +79,9 @@ class CompletedAssignmentsController
       ),
     );
   }
-}  /// Provider exposing completed assignments for the Chauffeur Console.
+}
+
+/// Provider exposing completed assignments for the Chauffeur Console.
 final completedAssignmentsControllerProvider =
     StateNotifierProvider.autoDispose<
       CompletedAssignmentsController,

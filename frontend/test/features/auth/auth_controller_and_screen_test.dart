@@ -215,10 +215,7 @@ void main() {
       );
 
       expect(duplicate.isFailure, isTrue);
-      expect(
-        duplicate.failureOrNull?.code,
-        equals('PHONE_ALREADY_REGISTERED'),
-      );
+      expect(duplicate.failureOrNull?.code, equals('PHONE_ALREADY_REGISTERED'));
     });
 
     test('signUp rejects admin role registration', () async {
@@ -247,42 +244,39 @@ void main() {
       expect(result.failureOrNull?.code, equals('INVALID_NAME'));
     });
 
-    test(
-      'signUp account can sign in again on subsequent login',
-      () async {
-        final controller = container.read(authControllerProvider.notifier);
+    test('signUp account can sign in again on subsequent login', () async {
+      final controller = container.read(authControllerProvider.notifier);
 
-        // Register the new account first.
-        final signUpResult = await controller.signUp(
-          phoneNumber: '9765432104',
-          displayName: 'Aarav Mehta',
-          role: UserRole.customer,
-        );
-        expect(signUpResult.isSuccess, isTrue);
-        await controller.verifyOtp(
-          otpSessionId: signUpResult.dataOrNull!,
-          otpCode: '000000',
-        );
-        await controller.signOut();
+      // Register the new account first.
+      final signUpResult = await controller.signUp(
+        phoneNumber: '9765432104',
+        displayName: 'Aarav Mehta',
+        role: UserRole.customer,
+      );
+      expect(signUpResult.isSuccess, isTrue);
+      await controller.verifyOtp(
+        otpSessionId: signUpResult.dataOrNull!,
+        otpCode: '000000',
+      );
+      await controller.signOut();
 
-        // Sign back in through the normal login flow.
-        final loginResult = await controller.requestOtp(
-          phoneNumber: '9765432104',
-        );
-        expect(loginResult.isSuccess, isTrue);
-        final verify = await controller.verifyOtp(
-          otpSessionId: loginResult.dataOrNull!,
-          otpCode: '000000',
-        );
-        expect(verify.isSuccess, isTrue);
+      // Sign back in through the normal login flow.
+      final loginResult = await controller.requestOtp(
+        phoneNumber: '9765432104',
+      );
+      expect(loginResult.isSuccess, isTrue);
+      final verify = await controller.verifyOtp(
+        otpSessionId: loginResult.dataOrNull!,
+        otpCode: '000000',
+      );
+      expect(verify.isSuccess, isTrue);
 
-        final state = container.read(authControllerProvider);
-        expect(state, isA<Authenticated>());
-        final session = (state as Authenticated).session;
-        expect(session.role, equals(UserRole.customer));
-        expect(session.displayName, equals('Aarav Mehta'));
-      },
-    );
+      final state = container.read(authControllerProvider);
+      expect(state, isA<Authenticated>());
+      final session = (state as Authenticated).session;
+      expect(session.role, equals(UserRole.customer));
+      expect(session.displayName, equals('Aarav Mehta'));
+    });
   });
 
   group('LoginScreen Widget Tests', () {

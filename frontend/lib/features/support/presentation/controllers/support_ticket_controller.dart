@@ -37,7 +37,7 @@ class SupportTicketController extends StateNotifier<SupportTicketState> {
   final SupportRepository repository;
 
   SupportTicketController({required this.repository})
-      : super(const SupportTicketState());
+    : super(const SupportTicketState());
 
   Future<void> submitTicket({
     required String bookingId,
@@ -59,10 +59,8 @@ class SupportTicketController extends StateNotifier<SupportTicketState> {
         isSubmitting: false,
         errorMessage: failure.message,
       ),
-      (ticketId) => state = state.copyWith(
-        isSubmitting: false,
-        ticketId: ticketId,
-      ),
+      (ticketId) =>
+          state = state.copyWith(isSubmitting: false, ticketId: ticketId),
     );
   }
 
@@ -84,10 +82,11 @@ const supportTicketCategories = <String>[
 
 /// Provider for the support ticket screen.
 final supportTicketControllerProvider =
-    StateNotifierProvider.autoDispose<SupportTicketController, SupportTicketState>(
-  (ref) {
-    return SupportTicketController(
-      repository: ref.watch(supportRepositoryProvider),
-    );
-  },
-);
+    StateNotifierProvider.autoDispose<
+      SupportTicketController,
+      SupportTicketState
+    >((ref) {
+      return SupportTicketController(
+        repository: ref.watch(supportRepositoryProvider),
+      );
+    });

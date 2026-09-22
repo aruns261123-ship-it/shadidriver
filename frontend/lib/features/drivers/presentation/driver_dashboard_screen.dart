@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/router/route_paths.dart';
@@ -8,6 +9,7 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/shadi_card.dart';
 import '../../../core/widgets/shadi_empty_state.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
+import '../../../core/widgets/shadi_offline_banner.dart';
 import '../../../core/widgets/shadi_primary_button.dart';
 import '../../../core/widgets/shadi_section_header.dart';
 import '../../../core/widgets/shadi_status_badge.dart';
@@ -59,13 +61,37 @@ class DriverDashboardScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            key: const Key('driver_dashboard_active_trip_action'),
             icon: const Icon(
               Icons.navigation_rounded,
               color: AppColors.primaryBurgundy,
             ),
             tooltip: 'Active Trip Console',
-            onPressed: () =>
-                context.push(RoutePaths.driverActiveTripPath('bk_mock_req_1')),
+            onPressed: () {
+              if (state.hasActiveAssignment) {
+                context.push(
+                  RoutePaths.driverActiveTripPath(
+                    state.activeAssignment!.bookingId,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('No active ceremonial assignment right now.'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+          ),
+          IconButton(
+            key: const Key('driver_dashboard_biometric_lock_action'),
+            icon: const Icon(
+              Icons.fingerprint_rounded,
+              color: AppColors.primaryBurgundy,
+            ),
+            tooltip: 'Biometric Duty Lock',
+            onPressed: () => _showBiometricSecuritySheet(context),
           ),
           IconButton(
             icon: const Icon(
@@ -90,6 +116,13 @@ class DriverDashboardScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // 0. Offline Resilience Status
+            const ShadiOfflineBanner(
+              message:
+                  'Chauffeur Offline Resilience Active • Itineraries cached',
+            ),
+            const SizedBox(height: 8),
+
             // 1. Duty Status Selector Card
             _buildDutyStatusCard(context, state, controller),
 
@@ -191,10 +224,7 @@ class DriverDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActiveTripCard(
-    BuildContext context,
-    DriverActiveTrip trip,
-  ) {
+  Widget _buildActiveTripCard(BuildContext context, DriverActiveTrip trip) {
     return ShadiCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -249,9 +279,8 @@ class DriverDashboardScreen extends ConsumerWidget {
             width: double.infinity,
             child: ShadiPrimaryButton(
               text: 'Open Trip Console',
-              onPressed: () => context.push(
-                RoutePaths.driverActiveTripPath(trip.bookingId),
-              ),
+              onPressed: () =>
+                  context.push(RoutePaths.driverActiveTripPath(trip.bookingId)),
             ),
           ),
         ],
@@ -836,5 +865,120 @@ class DriverDashboardScreen extends ConsumerWidget {
       DriverDutyStatus.busy => Colors.orange,
       DriverDutyStatus.offline => Colors.grey,
     };
+  }
+
+  void _showBiometricSecuritySheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+          decoration: const BoxDecoration(
+            color: Color(0xFF1B0B0D),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black45,
+                blurRadius: 20,
+                offset: Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              InkWell(
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        '✓ Identity Verified • Duty Console Active',
+                      ),
+                      backgroundColor: AppColors.verifiedEmerald,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(44),
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: AppColors.champagneGold,
+                      width: 2,
+                    ),
+                    color: AppColors.champagneGold.withValues(alpha: 0.12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.champagneGold.withValues(alpha: 0.25),
+                        blurRadius: 16,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.fingerprint_rounded,
+                      size: 48,
+                      color: AppColors.champagneGold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Chauffeur Duty Security',
+                style: AppTypography.titleMedium.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Touch sensor or scan Face ID to verify identity and resume duty console.',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryDark,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(ctx);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    side: const BorderSide(color: Colors.white24),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Dismiss'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

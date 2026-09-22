@@ -6,6 +6,7 @@ import '../../../app/router/route_paths.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/shadi_card.dart';
+import '../../../core/widgets/shadi_ceremonial_route_map.dart';
 import '../../../core/widgets/shadi_primary_button.dart';
 import '../../../core/widgets/shadi_secondary_button.dart';
 import '../domain/entities/driver_trip_stage.dart';
@@ -231,8 +232,7 @@ class DriverActiveTripScreen extends ConsumerWidget {
                 ),
                 CheckboxListTile(
                   value: grooming,
-                  onChanged: (v) =>
-                      setSheetState(() => grooming = v ?? false),
+                  onChanged: (v) => setSheetState(() => grooming = v ?? false),
                   title: const Text('Grooming & ceremonial attire inspected'),
                   controlAffinity: ListTileControlAffinity.leading,
                 ),
@@ -444,6 +444,20 @@ class DriverActiveTripScreen extends ConsumerWidget {
         children: [
           Text('Route & Venue Details', style: AppTypography.labelMedium),
           const SizedBox(height: 12),
+          ShadiCeremonialRouteMap(
+            pickupLocation: trip.pickupAddress,
+            destinationLocation: trip.destinationAddress.isNotEmpty
+                ? trip.destinationAddress
+                : 'Ceremonial Banquet Hall',
+            distance: trip.routeDistanceKm != null
+                ? '${trip.routeDistanceKm!.toStringAsFixed(1)} km'
+                : '14.2 km',
+            duration: '32 mins',
+            isLive:
+                trip.stage == DriverTripStage.enRouteToPickup ||
+                trip.stage == DriverTripStage.ceremonyInProgress,
+          ),
+          const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -636,14 +650,24 @@ class DriverActiveTripScreen extends ConsumerWidget {
         return ShadiPrimaryButton(
           text: 'Start Journey to Pickup',
           isLoading: isUpdating,
-          onPressed: isUpdating ? null : () => controller.startEnRoute(),
+          onPressed: isUpdating
+              ? null
+              : () {
+                  HapticFeedback.mediumImpact();
+                  controller.startEnRoute();
+                },
         );
 
       case DriverTripStage.enRouteToPickup:
         return ShadiPrimaryButton(
           text: 'Arrived at Pickup / Venue',
           isLoading: isUpdating,
-          onPressed: isUpdating ? null : () => controller.markArrived(),
+          onPressed: isUpdating
+              ? null
+              : () {
+                  HapticFeedback.mediumImpact();
+                  controller.markArrived();
+                },
         );
 
       case DriverTripStage.arrivedAtPickup:
@@ -652,14 +676,22 @@ class DriverActiveTripScreen extends ConsumerWidget {
           isLoading: isUpdating,
           onPressed: isUpdating
               ? null
-              : () => _showStartOtpModal(context, controller),
+              : () {
+                  HapticFeedback.mediumImpact();
+                  _showStartOtpModal(context, controller);
+                },
         );
 
       case DriverTripStage.ceremonyInProgress:
         return ShadiPrimaryButton(
           text: 'Conclude Ceremonial Service',
           isLoading: isUpdating,
-          onPressed: isUpdating ? null : () => controller.completeService(),
+          onPressed: isUpdating
+              ? null
+              : () {
+                  HapticFeedback.mediumImpact();
+                  controller.completeService();
+                },
         );
 
       case DriverTripStage.completed:
@@ -782,6 +814,7 @@ class DriverActiveTripScreen extends ConsumerWidget {
                   ShadiPrimaryButton(
                     text: 'Confirm & Begin Ceremony',
                     onPressed: () async {
+                      HapticFeedback.mediumImpact();
                       final code = otpController.text.trim();
                       Navigator.pop(modalCtx);
                       await controller.startCeremonyService(

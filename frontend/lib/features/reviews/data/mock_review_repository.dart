@@ -75,6 +75,5 @@ class MockReviewRepository implements ReviewRepository {
   }
 
   /// All reviews (newest first) — used by tests and future profile surfacing.
-  List<SubmittedReview> get allReviews =>
-      List.unmodifiable(_reviews);
+  List<SubmittedReview> get allReviews => List.unmodifiable(_reviews);
 }

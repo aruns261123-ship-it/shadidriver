@@ -32,26 +32,31 @@ void main() {
   });
 
   group('Admin Emergency Standby Override', () {
-    test('force-dispatches an AVAILABLE chauffeur for an unaccepted booking',
-        () async {
-      container.listen(adminDashboardControllerProvider, (_, _) {});
-      final controller =
-          container.read(adminDashboardControllerProvider.notifier);
+    test(
+      'force-dispatches an AVAILABLE chauffeur for an unaccepted booking',
+      () async {
+        container.listen(adminDashboardControllerProvider, (_, _) {});
+        final controller = container.read(
+          adminDashboardControllerProvider.notifier,
+        );
 
-      final updated = await controller.dispatchEmergencyStandby('bk_mock_req_1');
+        final updated = await controller.dispatchEmergencyStandby(
+          'bk_mock_req_1',
+        );
 
-      expect(updated, isNotNull);
-      expect(updated!.status, BookingStatus.emergencyReplacement);
-      expect(updated.chauffeurId, isNotEmpty);
+        expect(updated, isNotNull);
+        expect(updated!.status, BookingStatus.emergencyReplacement);
+        expect(updated.chauffeurId, isNotEmpty);
 
-      final state = container.read(adminDashboardControllerProvider);
-      expect(
-        state.dispatchEntries.any(
-          (e) => e.booking.status == BookingStatus.emergencyReplacement,
-        ),
-        isTrue,
-      );
-    });
+        final state = container.read(adminDashboardControllerProvider);
+        expect(
+          state.dispatchEntries.any(
+            (e) => e.booking.status == BookingStatus.emergencyReplacement,
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('fails cleanly when no AVAILABLE chauffeur exists', () async {
       // Mark every roster chauffeur BUSY so none is available for standby.
@@ -64,16 +69,16 @@ void main() {
       }
 
       container.listen(adminDashboardControllerProvider, (_, _) {});
-      final controller =
-          container.read(adminDashboardControllerProvider.notifier);
+      final controller = container.read(
+        adminDashboardControllerProvider.notifier,
+      );
 
-      final updated = await controller.dispatchEmergencyStandby('bk_mock_req_1');
+      final updated = await controller.dispatchEmergencyStandby(
+        'bk_mock_req_1',
+      );
 
       expect(updated, isNull);
-      expect(
-        controller.state.errorMessage,
-        contains('No AVAILABLE chauffeur'),
-      );
+      expect(controller.state.errorMessage, contains('No AVAILABLE chauffeur'));
     });
   });
 
@@ -96,34 +101,33 @@ void main() {
       expect(state.fleetEntries, isNotEmpty);
     });
 
-    test('accept offer then start trip mirrors EN ROUTE into the monitor',
-        () async {
-      container.listen(adminDashboardControllerProvider, (_, _) {});
-      await container
-          .read(adminDashboardControllerProvider.notifier)
-          .loadDashboard();
+    test(
+      'accept offer then start trip mirrors EN ROUTE into the monitor',
+      () async {
+        container.listen(adminDashboardControllerProvider, (_, _) {});
+        await container
+            .read(adminDashboardControllerProvider.notifier)
+            .loadDashboard();
 
-      container.listen(driverBookingActionControllerProvider, (_, _) {});
-      final actionController = container.read(
-        driverBookingActionControllerProvider.notifier,
-      );
-      await actionController.acceptOffer('bk_mock_req_1');
+        container.listen(driverBookingActionControllerProvider, (_, _) {});
+        final actionController = container.read(
+          driverBookingActionControllerProvider.notifier,
+        );
+        await actionController.acceptOffer('bk_mock_req_1');
 
-      final tripController = container.read(
-        trip.driverActiveTripControllerProvider('bk_mock_req_1').notifier,
-      );
-      await tripController.startEnRoute();
+        final tripController = container.read(
+          trip.driverActiveTripControllerProvider('bk_mock_req_1').notifier,
+        );
+        await tripController.startEnRoute();
 
-      await container
-          .read(adminDashboardControllerProvider.notifier)
-          .loadDashboard();
+        await container
+            .read(adminDashboardControllerProvider.notifier)
+            .loadDashboard();
 
-      final state = container.read(adminDashboardControllerProvider);
-      expect(
-        state.dispatchEntries.first.statusLabel,
-        'EN ROUTE',
-      );
-    });
+        final state = container.read(adminDashboardControllerProvider);
+        expect(state.dispatchEntries.first.statusLabel, 'EN ROUTE');
+      },
+    );
 
     test('completed service drops out of the dispatch monitor', () async {
       container.listen(adminDashboardControllerProvider, (_, _) {});
@@ -156,26 +160,29 @@ void main() {
       expect(state.dispatchEntries, isEmpty);
     });
 
-    test('busying a chauffeur does not reduce on-duty KPI below offline count',
-        () async {
-      container.listen(adminDashboardControllerProvider, (_, _) {});
-      final controller =
-          container.read(adminDashboardControllerProvider.notifier);
-      await controller.loadDashboard();
+    test(
+      'busying a chauffeur does not reduce on-duty KPI below offline count',
+      () async {
+        container.listen(adminDashboardControllerProvider, (_, _) {});
+        final controller = container.read(
+          adminDashboardControllerProvider.notifier,
+        );
+        await controller.loadDashboard();
 
-      final before = container.read(adminDashboardControllerProvider);
+        final before = container.read(adminDashboardControllerProvider);
 
-      await mockDriverRepo.updateDutyStatus(
-        driverId: 'd1',
-        status: DriverDutyStatus.busy,
-      );
-      await controller.loadDashboard();
+        await mockDriverRepo.updateDutyStatus(
+          driverId: 'd1',
+          status: DriverDutyStatus.busy,
+        );
+        await controller.loadDashboard();
 
-      final after = container.read(adminDashboardControllerProvider);
+        final after = container.read(adminDashboardControllerProvider);
 
-      // BUSY still counts as on-duty; total roster composition unchanged.
-      expect(after.onDutyCount, before.onDutyCount);
-    });
+        // BUSY still counts as on-duty; total roster composition unchanged.
+        expect(after.onDutyCount, before.onDutyCount);
+      },
+    );
 
     test('DriverTripStage completed maps finished trips for history views', () {
       // Sanity: stage mapping is exercised via the completed-assignments path.

@@ -108,8 +108,9 @@ void main() {
         await tripController.completeService();
 
         // Booking store now holds the completed record.
-        final completed =
-            await mockBookingRepo.getCompletedBookings(driverId: testDriverId);
+        final completed = await mockBookingRepo.getCompletedBookings(
+          driverId: testDriverId,
+        );
         expect(completed.dataOrNull, hasLength(1));
         expect(completed.dataOrNull?.first.status, BookingStatus.completed);
 
@@ -182,7 +183,9 @@ void main() {
         // Allow the fire-and-forget duty engagement to land in the store.
         await Future<void>.delayed(const Duration(milliseconds: 250));
 
-        final busyAfterAccept = await mockDriverRepo.getDutyStatus(testDriverId);
+        final busyAfterAccept = await mockDriverRepo.getDutyStatus(
+          testDriverId,
+        );
         expect(busyAfterAccept.dataOrNull, DriverDutyStatus.busy);
 
         // Completing the assignment releases duty back to AVAILABLE.
@@ -191,8 +194,9 @@ void main() {
         );
         await tripController.completeService();
 
-        final dutyAfterComplete =
-            await mockDriverRepo.getDutyStatus(testDriverId);
+        final dutyAfterComplete = await mockDriverRepo.getDutyStatus(
+          testDriverId,
+        );
         expect(dutyAfterComplete.dataOrNull, DriverDutyStatus.available);
       },
     );

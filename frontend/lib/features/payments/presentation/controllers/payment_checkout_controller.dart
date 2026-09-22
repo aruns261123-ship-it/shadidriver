@@ -62,8 +62,7 @@ class PaymentCheckoutState {
 /// signature verification → booking transition to CONFIRMED. A gateway decline
 /// or failed verification surfaces the error and keeps the booking unconfirmed,
 /// allowing retry.
-class PaymentCheckoutController
-    extends StateNotifier<PaymentCheckoutState> {
+class PaymentCheckoutController extends StateNotifier<PaymentCheckoutState> {
   final PaymentRepository paymentRepository;
   final BookingRepository bookingRepository;
   final String bookingId;
@@ -103,19 +102,19 @@ class PaymentCheckoutController
 
     PaymentOrder? order;
     var orderFailed = false;
-    orderResult.fold(
-      (failure) {
-        orderFailed = true;
-        state = state.copyWith(
-          stage: PaymentCheckoutStage.failed,
-          errorMessage: failure.message,
-        );
-      },
-      (created) => order = created,
-    );
+    orderResult.fold((failure) {
+      orderFailed = true;
+      state = state.copyWith(
+        stage: PaymentCheckoutStage.failed,
+        errorMessage: failure.message,
+      );
+    }, (created) => order = created);
     if (orderFailed || order == null) return false;
 
-    state = state.copyWith(stage: PaymentCheckoutStage.awaitingGateway, order: order);
+    state = state.copyWith(
+      stage: PaymentCheckoutStage.awaitingGateway,
+      order: order,
+    );
 
     // 2. Hosted gateway checkout (simulated).
     state = state.copyWith(stage: PaymentCheckoutStage.processingPayment);
@@ -126,16 +125,13 @@ class PaymentCheckoutController
 
     String? paymentId;
     var checkoutFailed = false;
-    checkoutResult.fold(
-      (failure) {
-        checkoutFailed = true;
-        state = state.copyWith(
-          stage: PaymentCheckoutStage.failed,
-          errorMessage: failure.message,
-        );
-      },
-      (paymentIdResolved) => paymentId = paymentIdResolved,
-    );
+    checkoutResult.fold((failure) {
+      checkoutFailed = true;
+      state = state.copyWith(
+        stage: PaymentCheckoutStage.failed,
+        errorMessage: failure.message,
+      );
+    }, (paymentIdResolved) => paymentId = paymentIdResolved);
     if (checkoutFailed || paymentId == null) return false;
 
     // 3. Server-side signature verification → CONFIRMED.

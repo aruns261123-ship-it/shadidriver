@@ -279,9 +279,12 @@ class BookingResultScreen extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 16),
                     child: ShadiPrimaryButton(
                       key: const Key('pay_advance_token_cta'),
-                      text: 'Pay Advance Token • ${CurrencyFormatter.formatPaise(result.advanceTokenPaise)}',
+                      text:
+                          'Pay Advance Token • ${CurrencyFormatter.formatPaise(result.advanceTokenPaise)}',
                       onPressed: () => context.push(
-                        RoutePaths.customerPaymentCheckoutPath(result.bookingId),
+                        RoutePaths.customerPaymentCheckoutPath(
+                          result.bookingId,
+                        ),
                       ),
                     ),
                   ),

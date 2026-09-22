@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/providers/app_providers.dart';
@@ -191,8 +192,9 @@ class _UrgentDispatchSosScreenState
                       (c) => ChoiceChip(
                         label: Text(c.name),
                         selected: _selectedCategory == c,
-                        selectedColor:
-                            AppColors.urgentSaffron.withValues(alpha: 0.2),
+                        selectedColor: AppColors.urgentSaffron.withValues(
+                          alpha: 0.2,
+                        ),
                         labelStyle: AppTypography.labelLarge.copyWith(
                           color: _selectedCategory == c
                               ? AppColors.urgentSaffron
@@ -229,10 +231,9 @@ class _UrgentDispatchSosScreenState
                 ),
                 prefixIcon: const Icon(Icons.location_on_outlined),
               ),
-              validator: (value) =>
-                  (value == null || value.trim().isEmpty)
-                      ? 'Please enter the pickup address'
-                      : null,
+              validator: (value) => (value == null || value.trim().isEmpty)
+                  ? 'Please enter the pickup address'
+                  : null,
             ),
             const SizedBox(height: 28),
 
@@ -245,6 +246,7 @@ class _UrgentDispatchSosScreenState
                   ? null
                   : () {
                       if (!_formKey.currentState!.validate()) return;
+                      HapticFeedback.heavyImpact();
                       ref
                           .read(urgentDispatchControllerProvider.notifier)
                           .submitRequest(

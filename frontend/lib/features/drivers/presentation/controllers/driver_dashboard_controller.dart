@@ -38,13 +38,13 @@ final currentDriverIdProvider = Provider<String>((ref) {
 /// Console (duty chips) and the Chauffeur Profile (availability badge).
 final driverDutyStatusProvider = FutureProvider.autoDispose
     .family<DriverDutyStatus, String>((ref, driverId) async {
-  final driverRepo = ref.watch(driverRepositoryProvider);
-  final result = await driverRepo.getDutyStatus(driverId);
-  return result.fold(
-    (failure) => DriverDutyStatus.available,
-    (status) => status,
-  );
-});
+      final driverRepo = ref.watch(driverRepositoryProvider);
+      final result = await driverRepo.getDutyStatus(driverId);
+      return result.fold(
+        (failure) => DriverDutyStatus.available,
+        (status) => status,
+      );
+    });
 
 /// State representation for the Chauffeur / Driver Dashboard.
 @immutable
@@ -256,7 +256,9 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
 /// Kept alive (not autoDispose) so trip completions made in the Active Trip
 /// Console are reflected when the chauffeur returns to this dashboard.
 final driverDashboardControllerProvider =
-    StateNotifierProvider<DriverDashboardController, DriverDashboardState>((ref) {
+    StateNotifierProvider<DriverDashboardController, DriverDashboardState>((
+      ref,
+    ) {
       final driverRepo = ref.watch(driverRepositoryProvider);
       final bookingRepo = ref.watch(bookingRepositoryProvider);
       final pricingPolicy = ref.watch(bookingPricingPolicyProvider);

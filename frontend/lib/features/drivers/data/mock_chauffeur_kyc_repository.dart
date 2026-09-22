@@ -136,10 +136,7 @@ class MockChauffeurKycRepository implements ChauffeurKycRepository {
     }
 
     final updated = application.copyWith(
-      documents: {
-        ...application.documents,
-        documentType: fileReference.trim(),
-      },
+      documents: {...application.documents, documentType: fileReference.trim()},
     );
     _applications[applicationId] = updated;
     return Result.success(updated);
@@ -192,8 +189,12 @@ class MockChauffeurKycRepository implements ChauffeurKycRepository {
     }
 
     final updated = application.copyWith(
-      status: approve ? ChauffeurKycStatus.approved : ChauffeurKycStatus.rejected,
-      rejectionReason: approve ? null : (reason ?? 'Operational review declined.'),
+      status: approve
+          ? ChauffeurKycStatus.approved
+          : ChauffeurKycStatus.rejected,
+      rejectionReason: approve
+          ? null
+          : (reason ?? 'Operational review declined.'),
     );
     _applications[applicationId] = updated;
     return Result.success(updated);

@@ -159,8 +159,9 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                     (c) => ChoiceChip(
                       label: Text(c),
                       selected: _category == c,
-                      selectedColor:
-                          AppColors.primaryBurgundy.withValues(alpha: 0.15),
+                      selectedColor: AppColors.primaryBurgundy.withValues(
+                        alpha: 0.15,
+                      ),
                       labelStyle: AppTypography.labelLarge.copyWith(
                         color: _category == c
                             ? AppColors.primaryBurgundy
@@ -195,10 +196,9 @@ class _SupportTicketScreenState extends ConsumerState<SupportTicketScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              validator: (value) =>
-                  (value == null || value.trim().length < 10)
-                      ? 'Please describe the issue (at least 10 characters)'
-                      : null,
+              validator: (value) => (value == null || value.trim().length < 10)
+                  ? 'Please describe the issue (at least 10 characters)'
+                  : null,
             ),
             const SizedBox(height: 28),
 

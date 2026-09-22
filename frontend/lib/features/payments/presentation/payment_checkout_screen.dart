@@ -34,11 +34,14 @@ class PaymentCheckoutScreen extends ConsumerWidget {
     if (booking == null) {
       return const Scaffold(
         backgroundColor: AppColors.backgroundLight,
-        body: Center(child: ShadiLoadingIndicator(message: 'Preparing checkout…')),
+        body: Center(
+          child: ShadiLoadingIndicator(message: 'Preparing checkout…'),
+        ),
       );
     }
 
-    final isConfirmed = booking.status == BookingStatus.confirmed ||
+    final isConfirmed =
+        booking.status == BookingStatus.confirmed ||
         state.stage == PaymentCheckoutStage.success;
 
     return Scaffold(
@@ -68,7 +71,8 @@ class PaymentCheckoutScreen extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: ShadiErrorView(
-                    message: state.errorMessage ?? 'Payment failed. Please retry.',
+                    message:
+                        state.errorMessage ?? 'Payment failed. Please retry.',
                     onRetry: () {
                       controller.reset();
                     },
@@ -150,10 +154,7 @@ class PaymentCheckoutScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSuccessCard(
-    BuildContext context,
-    PaymentCheckoutState state,
-  ) {
+  Widget _buildSuccessCard(BuildContext context, PaymentCheckoutState state) {
     final booking = state.booking;
     return Column(
       children: [
@@ -197,9 +198,7 @@ class PaymentCheckoutScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               _buildInfoRow(
                 'Token Paid',
-                CurrencyFormatter.formatPaise(
-                  state.order?.amountCents ?? 0,
-                ),
+                CurrencyFormatter.formatPaise(state.order?.amountCents ?? 0),
               ),
               const SizedBox(height: 8),
               _buildInfoRow('Status', 'CONFIRMED'),

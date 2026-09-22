@@ -34,7 +34,5 @@ abstract interface class ChauffeurKycRepository {
   });
 
   /// Fetches a single application by ID (document viewer source).
-  Future<Result<ChauffeurKycApplication>> getApplication(
-    String applicationId,
-  );
+  Future<Result<ChauffeurKycApplication>> getApplication(String applicationId);
 }

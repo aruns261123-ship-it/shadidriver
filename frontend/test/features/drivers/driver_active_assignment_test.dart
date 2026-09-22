@@ -31,43 +31,48 @@ void main() {
       mockBookingRepo = MockBookingRepository();
     });
 
-    test('no active assignment card data before an offer is accepted', () async {
-      final container = makeContainer();
-      addTearDown(container.dispose);
+    test(
+      'no active assignment card data before an offer is accepted',
+      () async {
+        final container = makeContainer();
+        addTearDown(container.dispose);
 
-      final controller = container.read(
-        driverDashboardControllerProvider.notifier,
-      );
-      await controller.loadDashboard();
+        final controller = container.read(
+          driverDashboardControllerProvider.notifier,
+        );
+        await controller.loadDashboard();
 
-      expect(controller.state.activeAssignment, isNull);
-      expect(controller.state.hasActiveAssignment, isFalse);
-      // The seeded booking is still an unclaimed offer, not an assignment.
-      expect(controller.state.offers, hasLength(1));
-    });
+        expect(controller.state.activeAssignment, isNull);
+        expect(controller.state.hasActiveAssignment, isFalse);
+        // The seeded booking is still an unclaimed offer, not an assignment.
+        expect(controller.state.offers, hasLength(1));
+      },
+    );
 
-    test('accepting an offer surfaces the assignment on the dashboard',
-        () async {
-      final container = makeContainer();
-      addTearDown(container.dispose);
+    test(
+      'accepting an offer surfaces the assignment on the dashboard',
+      () async {
+        final container = makeContainer();
+        addTearDown(container.dispose);
 
-      container.listen(driverBookingActionControllerProvider, (_, _) {});
-      final actionController = container.read(
-        driverBookingActionControllerProvider.notifier,
-      );
-      expect(await actionController.acceptOffer('bk_mock_req_1'), isTrue);
+        container.listen(driverBookingActionControllerProvider, (_, _) {});
+        final actionController = container.read(
+          driverBookingActionControllerProvider.notifier,
+        );
+        expect(await actionController.acceptOffer('bk_mock_req_1'), isTrue);
 
-      final controller = container.read(
-        driverDashboardControllerProvider.notifier,
-      );
-      await controller.loadDashboard();
+        final controller = container.read(
+          driverDashboardControllerProvider.notifier,
+        );
+        await controller.loadDashboard();
 
-      final active = controller.state.activeAssignment;
-      expect(active, isNotNull);
-      expect(active!.bookingId, 'bk_mock_req_1');
-      expect(active.bookingReference, 'SD-2026-0100');
-      expect(active.stage, DriverTripStage.enRouteToPickup);
-    });
+        final active = controller.state.activeAssignment;
+        expect(active, isNotNull);
+        expect(active!.bookingId, 'bk_mock_req_1');
+        expect(active.bookingReference, 'SD-2026-0100');
+        expect(active.stage, DriverTripStage.enRouteToPickup);
+      },
+    );
 
     test(
       'completed service clears the active assignment and appears in history',
@@ -94,8 +99,7 @@ void main() {
         await tripController.completeService();
 
         // The booking store now records the service as COMPLETED.
-        final activeInStore =
-            await mockBookingRepo.getDriverActiveAssignments(
+        final activeInStore = await mockBookingRepo.getDriverActiveAssignments(
           driverId: 'd1',
         );
         expect(activeInStore.dataOrNull, isEmpty);

@@ -28,12 +28,13 @@ void main() {
 
   PaymentCheckoutController makeController(String bookingId) {
     container.listen(paymentCheckoutControllerProvider(bookingId), (_, _) {});
-    return container.read(paymentCheckoutControllerProvider(bookingId).notifier);
+    return container.read(
+      paymentCheckoutControllerProvider(bookingId).notifier,
+    );
   }
 
   group('Advance Token Payment Flow', () {
-    test('creating an order returns a CREATED order for the booking',
-        () async {
+    test('creating an order returns a CREATED order for the booking', () async {
       final result = await paymentRepo.createAdvanceTokenOrder(
         bookingId: 'bk_x',
         idempotencyKey: 'idem_1',
@@ -44,8 +45,7 @@ void main() {
       expect(result.dataOrNull!.currency, 'INR');
     });
 
-    test('successful checkout transitions the booking to CONFIRMED',
-        () async {
+    test('successful checkout transitions the booking to CONFIRMED', () async {
       // Seed: a driver-accepted booking that awaits the advance token.
       final seeded = await bookingStore.getSubmissionResult('bk_mock_req_1');
       expect(seeded, isNotNull);
@@ -57,9 +57,9 @@ void main() {
       expect(paid, isTrue);
       expect(controller.state.stage, PaymentCheckoutStage.success);
 
-      final booking =
-          (await bookingStore.getSubmissionResult('bk_mock_req_1'))
-              .dataOrNull!;
+      final booking = (await bookingStore.getSubmissionResult(
+        'bk_mock_req_1',
+      )).dataOrNull!;
       expect(booking.status, BookingStatus.confirmed);
     });
 
@@ -81,8 +81,7 @@ void main() {
       expect(retried, isTrue);
     });
 
-    test('tampered signature fails verification without confirming',
-        () async {
+    test('tampered signature fails verification without confirming', () async {
       final order = (await paymentRepo.createAdvanceTokenOrder(
         bookingId: 'bk_mock_req_1',
         idempotencyKey: 'idem_sig',
@@ -100,9 +99,9 @@ void main() {
       );
 
       expect(verify.dataOrNull, isNull);
-      final booking =
-          (await bookingStore.getSubmissionResult('bk_mock_req_1'))
-              .dataOrNull!;
+      final booking = (await bookingStore.getSubmissionResult(
+        'bk_mock_req_1',
+      )).dataOrNull!;
       expect(booking.status, isNot(BookingStatus.confirmed));
     });
   });

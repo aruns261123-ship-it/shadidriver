@@ -8,8 +8,10 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/shadi_card.dart';
+import '../../../core/widgets/shadi_ceremonial_route_map.dart';
 import '../../../core/widgets/shadi_error_view.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
+import '../../../core/widgets/shadi_muhurat_countdown_ticker.dart';
 import '../../../core/widgets/shadi_primary_button.dart';
 import '../../../core/widgets/shadi_status_badge.dart';
 import '../domain/entities/booking_summary.dart';
@@ -19,12 +21,12 @@ import '../../reviews/presentation/widgets/review_submission_sheet.dart';
 
 /// Loads the authoritative booking record by ID (works for any booking in the
 /// store — historical and current-session alike).
-final bookingDetailProvider =
-    FutureProvider.autoDispose.family<BookingSummary?, String>((ref, id) async {
-  final repo = ref.watch(bookingRepositoryProvider);
-  final result = await repo.getBookingById(id);
-  return result.dataOrNull;
-});
+final bookingDetailProvider = FutureProvider.autoDispose
+    .family<BookingSummary?, String>((ref, id) async {
+      final repo = ref.watch(bookingRepositoryProvider);
+      final result = await repo.getBookingById(id);
+      return result.dataOrNull;
+    });
 
 /// Customer Booking Detail — full lifecycle timeline for any booking.
 ///
@@ -94,10 +96,7 @@ class BookingDetailScreen extends ConsumerWidget {
           // Status header
           Row(
             children: [
-              ShadiStatusBadge(
-                status: status,
-                color: _statusColor(status),
-              ),
+              ShadiStatusBadge(status: status, color: _statusColor(status)),
               const Spacer(),
               Text(
                 booking.reference,
@@ -109,6 +108,16 @@ class BookingDetailScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
+
+          // Live Muhurat lagna ticker
+          if (!isCompleted && !isCancelled) ...[
+            ShadiMuhuratCountdownTicker(
+              targetTime: booking.eventStartTime,
+              ceremonyName: '${booking.serviceCategory} Ceremony',
+              venueName: booking.pickupAddress,
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Ceremony summary card
           ShadiCard(
@@ -126,8 +135,8 @@ class BookingDetailScreen extends ConsumerWidget {
                 _infoRow(
                   'Date & Time',
                   '${DateFormatter.formatCeremonyDate(booking.eventStartTime)} • '
-                  '${booking.eventStartTime.hour.toString().padLeft(2, '0')}:'
-                  '${booking.eventStartTime.minute.toString().padLeft(2, '0')}',
+                      '${booking.eventStartTime.hour.toString().padLeft(2, '0')}:'
+                      '${booking.eventStartTime.minute.toString().padLeft(2, '0')}',
                 ),
                 const SizedBox(height: 8),
                 _infoRow('Duration', booking.formattedDuration),
@@ -142,12 +151,124 @@ class BookingDetailScreen extends ConsumerWidget {
                 ],
                 if (booking.chauffeurName.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  _infoRow('Chauffeur', booking.chauffeurName),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: _infoRow('Chauffeur', booking.chauffeurName),
+                      ),
+                      OutlinedButton.icon(
+                        key: const Key('detail_call_chauffeur_cta'),
+                        icon: const Icon(Icons.phone_rounded, size: 14),
+                        label: const Text('Call'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primaryBurgundy,
+                          side: const BorderSide(
+                            color: AppColors.champagneGold,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          textStyle: AppTypography.labelSmall.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Connecting to Chauffeur ${booking.chauffeurName}…',
+                              ),
+                              backgroundColor: AppColors.primaryBurgundy,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ],
               ],
             ),
           ),
           const SizedBox(height: 16),
+
+          // Ceremonial Route & GPS Telemetry Preview
+          ShadiCeremonialRouteMap(
+            pickupLocation: booking.pickupAddress,
+            destinationLocation: booking.destinationAddress.isNotEmpty
+                ? booking.destinationAddress
+                : 'Royal Banquet Hall',
+            isLive: status == 'IN_PROGRESS' || status == 'CONFIRMED',
+          ),
+          const SizedBox(height: 16),
+
+          // Ceremony Start Code OTP Card
+          if (isConfirmed || _statusRank(status) >= 3) ...[
+            ShadiCard(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.champagneGold.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.key_rounded,
+                      color: AppColors.primaryBurgundy,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ceremony Start Code',
+                          style: AppTypography.titleSmall.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryBurgundy,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Share this 4-digit code with your chauffeur upon arrival at venue.',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.textSecondaryLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    key: const Key('ceremony_start_otp_badge'),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBurgundy,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '1234',
+                      style: AppTypography.titleMedium.copyWith(
+                        color: AppColors.champagneGold,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Fare card
           ShadiCard(
@@ -200,7 +321,11 @@ class BookingDetailScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                _timelineItem('Request Submitted', 'Your ceremonial intent was received.', true),
+                _timelineItem(
+                  'Request Submitted',
+                  'Your ceremonial intent was received.',
+                  true,
+                ),
                 _timelineItem(
                   'Chauffeur Assigned',
                   'A royal chauffeur was confirmed for your ceremony.',
@@ -252,8 +377,11 @@ class BookingDetailScreen extends ConsumerWidget {
               padding: EdgeInsets.all(12),
               child: Row(
                 children: [
-                  Icon(Icons.verified_rounded,
-                      color: AppColors.verifiedEmerald, size: 18),
+                  Icon(
+                    Icons.verified_rounded,
+                    color: AppColors.verifiedEmerald,
+                    size: 18,
+                  ),
                   SizedBox(width: 8),
                   Text('Review submitted — thank you!'),
                 ],
@@ -262,8 +390,7 @@ class BookingDetailScreen extends ConsumerWidget {
           if (canCancel) ...[
             OutlinedButton(
               key: const Key('detail_cancel_cta'),
-              onPressed: () =>
-                  _confirmCancellation(context, ref, booking),
+              onPressed: () => _confirmCancellation(context, ref, booking),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red.shade700,
                 side: BorderSide(color: Colors.red.shade300),
@@ -299,8 +426,7 @@ class BookingDetailScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             TextField(
               controller: reasonController,
-              decoration:
-                  const InputDecoration(hintText: 'Reason (required)'),
+              decoration: const InputDecoration(hintText: 'Reason (required)'),
             ),
           ],
         ),

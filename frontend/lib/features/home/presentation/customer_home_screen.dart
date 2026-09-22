@@ -6,6 +6,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/shadi_section_header.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
+import '../../../core/widgets/shadi_muhurat_countdown_ticker.dart';
 import '../../../core/widgets/shadi_error_view.dart';
 import '../../../app/providers/app_providers.dart';
 import '../../../app/router/route_paths.dart';
@@ -85,6 +86,14 @@ class CustomerHomeScreen extends ConsumerWidget {
                       onSearch: () {
                         searchByOccasion('Baraat');
                       },
+                    ),
+
+                    const SizedBox(height: AppSpacing.lg),
+
+                    const ShadiMuhuratCountdownTicker(
+                      ceremonyName: 'Today’s Auspicious Muhurat Lagna',
+                      venueName:
+                          'Vedic Wedding Astrological Window • Prime Ceremonial Hours',
                     ),
 
                     const SizedBox(height: AppSpacing.section),

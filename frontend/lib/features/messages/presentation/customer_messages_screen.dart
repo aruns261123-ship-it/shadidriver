@@ -20,8 +20,7 @@ class CustomerMessagesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final threads = ref.watch(customerMessagesProvider);
-    final notificationsAsync =
-        ref.watch(notificationsControllerProvider);
+    final notificationsAsync = ref.watch(notificationsControllerProvider);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -64,8 +63,7 @@ class CustomerMessagesScreen extends ConsumerWidget {
                   : ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: threads.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(height: 10),
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
                         final thread = threads[index];
                         return _MessageThreadCard(thread: thread);
@@ -76,13 +74,13 @@ class CustomerMessagesScreen extends ConsumerWidget {
   }
 }
 
-class _MessageThreadCard extends StatelessWidget {
+class _MessageThreadCard extends ConsumerWidget {
   final MessageThread thread;
 
   const _MessageThreadCard({required this.thread});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -93,53 +91,148 @@ class _MessageThreadCard extends StatelessWidget {
               : AppColors.champagneGold,
         ),
       ),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        leading: CircleAvatar(
-          backgroundColor: thread.isUnread
-              ? AppColors.primaryBurgundy.withValues(alpha: 0.1)
-              : AppColors.champagneGold.withValues(alpha: 0.3),
-          child: Icon(
-            thread.isUnread
-                ? Icons.mark_email_unread_rounded
-                : Icons.forum_outlined,
-            color: AppColors.primaryBurgundy,
-            size: 20,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 6,
           ),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                thread.title,
-                style: AppTypography.titleSmall.copyWith(
-                  color: AppColors.primaryBurgundy,
-                  fontWeight: thread.isUnread
-                      ? FontWeight.w700
-                      : FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+          onTap: () {
+            ref
+                .read(notificationsControllerProvider.notifier)
+                .markAsRead(thread.id);
+            _showThreadDetailsSheet(context, thread);
+          },
+          leading: CircleAvatar(
+            backgroundColor: thread.isUnread
+                ? AppColors.primaryBurgundy.withValues(alpha: 0.1)
+                : AppColors.champagneGold.withValues(alpha: 0.3),
+            child: Icon(
+              thread.isUnread
+                  ? Icons.mark_email_unread_rounded
+                  : Icons.forum_outlined,
+              color: AppColors.primaryBurgundy,
+              size: 20,
             ),
-            Text(
-              DateFormatter.formatCeremonyTime(thread.lastActivityAt),
-              style: AppTypography.labelSmall.copyWith(
+          ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  thread.title,
+                  style: AppTypography.titleSmall.copyWith(
+                    color: AppColors.primaryBurgundy,
+                    fontWeight: thread.isUnread
+                        ? FontWeight.w700
+                        : FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                DateFormatter.formatCeremonyTime(thread.lastActivityAt),
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+            ],
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              thread.lastMessage,
+              style: AppTypography.bodySmall.copyWith(
                 color: AppColors.textSecondaryLight,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
+          ),
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            thread.lastMessage,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondaryLight,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  void _showThreadDetailsSheet(BuildContext context, MessageThread thread) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      thread.title,
+                      style: AppTypography.titleMedium.copyWith(
+                        color: AppColors.primaryBurgundy,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(sheetContext),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Received ${DateFormatter.formatCeremonyTime(thread.lastActivityAt)}',
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              const Divider(height: 24),
+              Text(
+                thread.lastMessage,
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.textPrimaryLight,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryBurgundy,
+                        side: const BorderSide(color: AppColors.champagneGold),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        context.go(RoutePaths.customerBookings);
+                      },
+                      child: const Text('View Bookings'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ShadiPrimaryButton(
+                      text: 'Concierge Help',
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        context.push(RoutePaths.customerSupportTicket);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

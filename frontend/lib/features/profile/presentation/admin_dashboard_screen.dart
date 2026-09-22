@@ -158,7 +158,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
 
           Text(
             'Active Ceremonial Dispatch',
-            style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.w700),
+            style: AppTypography.titleSmall.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 10),
 
@@ -210,7 +212,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+        children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(height: 8),
           Text(
@@ -423,8 +425,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
         itemBuilder: (context, index) {
           final applicant = state.applications[index];
           final isPending = applicant.status == ChauffeurKycStatus.pending;
-          final isActing =
-              state.actingApplicationId == applicant.applicationId;
+          final isActing = state.actingApplicationId == applicant.applicationId;
 
           final statusText = switch (applicant.status) {
             ChauffeurKycStatus.pending => 'PENDING',
@@ -479,10 +480,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
                         ),
                       ],
                     ),
-                    ShadiStatusBadge(
-                      status: statusText,
-                      color: statusColor,
-                    ),
+                    ShadiStatusBadge(status: statusText, color: statusColor),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -604,7 +602,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
                           onPressed: isActing
                               ? null
                               : () => _showRejectSheet(
-                                  context, controller, applicant),
+                                  context,
+                                  controller,
+                                  applicant,
+                                ),
                         ),
                       ),
                     ],
@@ -655,9 +656,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
               ),
             ),
             Text(
-              missing == 0
-                  ? 'Complete'
-                  : '$missing',
+              missing == 0 ? 'Complete' : '$missing',
               style: AppTypography.labelSmall.copyWith(
                 color: missing == 0
                     ? AppColors.verifiedEmerald
@@ -900,8 +899,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
           final statusColor = car.isEngaged
               ? Colors.blue.shade700
               : (car.vehicle.isAvailableNow
-                  ? AppColors.verifiedEmerald
-                  : AppColors.textSecondaryLight);
+                    ? AppColors.verifiedEmerald
+                    : AppColors.textSecondaryLight);
 
           return ShadiCard(
             key: Key('fleet_card_${car.vehicle.id}'),
@@ -944,8 +943,10 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),

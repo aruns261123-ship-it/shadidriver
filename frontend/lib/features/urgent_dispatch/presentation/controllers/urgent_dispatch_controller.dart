@@ -41,7 +41,7 @@ class UrgentDispatchController extends StateNotifier<UrgentDispatchState> {
   final UrgentDispatchRepository repository;
 
   UrgentDispatchController({required this.repository})
-      : super(const UrgentDispatchState());
+    : super(const UrgentDispatchState());
 
   Future<void> submitRequest({
     required ServiceCategory category,
@@ -64,18 +64,19 @@ class UrgentDispatchController extends StateNotifier<UrgentDispatchState> {
         isSubmitting: false,
         errorMessage: failure.message,
       ),
-      (dispatchId) => state = state.copyWith(
-        isSubmitting: false,
-        dispatchId: dispatchId,
-      ),
+      (dispatchId) =>
+          state = state.copyWith(isSubmitting: false, dispatchId: dispatchId),
     );
   }
 }
 
 /// Provider for the urgent dispatch SOS screen.
-final urgentDispatchControllerProvider = StateNotifierProvider.autoDispose<
-    UrgentDispatchController, UrgentDispatchState>((ref) {
-  return UrgentDispatchController(
-    repository: ref.watch(urgentDispatchRepositoryProvider),
-  );
-});
+final urgentDispatchControllerProvider =
+    StateNotifierProvider.autoDispose<
+      UrgentDispatchController,
+      UrgentDispatchState
+    >((ref) {
+      return UrgentDispatchController(
+        repository: ref.watch(urgentDispatchRepositoryProvider),
+      );
+    });

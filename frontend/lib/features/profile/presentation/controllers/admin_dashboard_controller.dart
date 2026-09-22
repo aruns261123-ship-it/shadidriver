@@ -26,7 +26,8 @@ class AdminDispatchEntry {
   String get bookingReference => booking.bookingReference;
   String get ceremonyType => booking.ceremonyType;
   String get vehicleName => booking.vehicleName;
-  String get route => '${booking.pickupAddress} → ${booking.destinationAddress}';
+  String get route =>
+      '${booking.pickupAddress} → ${booking.destinationAddress}';
 
   /// Operations-floor status label derived from the authoritative lifecycle.
   String get statusLabel => switch (booking.status) {
@@ -152,8 +153,7 @@ class AdminDashboardController extends StateNotifier<AdminDashboardState> {
       vehicleRepository.getAvailableVehicles(),
     ]);
 
-    final bookingsResult =
-        results[0] as Result<List<BookingSubmissionResult>>;
+    final bookingsResult = results[0] as Result<List<BookingSubmissionResult>>;
     final dutyResult = results[1] as Result<Map<String, DriverDutyStatus>>;
     final vehiclesResult = results[2] as Result<List<VehicleSummary>>;
 
@@ -161,9 +161,8 @@ class AdminDashboardController extends StateNotifier<AdminDashboardState> {
 
     final onDutyCount = dutyResult.fold(
       (_) => state.onDutyCount,
-      (statuses) => statuses.values
-          .where((s) => s != DriverDutyStatus.offline)
-          .length,
+      (statuses) =>
+          statuses.values.where((s) => s != DriverDutyStatus.offline).length,
     );
 
     final bookings = bookingsResult.dataOrNull ?? const [];
@@ -241,11 +240,11 @@ class AdminDashboardController extends StateNotifier<AdminDashboardState> {
     }
 
     final store = bookingRepository as dynamic;
-    final Result<BookingSubmissionResult> result =
-        store.dispatchEmergencyReplacement(
-      bookingId: bookingId,
-      driverId: standbyId,
-    );
+    final Result<BookingSubmissionResult> result = store
+        .dispatchEmergencyReplacement(
+          bookingId: bookingId,
+          driverId: standbyId,
+        );
 
     final failure = result.fold((f) => f, (_) => null);
     if (failure != null) {
@@ -282,12 +281,13 @@ class AdminDashboardController extends StateNotifier<AdminDashboardState> {
 
 /// Provider for the admin Operations Command Room.
 final adminDashboardControllerProvider =
-    StateNotifierProvider.autoDispose<AdminDashboardController, AdminDashboardState>(
-      (ref) {
-        return AdminDashboardController(
-          bookingRepository: ref.watch(bookingRepositoryProvider),
-          driverRepository: ref.watch(driverRepositoryProvider),
-          vehicleRepository: ref.watch(vehicleRepositoryProvider),
-        );
-      },
-    );
+    StateNotifierProvider.autoDispose<
+      AdminDashboardController,
+      AdminDashboardState
+    >((ref) {
+      return AdminDashboardController(
+        bookingRepository: ref.watch(bookingRepositoryProvider),
+        driverRepository: ref.watch(driverRepositoryProvider),
+        vehicleRepository: ref.watch(vehicleRepositoryProvider),
+      );
+    });

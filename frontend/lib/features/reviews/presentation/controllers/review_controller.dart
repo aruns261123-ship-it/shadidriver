@@ -40,10 +40,8 @@ class ReviewController extends StateNotifier<ReviewSubmissionState> {
   final ReviewRepository repository;
   final String bookingId;
 
-  ReviewController({
-    required this.repository,
-    required this.bookingId,
-  }) : super(const ReviewSubmissionState());
+  ReviewController({required this.repository, required this.bookingId})
+    : super(const ReviewSubmissionState());
 
   /// Submits the review. Returns true on success.
   Future<bool> submitReview({
@@ -82,11 +80,11 @@ class ReviewController extends StateNotifier<ReviewSubmissionState> {
 /// Family provider keyed by booking ID.
 final reviewControllerProvider = StateNotifierProvider.autoDispose
     .family<ReviewController, ReviewSubmissionState, String>((ref, bookingId) {
-  return ReviewController(
-    repository: ref.watch(reviewRepositoryProvider),
-    bookingId: bookingId,
-  );
-});
+      return ReviewController(
+        repository: ref.watch(reviewRepositoryProvider),
+        bookingId: bookingId,
+      );
+    });
 
 /// Whether a booking has already been reviewed (drives CTA vs "reviewed" tag).
 final bookingReviewedProvider = Provider.autoDispose.family<bool, String>((

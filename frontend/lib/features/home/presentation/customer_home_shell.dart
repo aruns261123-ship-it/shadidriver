@@ -56,7 +56,11 @@ class CustomerHomeShell extends StatelessWidget {
     if (location.startsWith(RoutePaths.customerSearch)) return 1;
     if (location.startsWith(RoutePaths.customerBookings)) return 2;
     if (location.startsWith(RoutePaths.customerMessages)) return 3;
-    if (location.startsWith(RoutePaths.customerProfile)) return 4;
+    if (location.startsWith(RoutePaths.customerProfile) ||
+        location.startsWith(RoutePaths.customerAddresses) ||
+        location.startsWith(RoutePaths.customerSupportTicket)) {
+      return 4;
+    }
     return 0; // Default to Home
   }
 

@@ -24,9 +24,9 @@ class MessageThread {
 /// Derives the customer's message threads from the shared notification feed —
 /// the same store booking lifecycle events, chauffeur assignments, and payment
 /// confirmations are pushed to, so Messages stays live automatically.
-final customerMessagesProvider =
-    Provider<List<MessageThread>>((ref) {
-  final items = ref.watch(notificationsControllerProvider).valueOrNull ??
+final customerMessagesProvider = Provider<List<MessageThread>>((ref) {
+  final items =
+      ref.watch(notificationsControllerProvider).valueOrNull ??
       const <NotificationItem>[];
 
   return [

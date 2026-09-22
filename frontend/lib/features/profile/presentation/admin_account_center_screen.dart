@@ -286,7 +286,7 @@ class AdminAccountCenterScreen extends ConsumerWidget {
                         title: const Text('Active Staff Sessions'),
                         subtitle: const Text('1 Active Android Device Console'),
                         trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () {},
+                        onTap: () => _showActiveSessionsSheet(context),
                       ),
                       const Divider(
                         height: 1,
@@ -303,7 +303,7 @@ class AdminAccountCenterScreen extends ConsumerWidget {
                           'View operations tamper-evident records',
                         ),
                         trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () {},
+                        onTap: () => _showAuditTrailSheet(context),
                       ),
                       const Divider(
                         height: 1,
@@ -320,7 +320,7 @@ class AdminAccountCenterScreen extends ConsumerWidget {
                           '24/7 technical incident and protocol response',
                         ),
                         trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () {},
+                        onTap: () => _showSystemHelpSheet(context),
                       ),
                       const Divider(
                         height: 1,
@@ -351,6 +351,218 @@ class AdminAccountCenterScreen extends ConsumerWidget {
                 const SizedBox(height: 32),
               ],
             ),
+    );
+  }
+
+  void _showActiveSessionsSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Active Staff Sessions',
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.primaryBurgundy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Hardware consoles currently authenticated with administrative clearance.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              const Divider(height: 24),
+              _buildAdminInfoRow(
+                Icons.phone_android_rounded,
+                'Primary Android Console (Active Now)',
+                'Delhi NCR Hub • IP: 10.0.1.42 • Session: adm_ops_dlh_01',
+              ),
+              const SizedBox(height: 14),
+              _buildAdminInfoRow(
+                Icons.computer_rounded,
+                'Desktop Operations Dashboard',
+                'Last active 2 hours ago • New Delhi HQ',
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAuditTrailSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Audit Trail & Compliance Logs',
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.primaryBurgundy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Tamper-evident operations log recording dispatch and KYC actions.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              const Divider(height: 24),
+              _buildAdminInfoRow(
+                Icons.verified_user_rounded,
+                'Chauffeur PB-01 Approved',
+                'Identity & Police verification confirmed • Today 11:30 AM',
+              ),
+              const SizedBox(height: 14),
+              _buildAdminInfoRow(
+                Icons.directions_car_rounded,
+                'Fleet BMW 5 Series Dispatched',
+                'Assigned to ceremonial booking SD-2026-0100',
+              ),
+              const SizedBox(height: 14),
+              _buildAdminInfoRow(
+                Icons.security_rounded,
+                'DPDP Consent Policy Verified',
+                'Customer contact numbers masked for chauffeur privacy',
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSystemHelpSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'System & Security Help Desk',
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.primaryBurgundy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '24/7 technical incident response and IT infrastructure support.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              const Divider(height: 24),
+              _buildAdminInfoRow(
+                Icons.phone_in_talk_rounded,
+                'Operations Security Line (24/7)',
+                '+91 1800-SHADI-SEC (1800-742-3473)',
+              ),
+              const SizedBox(height: 14),
+              _buildAdminInfoRow(
+                Icons.mark_email_read_rounded,
+                'Cyber & Fraud Incident Desk',
+                'security-ops@shadidriver.com',
+              ),
+              const SizedBox(height: 14),
+              _buildAdminInfoRow(
+                Icons.cloud_done_rounded,
+                'Infrastructure Status',
+                'All dispatch services operational • 99.99% uptime',
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminInfoRow(IconData icon, String title, String subtitle) {
+    return Row(
+      children: [
+        Icon(icon, color: AppColors.primaryBurgundy, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: AppTypography.labelMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimaryLight,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

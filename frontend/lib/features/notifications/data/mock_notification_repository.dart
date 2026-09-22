@@ -41,7 +41,6 @@ class MockNotificationRepository implements NotificationRepository {
     int page = 1,
     int limit = 20,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 100));
     final sorted = [..._notifications]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return Result.success(List.unmodifiable(sorted));
@@ -49,7 +48,6 @@ class MockNotificationRepository implements NotificationRepository {
 
   @override
   Future<Result<void>> markAsRead(String notificationId) async {
-    await Future.delayed(const Duration(milliseconds: 50));
     final index = _notifications.indexWhere((n) => n.id == notificationId);
     if (index != -1) {
       final old = _notifications[index];
@@ -68,10 +66,7 @@ class MockNotificationRepository implements NotificationRepository {
   ///
   /// Called by controllers when notable events happen: offer received,
   /// offer accepted, payment confirmed, trip milestones, ceremony completed.
-  void pushEvent({
-    required String title,
-    required String body,
-  }) {
+  void pushEvent({required String title, required String body}) {
     _notifications.insert(
       0,
       NotificationItem(

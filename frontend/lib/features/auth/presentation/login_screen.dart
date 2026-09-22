@@ -47,7 +47,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _phoneController.text = '9876543210';
+    assert(() {
+      _phoneController.text = '9876543210';
+      return true;
+    }());
   }
 
   @override
@@ -145,6 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _onVerifyOtp(String otpSessionId) {
+    HapticFeedback.mediumImpact();
     final code = _otpController.text.trim();
     if (code.length != 6) {
       setState(() {
@@ -197,8 +201,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: authState is OtpSent
                         ? _buildOtpStep(authState, isLoading)
                         : _isSignUpMode
-                            ? _buildSignUpStep(isLoading)
-                            : _buildPhoneStep(isLoading),
+                        ? _buildSignUpStep(isLoading)
+                        : _buildPhoneStep(isLoading),
                   ),
                   const SizedBox(height: 24),
                   _buildTermsNotice(),
@@ -578,9 +582,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected
-                ? AppColors.primaryBurgundy
-                : AppColors.borderLight,
+            color: selected ? AppColors.primaryBurgundy : AppColors.borderLight,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -703,6 +705,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
+          onChanged: (val) {
+            if (val.isNotEmpty) {
+              HapticFeedback.selectionClick();
+            }
+            if (val.length == 6) {
+              _onVerifyOtp(otpState.otpSessionId);
+            }
+          },
           onSubmitted: (_) => _onVerifyOtp(otpState.otpSessionId),
         ),
         if (_errorMessage != null) ...[

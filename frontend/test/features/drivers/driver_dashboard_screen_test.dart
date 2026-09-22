@@ -70,5 +70,42 @@ void main() {
         expect(find.text('SD-2026-0100'), findsOneWidget);
       },
     );
+
+    testWidgets('tapping biometric lock action opens duty security sheet', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const ProviderScope(child: MaterialApp(home: DriverDashboardScreen())),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap Biometric lock icon in app bar
+      final biometricAction = find.byKey(
+        const Key('driver_dashboard_biometric_lock_action'),
+      );
+      expect(biometricAction, findsOneWidget);
+      await tester.tap(biometricAction);
+      await tester.pumpAndSettle();
+
+      // Verify modal sheet appears
+      expect(find.text('Chauffeur Duty Security'), findsOneWidget);
+      expect(
+        find.text(
+          'Touch sensor or scan Face ID to verify identity and resume duty console.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.fingerprint_rounded), findsWidgets);
+
+      // Tap biometric sensor to authenticate
+      await tester.tap(find.byIcon(Icons.fingerprint_rounded).last);
+      await tester.pumpAndSettle();
+
+      // Sheet dismissed and snackbar shown
+      expect(
+        find.text('✓ Identity Verified • Duty Console Active'),
+        findsOneWidget,
+      );
+    });
   });
 }

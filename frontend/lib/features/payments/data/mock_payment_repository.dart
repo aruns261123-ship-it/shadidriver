@@ -36,8 +36,9 @@ class MockPaymentRepository implements PaymentRepository {
 
     // Amount mirrors the booking's own advance token (20% of estimate),
     // never a hardcoded value.
-    final booking =
-        (await bookingRepository?.getSubmissionResult(bookingId))?.dataOrNull;
+    final booking = (await bookingRepository?.getSubmissionResult(
+      bookingId,
+    ))?.dataOrNull;
     final amount = booking?.advanceTokenPaise ?? 500000;
 
     final order = PaymentOrder(

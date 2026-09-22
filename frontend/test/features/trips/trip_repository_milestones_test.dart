@@ -18,21 +18,23 @@ void main() {
       expect(tripRepo, isA<TripRepository>());
     });
 
-    test('startRouteToPickup mirrors DRIVER_ARRIVING into the booking store',
-        () async {
-      // Seed: accepted booking (pre-trip state before en route).
-      await bookingStore.acceptBooking(
-        bookingId: 'bk_mock_req_1',
-        driverId: 'd1',
-      );
+    test(
+      'startRouteToPickup mirrors DRIVER_ARRIVING into the booking store',
+      () async {
+        // Seed: accepted booking (pre-trip state before en route).
+        await bookingStore.acceptBooking(
+          bookingId: 'bk_mock_req_1',
+          driverId: 'd1',
+        );
 
-      await tripRepo.startRouteToPickup('bk_mock_req_1');
+        await tripRepo.startRouteToPickup('bk_mock_req_1');
 
-      final booking =
-          (await bookingStore.getSubmissionResult('bk_mock_req_1'))
-              .dataOrNull!;
-      expect(booking.status, BookingStatus.driverArriving);
-    });
+        final booking = (await bookingStore.getSubmissionResult(
+          'bk_mock_req_1',
+        )).dataOrNull!;
+        expect(booking.status, BookingStatus.driverArriving);
+      },
+    );
 
     test('markMilestoneArrived mirrors ARRIVED', () async {
       await bookingStore.acceptBooking(
@@ -42,9 +44,9 @@ void main() {
       await tripRepo.startRouteToPickup('bk_mock_req_1');
       await tripRepo.markMilestoneArrived('bk_mock_req_1');
 
-      final booking =
-          (await bookingStore.getSubmissionResult('bk_mock_req_1'))
-              .dataOrNull!;
+      final booking = (await bookingStore.getSubmissionResult(
+        'bk_mock_req_1',
+      )).dataOrNull!;
       expect(booking.status, BookingStatus.arrived);
     });
 
@@ -56,14 +58,13 @@ void main() {
       await tripRepo.markMilestoneArrived('bk_mock_req_1');
       await tripRepo.startCeremonyTrip('bk_mock_req_1', '1234');
 
-      final booking =
-          (await bookingStore.getSubmissionResult('bk_mock_req_1'))
-              .dataOrNull!;
+      final booking = (await bookingStore.getSubmissionResult(
+        'bk_mock_req_1',
+      )).dataOrNull!;
       expect(booking.status, BookingStatus.tripStarted);
     });
 
-    test('completeTrip records COMPLETED (terminal — never reverts)',
-        () async {
+    test('completeTrip records COMPLETED (terminal — never reverts)', () async {
       await bookingStore.acceptBooking(
         bookingId: 'bk_mock_req_1',
         driverId: 'd1',
@@ -73,23 +74,22 @@ void main() {
       await tripRepo.startCeremonyTrip('bk_mock_req_1', '1234');
       await tripRepo.completeTrip('bk_mock_req_1');
 
-      final booking =
-          (await bookingStore.getSubmissionResult('bk_mock_req_1'))
-              .dataOrNull!;
+      final booking = (await bookingStore.getSubmissionResult(
+        'bk_mock_req_1',
+      )).dataOrNull!;
       expect(booking.status, BookingStatus.completed);
 
       // Terminal: further stage writes cannot resurrect the booking.
       await tripRepo.startRouteToPickup('bk_mock_req_1');
-      final after =
-          (await bookingStore.getSubmissionResult('bk_mock_req_1'))
-              .dataOrNull!;
+      final after = (await bookingStore.getSubmissionResult(
+        'bk_mock_req_1',
+      )).dataOrNull!;
       expect(after.status, BookingStatus.completed);
     });
 
     test('stage writes on unknown bookings are no-ops, not crashes', () async {
       await tripRepo.startRouteToPickup('bk_nonexistent');
-      final result =
-          await bookingStore.getSubmissionResult('bk_nonexistent');
+      final result = await bookingStore.getSubmissionResult('bk_nonexistent');
       expect(result.dataOrNull, isNull);
     });
   });
