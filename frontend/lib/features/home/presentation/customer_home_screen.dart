@@ -342,7 +342,12 @@ class CustomerHomeScreen extends ConsumerWidget {
           ),
           child: GestureDetector(
             key: const Key('driver_portal_shortcut_btn'),
-            onTap: () => context.go(RoutePaths.driver),
+            // Customers must not land on the chauffeur console: the route
+            // guard bounces them back, producing a confusing loop. Surface
+            // the flagship vehicle's details instead.
+            onTap: () => context.push(
+              RoutePaths.customerVehicleDetailsPath('v1'),
+            ),
             child: const CircleAvatar(
               radius: 18,
               backgroundColor: AppColors.secondarySurface,

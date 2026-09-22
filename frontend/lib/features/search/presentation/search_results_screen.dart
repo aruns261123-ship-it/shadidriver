@@ -10,7 +10,6 @@ import 'package:shadidriver/core/widgets/shadi_empty_state.dart';
 import 'package:shadidriver/features/home/presentation/view_models/vehicle_card_view_model.dart';
 import 'package:shadidriver/features/vehicles/presentation/widgets/shadi_vehicle_card.dart';
 import 'controllers/search_controller.dart';
-import '../domain/entities/search_query.dart';
 import '../domain/entities/search_session.dart';
 import '../domain/entities/search_sort.dart';
 import 'widgets/filter_bottom_sheet.dart';
@@ -102,12 +101,7 @@ class SearchResultsScreen extends ConsumerWidget {
             if (session.query.occasionId != null)
               _buildFilterChip(
                 session.query.occasionId!,
-                () => _updateQuery(
-                  ref,
-                  session,
-                  occasionId: '',
-                  occasionCleared: true,
-                ),
+                () => _updateQuery(ref, session, clearOccasionId: true),
               ),
             if (session.query.verifiedChauffeurOnly)
               _buildFilterChip(
@@ -117,12 +111,12 @@ class SearchResultsScreen extends ConsumerWidget {
             if (session.query.transmission != null)
               _buildFilterChip(
                 session.query.transmission!,
-                () => _updateQuery(ref, session, transmission: null),
+                () => _updateQuery(ref, session, clearTransmission: true),
               ),
             if (session.query.minRating != null)
               _buildFilterChip(
                 '${session.query.minRating}+ ⭐',
-                () => _updateQuery(ref, session, minRating: null),
+                () => _updateQuery(ref, session, clearMinRating: true),
               ),
             if (session.query.seatingCapacities != null)
               ...session.query.seatingCapacities!.map(
@@ -274,8 +268,9 @@ class SearchResultsScreen extends ConsumerWidget {
     double? minRating,
     List<int>? seatingCapacities,
     List<String>? vehicleCategories,
-    String? occasionId,
-    bool occasionCleared = false,
+    bool clearOccasionId = false,
+    bool clearTransmission = false,
+    bool clearMinRating = false,
   }) {
     final query = session.query.copyWith(
       availableNow: availableNow,
@@ -284,31 +279,13 @@ class SearchResultsScreen extends ConsumerWidget {
       minRating: minRating,
       seatingCapacities: seatingCapacities,
       vehicleCategories: vehicleCategories,
-      occasionId: occasionId,
+      clearOccasionId: clearOccasionId,
+      clearTransmission: clearTransmission,
+      clearMinRating: clearMinRating,
     );
     ref
         .read(searchControllerProvider.notifier)
-        .updateQuery(
-          occasionCleared
-              ? VehicleSearchQuery(
-                  pickupLocation: query.pickupLocation,
-                  destination: query.destination,
-                  eventDate: query.eventDate,
-                  eventTime: query.eventTime,
-                  passengerCount: query.passengerCount,
-                  vehicleCategories: query.vehicleCategories,
-                  seatingCapacities: query.seatingCapacities,
-                  transmission: query.transmission,
-                  minRating: query.minRating,
-                  maxDistanceKm: query.maxDistanceKm,
-                  verifiedChauffeurOnly: query.verifiedChauffeurOnly,
-                  verifiedVehicleOnly: query.verifiedVehicleOnly,
-                  availableNow: query.availableNow,
-                  amenities: query.amenities,
-                  addonIds: query.addonIds,
-                )
-              : query,
-        );
+        .updateQuery(query);
   }
 
   String _formatDate(DateTime? date) {

@@ -6,6 +6,11 @@ import '../../domain/entities/search_sort.dart';
 
 /// Managed state for a ride discovery search session.
 class SearchController extends Notifier<SearchSession> {
+  /// Monotonic token guarding against out-of-order search responses: with the
+  /// mocked 600 ms latency, a slow earlier query can otherwise resolve AFTER
+  /// a newer one and overwrite the fresher results.
+  int _searchSeq = 0;
+
   @override
   SearchSession build() {
     return SearchSession.initial();
@@ -36,16 +41,26 @@ class SearchController extends Notifier<SearchSession> {
   }
 
   void resetSearch() {
+    _searchSeq++; // invalidate any in-flight search
     state = SearchSession.initial();
   }
 
   Future<void> _performSearch() async {
+    final token = ++_searchSeq;
     final vehicleRepo = ref.read(vehicleRepositoryProvider);
 
+    // Snapshot the query being searched so late state writes can't desync
+    // the request from its results.
+    final query = state.query;
+    final sort = state.sort;
+
     final result = await vehicleRepo.searchVehicles(
-      query: state.query,
-      sort: state.sort,
+      query: query,
+      sort: sort,
     );
+
+    // A newer search/reset superseded this one — discard the stale response.
+    if (token != _searchSeq) return;
 
     state = result.fold(
       (failure) => state.copyWith(

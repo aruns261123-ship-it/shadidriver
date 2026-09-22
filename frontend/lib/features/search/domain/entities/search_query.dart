@@ -49,6 +49,12 @@ class VehicleSearchQuery {
     this.addonIds,
   });
 
+  /// Creates a copy of this query with the given fields replaced.
+  ///
+  /// Nullable filter fields additionally accept an explicit-clear flag
+  /// (`clear<FieldName>: true`) because a plain `null` argument is
+  /// indistinguishable from "leave unchanged". Callers that need to REMOVE a
+  /// filter must pass the matching clear flag instead of `null`.
   VehicleSearchQuery copyWith({
     String? pickupLocation,
     String? destination,
@@ -70,29 +76,50 @@ class VehicleSearchQuery {
     bool? availableNow,
     List<String>? amenities,
     List<String>? addonIds,
+    bool clearPickupLocation = false,
+    bool clearDestination = false,
+    bool clearEventDate = false,
+    bool clearEventTime = false,
+    bool clearOccasionId = false,
+    bool clearPassengerCount = false,
+    bool clearVehicleCategories = false,
+    bool clearMinModelYear = false,
+    bool clearMaxModelYear = false,
+    bool clearMinPriceCents = false,
+    bool clearMaxPriceCents = false,
+    bool clearSeatingCapacities = false,
+    bool clearTransmission = false,
+    bool clearMinRating = false,
+    bool clearMaxDistanceKm = false,
+    bool clearAmenities = false,
+    bool clearAddonIds = false,
   }) {
     return VehicleSearchQuery(
-      pickupLocation: pickupLocation ?? this.pickupLocation,
-      destination: destination ?? this.destination,
-      eventDate: eventDate ?? this.eventDate,
-      eventTime: eventTime ?? this.eventTime,
-      occasionId: occasionId ?? this.occasionId,
-      passengerCount: passengerCount ?? this.passengerCount,
-      vehicleCategories: vehicleCategories ?? this.vehicleCategories,
-      minModelYear: minModelYear ?? this.minModelYear,
-      maxModelYear: maxModelYear ?? this.maxModelYear,
-      minPriceCents: minPriceCents ?? this.minPriceCents,
-      maxPriceCents: maxPriceCents ?? this.maxPriceCents,
-      seatingCapacities: seatingCapacities ?? this.seatingCapacities,
-      transmission: transmission ?? this.transmission,
-      minRating: minRating ?? this.minRating,
-      maxDistanceKm: maxDistanceKm ?? this.maxDistanceKm,
+      pickupLocation: clearPickupLocation ? null : (pickupLocation ?? this.pickupLocation),
+      destination: clearDestination ? null : (destination ?? this.destination),
+      eventDate: clearEventDate ? null : (eventDate ?? this.eventDate),
+      eventTime: clearEventTime ? null : (eventTime ?? this.eventTime),
+      occasionId: clearOccasionId ? null : (occasionId ?? this.occasionId),
+      passengerCount: clearPassengerCount ? null : (passengerCount ?? this.passengerCount),
+      vehicleCategories: clearVehicleCategories
+          ? null
+          : (vehicleCategories ?? this.vehicleCategories),
+      minModelYear: clearMinModelYear ? null : (minModelYear ?? this.minModelYear),
+      maxModelYear: clearMaxModelYear ? null : (maxModelYear ?? this.maxModelYear),
+      minPriceCents: clearMinPriceCents ? null : (minPriceCents ?? this.minPriceCents),
+      maxPriceCents: clearMaxPriceCents ? null : (maxPriceCents ?? this.maxPriceCents),
+      seatingCapacities: clearSeatingCapacities
+          ? null
+          : (seatingCapacities ?? this.seatingCapacities),
+      transmission: clearTransmission ? null : (transmission ?? this.transmission),
+      minRating: clearMinRating ? null : (minRating ?? this.minRating),
+      maxDistanceKm: clearMaxDistanceKm ? null : (maxDistanceKm ?? this.maxDistanceKm),
       verifiedChauffeurOnly:
           verifiedChauffeurOnly ?? this.verifiedChauffeurOnly,
       verifiedVehicleOnly: verifiedVehicleOnly ?? this.verifiedVehicleOnly,
       availableNow: availableNow ?? this.availableNow,
-      amenities: amenities ?? this.amenities,
-      addonIds: addonIds ?? this.addonIds,
+      amenities: clearAmenities ? null : (amenities ?? this.amenities),
+      addonIds: clearAddonIds ? null : (addonIds ?? this.addonIds),
     );
   }
 

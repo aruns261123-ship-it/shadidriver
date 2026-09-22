@@ -52,7 +52,30 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
         DriverActiveTripState(
           trip: DriverActiveTrip.mockInitial(bookingId: bookingId),
         ),
-      );
+      ) {
+    _loadTrip();
+  }
+
+  /// Hydrates the trip from the shared booking store so the console shows the
+  /// REAL assignment (itinerary, host contact, OTP) instead of the seed data.
+  /// The mock-seeded trip stays as the synchronous fallback while loading and
+  /// for unknown IDs (tests / dev harness).
+  Future<void> _loadTrip() async {
+    final result = await _ref
+        .read(bookingRepositoryProvider)
+        .getDriverBookingDetails(bookingId: state.trip.bookingId, driverId: '');
+
+    if (!mounted) return;
+    final booking = result.dataOrNull;
+    if (booking == null) return; // keep seed fallback
+
+    state = DriverActiveTripState(
+      trip: DriverActiveTrip.fromBookingResult(
+        booking,
+        stage: DriverTripStage.assigned,
+      ),
+    );
+  }
 
   /// 1. Start journey to the customer's pickup address
   ///

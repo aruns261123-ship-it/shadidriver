@@ -34,7 +34,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   final TextEditingController _otpController = TextEditingController();
   int _resendCooldown = 30;
   Timer? _countdownTimer;
-  String? _errorMessage;
+
+  /// Local copy of the latest auth error so it can be cleared when the user
+  /// edits the code or resends. Kept in state (not a build local) so the
+  /// widget tree does not mutate fields mid-build.
+  String? _authErrorMessage;
 
   @override
   void initState() {
@@ -62,15 +66,25 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     });
   }
 
+  /// Displays the first error among the local validation error and the
+  /// latest auth-controller error.
+  String? get _errorMessage => _authErrorMessage;
+
+  void _clearError() {
+    if (_authErrorMessage != null) {
+      setState(() => _authErrorMessage = null);
+    }
+  }
+
   void _onVerify() {
     final code = _otpController.text.trim();
     if (code.length != 6) {
       setState(() {
-        _errorMessage = 'Please enter a complete 6-digit code.';
+        _authErrorMessage = 'Please enter a complete 6-digit code.';
       });
       return;
     }
-    setState(() => _errorMessage = null);
+    _clearError();
     ref
         .read(authControllerProvider.notifier)
         .verifyOtp(otpSessionId: widget.otpSessionId, otpCode: code);
@@ -79,7 +93,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   void _onResend() {
     if (_resendCooldown > 0) return;
     _startCooldown();
-    setState(() => _errorMessage = null);
+    _clearError();
     if (widget.initialPhone != null && widget.initialPhone!.isNotEmpty) {
       ref
           .read(authControllerProvider.notifier)
@@ -100,8 +114,15 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState is AuthLoading;
 
-    if (authState is AuthError && _errorMessage == null) {
-      _errorMessage = authState.failure.message;
+    // Mirror controller errors into local state post-frame; never mutate
+    // fields while the build is in progress.
+    if (authState is AuthError &&
+        _authErrorMessage != authState.failure.message) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _authErrorMessage = authState.failure.message);
+        }
+      });
     }
 
     return Scaffold(

@@ -22,6 +22,21 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     _localQuery = ref.read(searchControllerProvider).query;
   }
 
+  /// Returns a copy of [base] with ONLY the filter fields stripped — the
+  /// core search context (pickup, destination, date, occasion, passengers)
+  /// is intentionally preserved so clearing filters never wipes what the
+  /// user searched for.
+  VehicleSearchQuery _stripFilters(VehicleSearchQuery base) {
+    return VehicleSearchQuery(
+      pickupLocation: base.pickupLocation,
+      destination: base.destination,
+      eventDate: base.eventDate,
+      eventTime: base.eventTime,
+      occasionId: base.occasionId,
+      passengerCount: base.passengerCount,
+    );
+  }
+
   void _applyFilters() {
     ref.read(searchControllerProvider.notifier).updateQuery(_localQuery);
     Navigator.pop(context);
@@ -48,7 +63,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
               ),
               TextButton(
                 onPressed: () =>
-                    setState(() => _localQuery = const VehicleSearchQuery()),
+                    setState(() => _localQuery = _stripFilters(_localQuery)),
                 child: const Text('Clear All'),
               ),
             ],
@@ -116,7 +131,8 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                 }
                 setState(
                   () => _localQuery = _localQuery.copyWith(
-                    vehicleCategories: current,
+                    vehicleCategories: current.isEmpty ? null : current,
+                    clearVehicleCategories: current.isEmpty,
                   ),
                 );
               },
@@ -201,6 +217,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
               onSelected: (val) => setState(
                 () => _localQuery = _localQuery.copyWith(
                   transmission: val ? 'AUTOMATIC' : null,
+                  clearTransmission: !val,
                 ),
               ),
             ),
@@ -211,6 +228,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
               onSelected: (val) => setState(
                 () => _localQuery = _localQuery.copyWith(
                   transmission: val ? 'MANUAL' : null,
+                  clearTransmission: !val,
                 ),
               ),
             ),
@@ -259,7 +277,8 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                 }
                 setState(
                   () => _localQuery = _localQuery.copyWith(
-                    seatingCapacities: current,
+                    seatingCapacities: current.isEmpty ? null : current,
+                    clearSeatingCapacities: current.isEmpty,
                   ),
                 );
               },
@@ -281,15 +300,16 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
             final isSelected = _localQuery.minRating == rating;
             return Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text('$rating+ ⭐'),
-                selected: isSelected,
-                onSelected: (val) => setState(
-                  () => _localQuery = _localQuery.copyWith(
-                    minRating: val ? rating : null,
+              child:                ChoiceChip(
+                  label: Text('$rating+ ⭐'),
+                  selected: isSelected,
+                  onSelected: (val) => setState(
+                    () => _localQuery = _localQuery.copyWith(
+                      minRating: val ? rating : null,
+                      clearMinRating: !val,
+                    ),
                   ),
                 ),
-              ),
             );
           }).toList(),
         ),
