@@ -24,6 +24,12 @@ class DriverActiveTrip {
 
   /// Estimated booking total in paise — drives the chauffeur earnings summary.
   final int? estimatedTotalPaise;
+
+  /// Display copy of the trip-start OTP the HOST reads out. In real mode this
+  /// is delivered to the host's phone via SMS by the backend (hashed at rest
+  /// server-side); the field exists for mock-mode/demo display only. In real
+  /// mode the driver never sees or validates the OTP locally — START_TRIP is
+  /// verified server-side.
   final String startOtp;
   final DateTime? tripStartedAt;
   final DateTime? tripCompletedAt;
@@ -46,7 +52,7 @@ class DriverActiveTrip {
     this.routeDistanceKm,
     required this.vehicleName,
     this.estimatedTotalPaise,
-    this.startOtp = '1234',
+    this.startOtp = '',
     this.tripStartedAt,
     this.tripCompletedAt,
     this.ceremonialAttireConfirmed = false,
@@ -140,7 +146,7 @@ class DriverActiveTrip {
       serviceEndDateTime: DateTime(2026, 11, 21, 0, 0),
       routeDistanceKm: 24.5,
       vehicleName: 'BMW 5 Series',
-      startOtp: '1234',
+      startOtp: '482913',
     );
   }
 }

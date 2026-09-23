@@ -287,8 +287,11 @@ class FakeBookingRepository implements BookingRepository {
 
   @override
   Future<Result<FleetAvailabilityResult>> checkFleetAvailability(
-    CustomerFleetIntent intent,
-  ) async {
+    CustomerFleetIntent intent, {
+    DateTime? serviceStartTime,
+    DateTime? serviceEndTime,
+    String? city,
+  }) async {
     return Result.success(
       FleetAvailabilityResult.available(
         model: intent.preferredModel,

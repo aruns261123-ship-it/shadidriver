@@ -26,19 +26,22 @@ class EnvironmentConfig {
     this.useMockData = true,
   });
 
-  /// Default development configuration pointing to mock/local environment.
-  factory EnvironmentConfig.development({bool? useMockData}) {
+  /// Default development configuration. Defaults to the REAL backend path
+  /// (useMockData=false); SHADI_USE_MOCK_AUTH=true opts into mock mode for
+  /// offline UI development and automated tests only.
+  factory EnvironmentConfig.development({
+    bool? useMockData,
+    String? apiBaseUrlOverride,
+  }) {
     const isMock = bool.fromEnvironment(
       'SHADI_USE_MOCK_AUTH',
-      defaultValue: true,
+      defaultValue: false,
     );
     return EnvironmentConfig(
       flavor: AppFlavor.development,
       appName: 'ShadiDriver Dev',
-      apiBaseUrl: const String.fromEnvironment(
-        'SHADI_API_BASE_URL',
-        defaultValue: 'https://dev-api.shadidriver.in',
-      ),
+      apiBaseUrl:
+          apiBaseUrlOverride ?? const String.fromEnvironment('SHADI_API_BASE_URL'),
       wsBaseUrl: 'wss://dev-api.shadidriver.in/ws',
       connectTimeout: const Duration(seconds: 20),
       receiveTimeout: const Duration(seconds: 20),

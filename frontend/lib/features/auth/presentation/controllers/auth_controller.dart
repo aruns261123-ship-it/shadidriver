@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/result/result.dart';
 import '../../../../core/security/secure_storage_service.dart';
@@ -135,8 +136,21 @@ class AuthController extends StateNotifier<AuthState> {
     return result;
   }
 
-  /// Developer 1-tap role bypass
+  /// Developer 1-tap role bypass — MOCK MODE ONLY. In real mode this is a
+  /// no-op: fixed dev OTPs (111111…) do not exist server-side, and pretending
+  /// they do would violate the no-mock production rule.
   Future<void> devLoginAsRole(UserRole role) async {
+    final useMock = _ref
+            .read(environmentConfigProvider.select((c) => c.useMockData));
+    if (!useMock) {
+      state = const AuthError(
+        failure: UnknownFailure(
+          'Dev role login is only available in mock mode.',
+          'DEV_LOGIN_UNAVAILABLE',
+        ),
+      );
+      return;
+    }
     state = const AuthLoading(reason: AuthLoadingReason.verifyingOtp);
     final req = await _authRepository.requestOtp(
       phoneNumber: '9876543210',
@@ -178,8 +192,8 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> signOut() async {
     state = const AuthLoading(reason: AuthLoadingReason.signingOut);
     await _authRepository.signOut();
-    await _secureStorage.delete('auth_token');
-    await _secureStorage.delete('refresh_token');
+    await _secureStorage.delete(AppConstants.keyAccessToken);
+    await _secureStorage.delete(AppConstants.keyRefreshToken);
     _ref.read(activeSessionProvider.notifier).state =
         AuthSession.unauthenticated();
     state = const Unauthenticated();

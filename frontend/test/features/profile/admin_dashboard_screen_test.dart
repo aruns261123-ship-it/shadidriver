@@ -3,13 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadidriver/features/profile/presentation/admin_dashboard_screen.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   group('AdminDashboardScreen Widget Tests', () {
     testWidgets(
       'renders command room tabs, dispatch rows, and KYC approve actions',
       (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(child: MaterialApp(home: AdminDashboardScreen())),
+          ProviderScope(
+            overrides: mockModeOverrides(),
+            child: const MaterialApp(home: AdminDashboardScreen()),
+          ),
         );
 
         await tester.pumpAndSettle();

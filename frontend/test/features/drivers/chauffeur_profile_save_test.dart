@@ -12,6 +12,8 @@ import 'package:shadidriver/features/drivers/presentation/driver_account_center_
 import 'package:shadidriver/features/drivers/presentation/driver_edit_profile_screen.dart';
 import 'package:shadidriver/features/profile/data/mock_profile_photo_service.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   setUp(() {
     MockDriverProfileRepository.resetSession();
@@ -31,7 +33,10 @@ void main() {
         child: MaterialApp.router(routerConfig: router),
       );
     }
-    return ProviderScope(child: MaterialApp.router(routerConfig: router));
+    return ProviderScope(
+      overrides: mockModeOverrides(),
+      child: MaterialApp.router(routerConfig: router),
+    );
   }
 
   void configurePhoneDimensions(WidgetTester tester) {
@@ -372,6 +377,7 @@ void main() {
 
         final container = ProviderContainer(
           overrides: [
+          ...mockModeOverrides(),
             driverProfileControllerProvider('d1').overrideWith((ref) {
               return DriverProfileController(
                 repository: mockRepo,

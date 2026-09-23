@@ -15,12 +15,15 @@ import '../../features/search/presentation/search_screen.dart';
 import '../../features/search/presentation/search_results_screen.dart';
 import '../../features/vehicles/presentation/vehicle_details_screen.dart';
 import '../../features/drivers/presentation/chauffeur_profile_screen.dart';
+import '../../features/bookings/domain/entities/search_handoff.dart';
 import '../../features/bookings/presentation/booking_entry_screen.dart';
 import '../../features/bookings/presentation/booking_review_screen.dart';
 import '../../features/bookings/presentation/booking_result_screen.dart';
 import '../../features/bookings/presentation/customer_bookings_screen.dart';
 import '../../features/payments/presentation/payment_checkout_screen.dart';
 import '../../features/bookings/presentation/booking_detail_screen.dart';
+import '../../features/bookings/presentation/group_booking_detail_screen.dart';
+import '../../features/bookings/presentation/group_booking_screen.dart';
 import '../../features/home/presentation/splash_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/admin_dashboard_screen.dart';
@@ -48,6 +51,10 @@ GoRouter createShadiRouter({
   AccountStatus Function()? accountStatus,
   Listenable? refreshListenable,
   GlobalKey<NavigatorState>? navigatorKey,
+
+  /// Resolves the search intent carried into booking creation (Search →
+  /// Draft handoff). Injected as a callback to keep the router DI-free.
+  SearchHandoff Function()? resolveSearchHandoff,
 }) {
   return GoRouter(
     navigatorKey: navigatorKey ?? rootNavigatorKey,
@@ -125,6 +132,18 @@ GoRouter createShadiRouter({
             builder: (context, state) => const UrgentDispatchSosScreen(),
           ),
           GoRoute(
+            path: RoutePaths.customerGroupBooking,
+            name: 'customerGroupBooking',
+            builder: (context, state) => const GroupBookingScreen(),
+          ),
+          GoRoute(
+            path: RoutePaths.customerGroupBookingDetail,
+            name: 'customerGroupBookingDetail',
+            builder: (context, state) => GroupBookingDetailScreen(
+              groupBookingId: state.pathParameters['groupBookingId'] ?? '',
+            ),
+          ),
+          GoRoute(
             path: RoutePaths.customerSupportTicket,
             name: 'customerSupportTicket',
             builder: (context, state) => const SupportTicketScreen(),
@@ -164,6 +183,12 @@ GoRouter createShadiRouter({
             builder: (context, state) => BookingEntryScreen(
               vehicleId: state.pathParameters['vehicleId'] ?? '',
               draftId: state.uri.queryParameters['draftId'],
+              // Carry the customer's search intent into the draft so it is
+              // never re-entered (Search → Booking handoff). Skipped when
+              // editing an existing draft.
+              searchHandoff: state.uri.queryParameters['draftId'] == null
+                  ? resolveSearchHandoff?.call()
+                  : null,
             ),
           ),
           GoRoute(

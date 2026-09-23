@@ -9,22 +9,28 @@ import '../../domain/entities/driver_duty_status.dart';
 import '../../domain/entities/driver_trip_stage.dart';
 import '../../domain/repositories/driver_repository.dart';
 
-/// Phone → roster-ID resolution for demo driver accounts.
+/// Phone → roster-ID resolution for demo driver accounts (MOCK MODE ONLY).
 ///
 /// The mock auth store issues sessions keyed by phone; this maps registered
-/// driver accounts onto the chauffeur roster. Unauthenticated/dev-harness
-/// sessions fall back to the primary demo chauffeur.
+/// driver accounts onto the mock chauffeur roster.
 const _demoDriverAccounts = <String, String>{
   '9810000002': 'd1',
   '9876500002': 'd1',
 };
 
-/// Provider exposing the current logged-in driver ID, resolved from the auth
-/// session's masked phone so the driver portal shows the logged-in chauffeur's
-/// data. Falls back to the demo chauffeur when no session is active (tests,
-/// dev harness).
+/// Provider exposing the current logged-in driver identity.
+///
+/// REAL MODE: returns the authenticated user's ID from the JWT session. The
+/// backend derives chauffeur identity from the access token on every request
+/// and ignores client-supplied driver IDs, so no 'd1'-style mock key ever
+/// enters the production path.
+/// MOCK MODE: resolves the demo roster mapping ('d1') for offline dev/tests.
 final currentDriverIdProvider = Provider<String>((ref) {
   final session = ref.watch(activeSessionProvider);
+  final useMock = ref.watch(
+    environmentConfigProvider.select((c) => c.useMockData),
+  );
+  if (!useMock) return session.userId;
   if (!session.isAuthenticated) return 'd1';
   // Masked format: "+91 XXXXX XXXXX" — recover the 10-digit local number.
   final digits = session.phone.replaceAll(RegExp(r'\D'), '');

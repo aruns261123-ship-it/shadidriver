@@ -15,6 +15,11 @@ class BookingSummary {
   final int advanceTokenCents;
   final int version;
 
+  /// Trip-start OTP the host shares with the chauffeur. Real mode: null —
+  /// the code is delivered to the host's phone via SMS by the backend and is
+  /// never exposed through the API. Mock mode: populated for demo display.
+  final String? startOtp;
+
   const BookingSummary({
     required this.id,
     required this.reference,
@@ -30,6 +35,7 @@ class BookingSummary {
     required this.totalAmountCents,
     required this.advanceTokenCents,
     required this.version,
+    this.startOtp,
   });
 
   /// Service duration in hours.

@@ -14,6 +14,9 @@ abstract final class AppConstants {
   static const String keyAccountStatus = 'shadi_account_status';
   static const String keySessionIssued = 'shadi_session_issued';
 
+  // API Path Prefix (backend global prefix)
+  static const String apiV1Prefix = '/api/v1';
+
   // Header Keys
   static const String headerAuthorization = 'Authorization';
   static const String headerIdempotencyKey = 'Idempotency-Key';

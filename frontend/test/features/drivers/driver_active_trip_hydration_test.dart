@@ -23,7 +23,13 @@ void main() {
           basePricePaise: 2500000,
           estimatedTotalPaise: 2500000,
           advanceTokenPaise: 500000,
-        ).copyWith(ceremonyType: 'Sangeet');
+        ).copyWith(
+          ceremonyType: 'Sangeet',
+          pickupAddress: 'The Oberoi Hotel, New Delhi',
+          destinationAddress: 'Grand Imperial Banquets, MG Road',
+          primaryContactName: 'Aarav Sharma',
+          primaryContactPhone: '9810012345',
+        );
 
         final submitResult = await bookingRepo.submitBooking(
           BookingSubmissionRequest.fromDraft(

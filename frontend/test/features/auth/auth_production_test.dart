@@ -15,6 +15,8 @@ import 'package:shadidriver/features/auth/presentation/dev_auth_harness.dart';
 import 'package:shadidriver/features/auth/presentation/login_screen.dart';
 import 'package:shadidriver/features/home/presentation/splash_screen.dart';
 
+import '../../helpers/mock_env.dart';
+
 class InMemorySecureStorage implements SecureStorageService {
   final Map<String, String> _store = {};
 
@@ -52,6 +54,7 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
+          ...mockModeOverrides(),
           authRepositoryProvider.overrideWithValue(authRepo),
           secureStorageProvider.overrideWithValue(secureStorage),
         ],
@@ -95,6 +98,7 @@ void main() {
 
         final container = ProviderContainer(
           overrides: [
+            ...mockModeOverrides(),
             authRepositoryProvider.overrideWithValue(authRepo),
             secureStorageProvider.overrideWithValue(secureStorage),
           ],
@@ -136,6 +140,7 @@ void main() {
 
         final container = ProviderContainer(
           overrides: [
+            ...mockModeOverrides(),
             authRepositoryProvider.overrideWithValue(authRepo),
             secureStorageProvider.overrideWithValue(secureStorage),
           ],
@@ -177,6 +182,7 @@ void main() {
 
         final container = ProviderContainer(
           overrides: [
+            ...mockModeOverrides(),
             authRepositoryProvider.overrideWithValue(authRepo),
             secureStorageProvider.overrideWithValue(secureStorage),
           ],
@@ -216,6 +222,7 @@ void main() {
       () async {
         final container = ProviderContainer(
           overrides: [
+            ...mockModeOverrides(),
             authRepositoryProvider.overrideWithValue(authRepo),
             secureStorageProvider.overrideWithValue(secureStorage),
           ],
@@ -382,6 +389,7 @@ void main() {
       () async {
         final container = ProviderContainer(
           overrides: [
+            ...mockModeOverrides(),
             authRepositoryProvider.overrideWithValue(authRepo),
             secureStorageProvider.overrideWithValue(secureStorage),
           ],
@@ -413,6 +421,7 @@ void main() {
       () async {
         final container = ProviderContainer(
           overrides: [
+            ...mockModeOverrides(),
             authRepositoryProvider.overrideWithValue(authRepo),
             secureStorageProvider.overrideWithValue(secureStorage),
           ],
@@ -447,6 +456,7 @@ void main() {
       () async {
         final container = ProviderContainer(
           overrides: [
+            ...mockModeOverrides(),
             authRepositoryProvider.overrideWithValue(authRepo),
             secureStorageProvider.overrideWithValue(secureStorage),
           ],
@@ -472,6 +482,7 @@ void main() {
         // Step A: Login then sign out
         final container1 = ProviderContainer(
           overrides: [
+            ...mockModeOverrides(),
             authRepositoryProvider.overrideWithValue(authRepo),
             secureStorageProvider.overrideWithValue(secureStorage),
           ],
@@ -486,6 +497,7 @@ void main() {
         final restartRepo = MockAuthRepository(secureStorage, false);
         final container2 = ProviderContainer(
           overrides: [
+            ...mockModeOverrides(),
             authRepositoryProvider.overrideWithValue(restartRepo),
             secureStorageProvider.overrideWithValue(secureStorage),
           ],
@@ -508,6 +520,7 @@ void main() {
         // Step A: Login as Driver
         final container1 = ProviderContainer(
           overrides: [
+            ...mockModeOverrides(),
             authRepositoryProvider.overrideWithValue(authRepo),
             secureStorageProvider.overrideWithValue(secureStorage),
           ],
@@ -521,6 +534,7 @@ void main() {
         final restartRepo = MockAuthRepository(secureStorage, false);
         final container2 = ProviderContainer(
           overrides: [
+            ...mockModeOverrides(),
             authRepositoryProvider.overrideWithValue(restartRepo),
             secureStorageProvider.overrideWithValue(secureStorage),
           ],

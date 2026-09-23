@@ -8,6 +8,8 @@ import 'package:shadidriver/features/drivers/domain/entities/driver_decline_reas
 import 'package:shadidriver/features/drivers/domain/entities/driver_duty_status.dart';
 import 'package:shadidriver/features/drivers/presentation/controllers/driver_booking_action_controller.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   late MockBookingRepository mockBookingRepo;
   late MockDriverRepository mockDriverRepo;
@@ -21,6 +23,7 @@ void main() {
     mockBookingRepo = MockBookingRepository();
     container = ProviderContainer(
       overrides: [
+          ...mockModeOverrides(),
         driverRepositoryProvider.overrideWithValue(mockDriverRepo),
         bookingRepositoryProvider.overrideWithValue(mockBookingRepo),
       ],

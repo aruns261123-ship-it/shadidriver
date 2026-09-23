@@ -16,6 +16,7 @@ class ApiClient {
     required this.config,
     required this.logger,
     required SecureStorageService secureStorage,
+    Future<void> Function()? onSessionExpired,
     Dio? dio,
   }) : _dio = dio ?? Dio() {
     _dio.options = BaseOptions(
@@ -30,7 +31,7 @@ class ApiClient {
 
     _dio.interceptors.addAll([
       CorrelationIdInterceptor(),
-      AuthInterceptor(secureStorage),
+      AuthInterceptor(secureStorage, onSessionExpired: onSessionExpired),
       if (config.enableNetworkLogging) NetworkLoggingInterceptor(logger),
     ]);
   }

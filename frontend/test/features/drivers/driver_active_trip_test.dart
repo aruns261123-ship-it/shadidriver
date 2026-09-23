@@ -5,12 +5,14 @@ import 'package:shadidriver/features/drivers/domain/entities/driver_trip_stage.d
 import 'package:shadidriver/features/drivers/presentation/controllers/driver_active_trip_controller.dart';
 import 'package:shadidriver/features/drivers/presentation/driver_active_trip_screen.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   group('DriverActiveTripController Lifecycle Tests', () {
     late ProviderContainer container;
 
     setUp(() {
-      container = ProviderContainer();
+      container = ProviderContainer(overrides: mockModeOverrides());
     });
 
     tearDown(() {
@@ -78,7 +80,7 @@ void main() {
       await controller.markArrived();
 
       final success = await controller.startCeremonyService(
-        otp: '1234',
+        otp: '482913',
         attireConfirmed: false,
       );
 
@@ -97,7 +99,7 @@ void main() {
       await controller.markArrived();
 
       final success = await controller.startCeremonyService(
-        otp: '1234',
+        otp: '482913',
         attireConfirmed: true,
       );
 
@@ -116,7 +118,7 @@ void main() {
       );
       await controller.startEnRoute();
       await controller.markArrived();
-      await controller.startCeremonyService(otp: '1234', attireConfirmed: true);
+      await controller.startCeremonyService(otp: '482913', attireConfirmed: true);
       await controller.completeService();
 
       final state = container.read(
@@ -132,8 +134,9 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
+        ProviderScope(
+          overrides: mockModeOverrides(),
+          child: const MaterialApp(
             home: DriverActiveTripScreen(bookingId: 'bk_mock_req_1'),
           ),
         ),

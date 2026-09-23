@@ -108,9 +108,15 @@ abstract interface class BookingRepository {
   });
 
   /// Checks fleet availability for a multi-vehicle / group booking intent.
+  ///
+  /// [serviceStartTime]/[serviceEndTime]/[city] scope the check to the real
+  /// service window; omitting them falls back to a generic near-term window.
   Future<Result<FleetAvailabilityResult>> checkFleetAvailability(
-    CustomerFleetIntent intent,
-  );
+    CustomerFleetIntent intent, {
+    DateTime? serviceStartTime,
+    DateTime? serviceEndTime,
+    String? city,
+  });
 
   /// Submits a multi-vehicle / group booking with parent booking and individual vehicle assignments.
   Future<Result<GroupBooking>> submitGroupBooking(

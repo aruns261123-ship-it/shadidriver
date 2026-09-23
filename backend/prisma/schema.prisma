@@ -1,0 +1,865 @@
+// ============================================================================
+// ShadiDriver — Prisma Schema (PostgreSQL 16 + PostGIS)
+// ----------------------------------------------------------------------------
+// Adapts infra/migrations/0001_init.sql (authoritative reference schema) with
+// the following domain corrections required by the product core principle
+// ("one group booking, many vehicles, many owners"):
+//   * group_bookings + vehicle_assignments tables (absent from 0001_init.sql)
+//   * refresh_tokens table (rotating refresh-token auth)
+//   * vehicle_types catalog + vehicle_type_id FK on vehicles
+//   * availability as derived from assignments; conflict prevention is
+//     enforced in service-layer transactions (SELECT ... FOR UPDATE), since
+//     Postgres exclusion constraints are managed via raw SQL migration.
+// Terminology follows the existing Flutter BookingStatus enum and the SQL
+// state machine: DRAFT, REQUESTED, DRIVER_ACCEPTED, CONFIRMED, EN_ROUTE,
+// ARRIVED, IN_PROGRESS, COMPLETED, CANCELLED.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Enums — mirror infra/migrations/0001_init.sql CHECK constraints exactly.
+// ----------------------------------------------------------------------------
+
+enum UserRole {
+  customer
+  driver
+  operationsAdmin
+  verificationAdmin
+  financeAdmin
+  superAdmin
+  fleetOwner
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+  PROFILE_INCOMPLETE
+}
+
+enum DutyStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+  AVAILABLE_NOW
+}
+
+enum VerificationStatus {
+  PENDING_SUBMISSION
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  ACTION_REQUIRED
+  SUSPENDED
+}
+
+enum DriverDocumentType {
+  DRIVING_LICENCE
+  AADHAAR_MASKED
+  POLICE_VERIFICATION
+  CHAUFFEUR_CERTIFICATE
+  MEDICAL_FITNESS
+  BACKGROUND_CHECK
+}
+
+enum VehicleDocumentType {
+  REGISTRATION_CERTIFICATE
+  COMMERCIAL_INSURANCE
+  PUC
+  FITNESS_CERTIFICATE
+  COMMERCIAL_PERMIT
+  VEHICLE_TAX
+}
+
+enum DocumentReviewStatus {
+  PENDING_REVIEW
+  VERIFIED
+  REJECTED
+  ACTION_REQUIRED
+  EXPIRED
+}
+
+/// Server-authoritative booking lifecycle (matches frontend BookingStatus).
+enum BookingStatus {
+  DRAFT
+  REQUESTED
+  DRIVER_ACCEPTED
+  CONFIRMED
+  EN_ROUTE
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  BLOCKED
+  BOOKED
+  MAINTENANCE
+}
+
+enum PaymentType {
+  ADVANCE_TOKEN
+  BALANCE_SETTLEMENT
+  OVERTIME_CHARGE
+  TIP
+  REFUND
+}
+
+enum PaymentStatus {
+  INITIATED
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum NotificationChannel {
+  IN_APP
+  PUSH
+  SMS
+  EMAIL
+}
+
+// ----------------------------------------------------------------------------
+// Identity & actors
+// ----------------------------------------------------------------------------
+
+model User {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phoneNumber     String        @unique @map("phone_number") @db.VarChar(15)
+  countryCode     String        @default("+91") @map("country_code") @db.VarChar(5)
+  email           String?       @unique @db.VarChar(255)
+  fullName        String?       @map("full_name") @db.VarChar(150)
+  avatarUrl       String?       @map("avatar_url")
+  primaryRole     UserRole      @map("primary_role")
+  accountStatus   AccountStatus @default(ACTIVE) @map("account_status")
+  isActive        Boolean       @default(true) @map("is_active")
+  isPhoneVerified Boolean       @default(false) @map("is_phone_verified")
+  passwordHash    String?       @map("password_hash")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz(6)
+
+  customerProfile         CustomerProfile?
+  driverProfile           DriverProfile?
+  fleetOwnerProfile       FleetOwnerProfile?
+  adminProfile            AdminProfile?
+  refreshTokens           RefreshToken[]
+  bookingsAsCustomer      Booking[]            @relation("BookingsAsCustomer")
+  groupBookingsAsCustomer GroupBooking[]       @relation("GroupBookingsAsCustomer")
+  paymentsAsCustomer      Payment[]            @relation("PaymentsAsCustomer")
+  auditLogs               AuditLog[]
+  notifications           Notification[]
+  savedAddresses          SavedAddress[]
+  bookingEvents           BookingEvent[]
+  reviewsAsCustomer       Review[]             @relation("ReviewsAsCustomer")
+  messagesSent            Message[]            @relation("MessagesSent")
+  messagesReceived        Message[]            @relation("MessagesReceived")
+  verifiedDocuments       DriverDocument[]     @relation("VerifiedDriverDocuments")
+  verificationRecords     VerificationRecord[]
+
+  @@index([primaryRole])
+  @@index([accountStatus])
+  @@map("users")
+}
+
+model CustomerProfile {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String   @unique @map("user_id") @db.Uuid
+  emergencyContactName  String?  @map("emergency_contact_name") @db.VarChar(150)
+  emergencyContactPhone String?  @map("emergency_contact_phone") @db.VarChar(20)
+  billingAddress        Json?    @map("billing_address")
+  gstin                 String?  @db.VarChar(15)
+  preferredLanguage     String   @default("en") @map("preferred_language") @db.VarChar(20)
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("customers")
+}
+
+model DriverProfile {
+  id                     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                 String             @unique @map("user_id") @db.Uuid
+  fleetOwnerId           String?            @map("fleet_owner_id") @db.Uuid
+  dateOfBirth            DateTime?          @map("date_of_birth") @db.Date
+  experienceYears        Int                @default(0) @map("experience_years")
+  licenseNumber          String?            @unique @map("license_number") @db.VarChar(50)
+  languagesSpoken        String[]           @default(["Hindi"]) @map("languages_spoken")
+  ceremonialAttireSizes  Json?              @map("ceremonial_attire_sizes")
+  bio                    String?            @db.VarChar(500)
+  dutyStatus             DutyStatus         @default(OFFLINE) @map("duty_status")
+  verificationStatus     VerificationStatus @default(PENDING_SUBMISSION) @map("verification_status")
+  policeClearanceStatus  String             @default("PENDING") @map("police_clearance_status") @db.VarChar(30)
+  ceremonialAttireStatus String             @default("PENDING") @map("ceremonial_attire_status") @db.VarChar(30)
+  isOnline               Boolean            @default(false) @map("is_online")
+  currentLatitude        Float?             @map("current_latitude")
+  currentLongitude       Float?             @map("current_longitude")
+  lastLocationUpdate     DateTime?          @map("last_location_update") @db.Timestamptz(6)
+  averageRating          Decimal            @default(5.00) @map("average_rating") @db.Decimal(3, 2)
+  totalTripsCompleted    Int                @default(0) @map("total_trips_completed")
+  createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fleetOwner        FleetOwnerProfile?  @relation(fields: [fleetOwnerId], references: [id], onDelete: SetNull)
+  documents         DriverDocument[]
+  vehicles          Vehicle[]           @relation("IndependentDriverVehicles")
+  bookings          Booking[]           @relation("BookingsAsDriver")
+  assignments       VehicleAssignment[]
+  standbyEntries    StandbyPoolEntry[]
+  reviews           Review[]            @relation("ReviewsForDriver")
+  availabilityLocks Availability[]
+
+  @@index([dutyStatus])
+  @@index([verificationStatus])
+  @@map("drivers")
+}
+
+model FleetOwnerProfile {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String   @unique @map("user_id") @db.Uuid
+  companyName        String   @map("company_name") @db.VarChar(200)
+  tradeLicenseNumber String?  @map("trade_license_number") @db.VarChar(100)
+  panNumber          String?  @map("pan_number") @db.VarChar(10)
+  gstin              String?  @db.VarChar(15)
+  bankAccountDetails Json?    @map("bank_account_details")
+  verificationStatus String   @default("PENDING") @map("verification_status") @db.VarChar(30)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  drivers  DriverProfile[]
+  vehicles Vehicle[]
+
+  @@map("fleet_owners")
+}
+
+model AdminProfile {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  designation String?  @db.VarChar(100)
+  permissions String[] @default([])
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admins")
+}
+
+// ----------------------------------------------------------------------------
+// Auth primitives — OTP codes & rotating refresh tokens
+// ----------------------------------------------------------------------------
+
+model OtpCode {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId   String    @unique @map("session_id") @db.VarChar(64)
+  phoneNumber String    @map("phone_number") @db.VarChar(15)
+  codeHash    String    @map("code_hash")
+  purpose     String    @default("LOGIN") @db.VarChar(30) // LOGIN | SIGNUP | ACTION
+  attempts    Int       @default(0)
+  consumedAt  DateTime? @map("consumed_at") @db.Timestamptz(6)
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([phoneNumber, createdAt])
+  @@map("otp_codes")
+}
+
+model RefreshToken {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  tokenHash    String    @unique @map("token_hash")
+  deviceId     String?   @map("device_id") @db.VarChar(128)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
+  replacedById String?   @map("replaced_by_id") @db.Uuid
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ----------------------------------------------------------------------------
+// Fleet catalog
+// ----------------------------------------------------------------------------
+
+model VehicleType {
+  id           String   @id @db.VarChar(50) // e.g. VT_INNOVA_CRYSTA
+  make         String   @db.VarChar(50)
+  model        String   @db.VarChar(50)
+  displayName  String   @map("display_name") @db.VarChar(100)
+  seatingCap   Int      @map("seating_capacity")
+  vehicleClass String   @map("vehicle_class") @db.VarChar(40) // LUXURY_SEDAN, ULTRA_LUXURY...
+  imageUrl     String?  @map("image_url")
+  amenityTags  String[] @default([]) @map("amenity_tags")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  vehicles Vehicle[]
+
+  @@unique([make, model])
+  @@map("vehicle_types")
+}
+
+model Vehicle {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fleetCode           String             @unique @map("fleet_code") @db.VarChar(30)
+  vehicleTypeId       String             @map("vehicle_type_id") @db.VarChar(50)
+  independentDriverId String?            @map("independent_driver_id") @db.Uuid
+  fleetOwnerId        String?            @map("fleet_owner_id") @db.Uuid
+  yearOfManufacture   Int                @map("year_of_manufacture")
+  color               String             @db.VarChar(30)
+  registrationNumber  String             @unique @map("registration_number") @db.VarChar(30)
+  fuelType            String             @map("fuel_type") @db.VarChar(20)
+  isVintage           Boolean            @default(false) @map("is_vintage")
+  airConditioningType String             @default("DUAL_CLIMATE_CONTROL") @map("air_conditioning_type") @db.VarChar(30)
+  basePricePaise      BigInt             @default(0) @map("base_price_paise") @db.BigInt
+  city                String             @db.VarChar(50)
+  imageUrl            String?            @map("image_url")
+  photoUrls           String[]           @default([]) @map("photo_urls")
+  amenityTags         String[]           @default([]) @map("amenity_tags")
+  serviceAreas        String[]           @default([]) @map("service_areas")
+  verificationStatus  VerificationStatus @default(PENDING_SUBMISSION) @map("verification_status")
+  isAvailable         Boolean            @default(true) @map("is_available")
+  isActive            Boolean            @default(true) @map("is_active")
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  vehicleType       VehicleType         @relation(fields: [vehicleTypeId], references: [id])
+  independentDriver DriverProfile?      @relation("IndependentDriverVehicles", fields: [independentDriverId], references: [id], onDelete: SetNull)
+  fleetOwner        FleetOwnerProfile?  @relation(fields: [fleetOwnerId], references: [id], onDelete: SetNull)
+  documents         VehicleDocument[]
+  bookings          Booking[]
+  assignments       VehicleAssignment[]
+  standbyEntries    StandbyPoolEntry[]
+  reviews           Review[]
+  availabilityLocks Availability[]
+
+  @@index([vehicleTypeId, city])
+  @@index([verificationStatus])
+  @@index([city])
+  @@map("vehicles")
+}
+
+model DriverDocument {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  driverId           String               @map("driver_id") @db.Uuid
+  documentType       DriverDocumentType   @map("document_type")
+  documentNumber     String?              @map("document_number") @db.VarChar(100)
+  storagePath        String               @map("storage_path")
+  mimeType           String               @map("mime_type") @db.VarChar(50)
+  issuedDate         DateTime?            @map("issued_date") @db.Date
+  expiryDate         DateTime?            @map("expiry_date") @db.Date
+  verificationStatus DocumentReviewStatus @default(PENDING_REVIEW) @map("verification_status")
+  rejectionReason    String?              @map("rejection_reason")
+  verifiedBy         String?              @map("verified_by") @db.Uuid
+  verifiedAt         DateTime?            @map("verified_at") @db.Timestamptz(6)
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  driver   DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  verifier User?         @relation("VerifiedDriverDocuments", fields: [verifiedBy], references: [id])
+
+  @@unique([driverId, documentType])
+  @@index([expiryDate])
+  @@map("driver_documents")
+}
+
+model VehicleDocument {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vehicleId          String               @map("vehicle_id") @db.Uuid
+  documentType       VehicleDocumentType  @map("document_type")
+  documentNumber     String?              @map("document_number") @db.VarChar(100)
+  storagePath        String               @map("storage_path")
+  mimeType           String               @map("mime_type") @db.VarChar(50)
+  issuedDate         DateTime?            @map("issued_date") @db.Date
+  expiryDate         DateTime?            @map("expiry_date") @db.Date
+  verificationStatus DocumentReviewStatus @default(PENDING_REVIEW) @map("verification_status")
+  rejectionReason    String?              @map("rejection_reason")
+  verifiedBy         String?              @map("verified_by") @db.Uuid
+  verifiedAt         DateTime?            @map("verified_at") @db.Timestamptz(6)
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleId, documentType])
+  @@index([expiryDate])
+  @@map("vehicle_documents")
+}
+
+model VerificationRecord {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adminId              String   @map("admin_id") @db.Uuid
+  targetType           String   @map("target_type") @db.VarChar(20) // DRIVER | VEHICLE | DOCUMENT
+  targetId             String   @map("target_id") @db.Uuid
+  previousStatus       String   @map("previous_status") @db.VarChar(30)
+  newStatus            String   @map("new_status") @db.VarChar(30)
+  decisionReason       String?  @map("decision_reason")
+  verificationMetadata Json?    @map("verification_metadata")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@index([targetType, targetId])
+  @@map("verification_records")
+}
+
+// ----------------------------------------------------------------------------
+// Catalog & pricing policy (config-driven, server-authoritative)
+// ----------------------------------------------------------------------------
+
+model ServiceCategory {
+  id           String   @id @db.VarChar(50) // SVC_BARAAT, SVC_VIDAI...
+  title        String   @db.VarChar(100)
+  description  String
+  displayOrder Int      @default(0) @map("display_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  addons        ServiceAddon[]
+  pricingRules  PricingRule[]
+  bookings      Booking[]
+  groupBookings GroupBooking[]
+
+  @@map("service_categories")
+}
+
+model ServiceAddon {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  serviceCategoryId String?  @map("service_category_id") @db.VarChar(50)
+  name              String   @db.VarChar(150)
+  description       String?
+  pricePaise        BigInt   @map("price_paise") @db.BigInt
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  serviceCategory ServiceCategory? @relation(fields: [serviceCategoryId], references: [id])
+  bookingAddons   BookingAddon[]
+
+  @@map("service_addons")
+}
+
+model PricingRule {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  serviceCategoryId   String?   @map("service_category_id") @db.VarChar(50)
+  vehicleClass        String    @map("vehicle_class") @db.VarChar(40)
+  cityCode            String    @map("city_code") @db.VarChar(10)
+  baseHours           Int       @map("base_hours")
+  baseKm              Int       @map("base_km")
+  baseRatePaise       BigInt    @map("base_rate_paise") @db.BigInt
+  extraHourRatePaise  BigInt    @map("extra_hour_rate_paise") @db.BigInt
+  extraKmRatePaise    BigInt    @map("extra_km_rate_paise") @db.BigInt
+  nightAllowancePaise BigInt    @default(0) @map("night_allowance_paise") @db.BigInt
+  muhuratMultiplier   Decimal   @default(1.00) @map("muhurat_multiplier") @db.Decimal(3, 2)
+  effectiveFrom       DateTime  @map("effective_from") @db.Timestamptz(6)
+  effectiveTo         DateTime? @map("effective_to") @db.Timestamptz(6)
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  serviceCategory ServiceCategory? @relation(fields: [serviceCategoryId], references: [id])
+  bookings        Booking[]
+
+  @@index([serviceCategoryId, vehicleClass, cityCode])
+  @@map("pricing_rules")
+}
+
+model BookingPolicy {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  policyName               String   @map("policy_name") @db.VarChar(100)
+  advanceTokenPercentage   Decimal  @default(25.00) @map("advance_token_percentage") @db.Decimal(5, 2)
+  cancellationTiers        Json     @map("cancellation_tiers")
+  gracePeriodMinutes       Int      @default(30) @map("grace_period_minutes")
+  overtimeIncrementMinutes Int      @default(30) @map("overtime_increment_minutes")
+  isDefault                Boolean  @default(false) @map("is_default")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  bookings      Booking[]
+  groupBookings GroupBooking[]
+
+  @@map("booking_policies")
+}
+
+// ----------------------------------------------------------------------------
+// Bookings — server-authoritative state machine
+// ----------------------------------------------------------------------------
+
+model Booking {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceCode     String  @unique @map("reference_code") @db.VarChar(30)
+  customerFk        String  @map("customer_id") @db.Uuid
+  driverFk          String? @map("driver_id") @db.Uuid
+  vehicleFk         String? @map("vehicle_id") @db.Uuid
+  serviceCategoryId String? @map("service_category_id") @db.VarChar(50)
+  pricingRuleId     String? @map("pricing_rule_id") @db.Uuid
+  bookingPolicyId   String? @map("booking_policy_id") @db.Uuid
+  groupBookingId    String? @map("group_booking_id") @db.Uuid
+
+  ceremonyType        String  @map("ceremony_type") @db.VarChar(50)
+  ceremonialAttire    String  @map("ceremonial_attire") @db.VarChar(100)
+  specialInstructions String? @map("special_instructions")
+
+  serviceStartTime DateTime @map("service_start_time") @db.Timestamptz(6)
+  serviceEndTime   DateTime @map("service_end_time") @db.Timestamptz(6)
+
+  city                 String   @db.VarChar(50)
+  pickupAddress        String   @map("pickup_address")
+  pickupLatitude       Float?   @map("pickup_latitude")
+  pickupLongitude      Float?   @map("pickup_longitude")
+  destinationAddress   String   @map("destination_address")
+  destinationLatitude  Float?   @map("destination_latitude")
+  destinationLongitude Float?   @map("destination_longitude")
+  venueName            String?  @map("venue_name") @db.VarChar(150)
+  landmarkInstructions String?  @map("landmark_instructions")
+  routeDistanceKm      Decimal? @map("route_distance_km") @db.Decimal(6, 2)
+
+  primaryContactName  String @map("primary_contact_name") @db.VarChar(120)
+  primaryContactPhone String @map("primary_contact_phone") @db.VarChar(20)
+  passengerCount      Int    @default(2) @map("passenger_count")
+
+  estimatedTotalPaise BigInt  @map("estimated_total_paise") @db.BigInt
+  advanceTokenPaise   BigInt  @map("advance_token_paise") @db.BigInt
+  advanceTokenLabel   String? @map("advance_token_label") @db.VarChar(60)
+  isAdvancePaid       Boolean @default(false) @map("is_advance_paid")
+  finalSettledPaise   BigInt? @map("final_settled_paise") @db.BigInt
+
+  status         BookingStatus @default(REQUESTED)
+  /// Trip start OTP — generated server-side per booking at the appropriate
+  /// lifecycle stage; never a hard-coded default. Nullable until generated.
+  startOtpHash   String?       @map("start_otp_hash") @db.VarChar(64)
+  version        Int           @default(1)
+  idempotencyKey String        @unique @map("idempotency_key") @db.VarChar(100)
+
+  submittedAt        DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  startedAt          DateTime? @map("started_at") @db.Timestamptz(6)
+  completedAt        DateTime? @map("completed_at") @db.Timestamptz(6)
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancellationReason String?   @map("cancellation_reason")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer        User             @relation("BookingsAsCustomer", fields: [customerFk], references: [id])
+  driver          DriverProfile?   @relation("BookingsAsDriver", fields: [driverFk], references: [id])
+  vehicle         Vehicle?         @relation(fields: [vehicleFk], references: [id])
+  serviceCategory ServiceCategory? @relation(fields: [serviceCategoryId], references: [id])
+  pricingRule     PricingRule?     @relation(fields: [pricingRuleId], references: [id])
+  bookingPolicy   BookingPolicy?   @relation(fields: [bookingPolicyId], references: [id])
+  groupBooking    GroupBooking?    @relation(fields: [groupBookingId], references: [id], onDelete: Cascade)
+
+  addons            BookingAddon[]
+  events            BookingEvent[]
+  payments          Payment[]
+  availabilityLocks Availability[]
+  review            Review?
+  messages          Message[]
+  assignments       VehicleAssignment[]
+
+  @@index([customerFk])
+  @@index([driverFk])
+  @@index([status])
+  @@index([serviceStartTime, serviceEndTime])
+  @@map("bookings")
+}
+
+model BookingAddon {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId      String   @map("booking_id") @db.Uuid
+  addonId        String   @map("addon_id") @db.Uuid
+  quantity       Int      @default(1)
+  unitPricePaise BigInt   @map("unit_price_paise") @db.BigInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  booking Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  addon   ServiceAddon @relation(fields: [addonId], references: [id])
+
+  @@index([bookingId])
+  @@map("booking_addons")
+}
+
+/// Append-only, immutable state-transition audit trail.
+model BookingEvent {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId         String   @map("booking_id") @db.Uuid
+  fromStatus        String   @map("from_status") @db.VarChar(40)
+  toStatus          String   @map("to_status") @db.VarChar(40)
+  triggeredByUserId String   @map("triggered_by_user_id") @db.Uuid
+  triggerRole       String   @map("trigger_role") @db.VarChar(30)
+  eventReason       String?  @map("event_reason")
+  eventMetadata     Json?    @map("event_metadata")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor   User    @relation(fields: [triggeredByUserId], references: [id])
+
+  @@index([bookingId, createdAt])
+  @@map("booking_events")
+}
+
+/// Time-slot locks preventing double-booking of drivers/vehicles.
+/// Overlap prevention is additionally enforced transactionally in the
+/// assignment service (row locks + overlap check), because Postgres
+/// exclusion constraints require a raw-SQL migration addendum.
+model Availability {
+  id        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  driverId  String?            @map("driver_id") @db.Uuid
+  vehicleId String?            @map("vehicle_id") @db.Uuid
+  startTime DateTime           @map("start_time") @db.Timestamptz(6)
+  endTime   DateTime           @map("end_time") @db.Timestamptz(6)
+  status    AvailabilityStatus @default(BOOKED)
+  bookingId String?            @map("booking_id") @db.Uuid
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  driver  DriverProfile? @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  vehicle Vehicle?       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  booking Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([driverId, startTime, endTime])
+  @@index([vehicleId, startTime, endTime])
+  @@map("availabilities")
+}
+
+model StandbyPoolEntry {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  city                String   @db.VarChar(50)
+  driverId            String   @map("driver_id") @db.Uuid
+  vehicleId           String   @map("vehicle_id") @db.Uuid
+  standbyDate         DateTime @map("standby_date") @db.Date
+  shiftStart          DateTime @map("shift_start") @db.Timestamptz(6)
+  shiftEnd            DateTime @map("shift_end") @db.Timestamptz(6)
+  status              String   @default("ACTIVE") @db.VarChar(30) // ACTIVE | DISPATCHED | RELEASED
+  dispatchedBookingId String?  @map("dispatched_booking_id") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  driver  DriverProfile @relation(fields: [driverId], references: [id])
+  vehicle Vehicle       @relation(fields: [vehicleId], references: [id])
+
+  @@index([city, standbyDate, status])
+  @@map("standby_pool")
+}
+
+// ----------------------------------------------------------------------------
+// Group bookings — ONE parent reservation, MANY vehicle assignments
+// ----------------------------------------------------------------------------
+
+model GroupBooking {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceCode     String  @unique @map("reference_code") @db.VarChar(30)
+  customerFk        String  @map("customer_id") @db.Uuid
+  serviceCategoryId String? @map("service_category_id") @db.VarChar(50)
+  bookingPolicyId   String? @map("booking_policy_id") @db.Uuid
+
+  ceremonyType       String   @map("ceremony_type") @db.VarChar(50)
+  city               String   @db.VarChar(50)
+  pickupAddress      String   @map("pickup_address")
+  destinationAddress String   @map("destination_address")
+  serviceStartTime   DateTime @map("service_start_time") @db.Timestamptz(6)
+  serviceEndTime     DateTime @map("service_end_time") @db.Timestamptz(6)
+
+  /// Original fleet intent, verbatim: e.g. {"Toyota Innova Crysta": 7}
+  requestedFleet Json @map("requested_fleet")
+  passengerCount Int  @map("passenger_count")
+
+  /// Aggregate pricing (sum of authoritative per-assignment quotes)
+  estimatedTotalPaise BigInt @map("estimated_total_paise") @db.BigInt
+  advanceTokenPaise   BigInt @map("advance_token_paise") @db.BigInt
+
+  status         BookingStatus @default(REQUESTED)
+  idempotencyKey String        @unique @map("idempotency_key") @db.VarChar(100)
+  version        Int           @default(1)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer        User                @relation("GroupBookingsAsCustomer", fields: [customerFk], references: [id])
+  serviceCategory ServiceCategory?    @relation(fields: [serviceCategoryId], references: [id])
+  bookingPolicy   BookingPolicy?      @relation(fields: [bookingPolicyId], references: [id])
+  assignments     VehicleAssignment[]
+  bookings        Booking[]
+
+  @@index([customerFk])
+  @@index([status])
+  @@map("group_bookings")
+}
+
+/// One vehicle + one chauffeur committed under a group booking (or a
+/// standalone booking). Assignments may span different owners/drivers —
+/// the parent group booking is the customer-facing unity.
+model VehicleAssignment {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupBookingId String? @map("group_booking_id") @db.Uuid
+  bookingId      String? @map("booking_id") @db.Uuid
+  vehicleId      String  @map("vehicle_id") @db.Uuid
+  driverId       String  @map("driver_id") @db.Uuid
+  sequenceNumber Int     @default(1) @map("sequence_number")
+
+  /// REQUESTED until the assigned chauffeur accepts; CANCELLED on decline.
+  status         BookingStatus @default(REQUESTED)
+  /// Client request ID — never authoritative; kept for display parity.
+  requestedModel String?       @map("requested_model") @db.VarChar(100)
+
+  estimatedTotalPaise BigInt @map("estimated_total_paise") @db.BigInt
+  advanceTokenPaise   BigInt @map("advance_token_paise") @db.BigInt
+
+  acceptedAt    DateTime? @map("accepted_at") @db.Timestamptz(6)
+  declinedAt    DateTime? @map("declined_at") @db.Timestamptz(6)
+  declineReason String?   @map("decline_reason")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  groupBooking GroupBooking? @relation(fields: [groupBookingId], references: [id], onDelete: Cascade)
+  booking      Booking?      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  vehicle      Vehicle       @relation(fields: [vehicleId], references: [id])
+  driver       DriverProfile @relation(fields: [driverId], references: [id])
+
+  @@index([groupBookingId])
+  @@index([driverId, status])
+  @@index([vehicleId])
+  @@map("vehicle_assignments")
+}
+
+// ----------------------------------------------------------------------------
+// Payments (gateway-agnostic abstraction — Razorpay/Cashfree later)
+// ----------------------------------------------------------------------------
+
+model Payment {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId        String        @map("booking_id") @db.Uuid
+  customerFk       String        @map("customer_id") @db.Uuid
+  paymentType      PaymentType   @map("payment_type")
+  amountPaise      BigInt        @map("amount_paise") @db.BigInt
+  currency         String        @default("INR") @db.VarChar(5)
+  gateway          String        @default("MOCK") @db.VarChar(30)
+  gatewayOrderId   String?       @map("gateway_order_id") @db.VarChar(100)
+  gatewayPaymentId String?       @map("gateway_payment_id") @db.VarChar(100)
+  gatewaySignature String?       @map("gateway_signature") @db.VarChar(255)
+  status           PaymentStatus @default(INITIATED)
+  failureCode      String?       @map("failure_code") @db.VarChar(50)
+  failureMessage   String?       @map("failure_message")
+  idempotencyKey   String?       @unique @map("idempotency_key") @db.VarChar(100)
+  paidAt           DateTime?     @map("paid_at") @db.Timestamptz(6)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  booking  Booking @relation(fields: [bookingId], references: [id])
+  customer User    @relation("PaymentsAsCustomer", fields: [customerFk], references: [id])
+
+  @@index([bookingId])
+  @@index([gatewayOrderId])
+  @@map("payments")
+}
+
+// ----------------------------------------------------------------------------
+// Customer convenience & communication
+// ----------------------------------------------------------------------------
+
+model SavedAddress {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  label       String   @db.VarChar(50)
+  addressLine String   @map("address_line")
+  city        String   @db.VarChar(50)
+  landmark    String?  @db.VarChar(120)
+  latitude    Float?
+  longitude   Float?
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("saved_addresses")
+}
+
+model Notification {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  channel     NotificationChannel @default(IN_APP)
+  title       String              @db.VarChar(150)
+  body        String
+  dataPayload Json?               @map("data_payload")
+  isRead      Boolean             @default(false) @map("is_read")
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model Review {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId         String   @unique @map("booking_id") @db.Uuid
+  customerFk        String   @map("customer_id") @db.Uuid
+  driverFk          String   @map("driver_id") @db.Uuid
+  vehicleFk         String   @map("vehicle_id") @db.Uuid
+  overallRating     Int      @map("overall_rating")
+  punctualityRating Int?     @map("punctuality_rating")
+  groomingRating    Int?     @map("grooming_rating")
+  cleanlinessRating Int?     @map("cleanliness_rating")
+  drivingRating     Int?     @map("driving_rating")
+  feedbackText      String?  @map("feedback_text")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  booking  Booking       @relation(fields: [bookingId], references: [id])
+  customer User          @relation("ReviewsAsCustomer", fields: [customerFk], references: [id])
+  driver   DriverProfile @relation("ReviewsForDriver", fields: [driverFk], references: [id])
+  vehicle  Vehicle       @relation(fields: [vehicleFk], references: [id])
+
+  @@index([driverFk])
+  @@map("reviews")
+}
+
+model Message {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId   String   @map("booking_id") @db.Uuid
+  senderId    String   @map("sender_id") @db.Uuid
+  recipientId String   @map("recipient_id") @db.Uuid
+  messageType String   @default("TEXT") @map("message_type") @db.VarChar(20)
+  body        String
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sender    User    @relation("MessagesSent", fields: [senderId], references: [id])
+  recipient User    @relation("MessagesReceived", fields: [recipientId], references: [id])
+
+  @@index([bookingId, createdAt])
+  @@map("messages")
+}
+
+// ----------------------------------------------------------------------------
+// Audit
+// ----------------------------------------------------------------------------
+
+model AuditLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId      String?  @map("actor_id") @db.Uuid
+  actorRole    String?  @map("actor_role") @db.VarChar(30)
+  action       String   @db.VarChar(100)
+  targetEntity String?  @map("target_entity") @db.VarChar(50)
+  targetId     String?  @map("target_id") @db.Uuid
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  changes      Json?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([action])
+  @@map("audit_logs")
+}

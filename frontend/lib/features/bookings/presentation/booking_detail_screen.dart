@@ -256,7 +256,7 @@ class BookingDetailScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '1234',
+                      booking.startOtp ?? '••••',
                       style: AppTypography.titleMedium.copyWith(
                         color: AppColors.champagneGold,
                         fontWeight: FontWeight.w800,

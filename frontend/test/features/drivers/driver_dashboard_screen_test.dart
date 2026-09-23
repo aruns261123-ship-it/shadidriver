@@ -3,14 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadidriver/features/drivers/presentation/driver_dashboard_screen.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   group('DriverDashboardScreen Widget Tests', () {
     testWidgets(
       'renders Chauffeur Console, duty status chips, and initial offers',
       (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(home: DriverDashboardScreen()),
+          ProviderScope(
+            overrides: mockModeOverrides(),
+            child: const MaterialApp(home: DriverDashboardScreen()),
           ),
         );
 
@@ -45,8 +48,9 @@ void main() {
       'switching duty status to OFFLINE pauses dispatch and hides offers',
       (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(home: DriverDashboardScreen()),
+          ProviderScope(
+            overrides: mockModeOverrides(),
+            child: const MaterialApp(home: DriverDashboardScreen()),
           ),
         );
         await tester.pumpAndSettle();
@@ -75,7 +79,10 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        const ProviderScope(child: MaterialApp(home: DriverDashboardScreen())),
+        ProviderScope(
+          overrides: mockModeOverrides(),
+          child: const MaterialApp(home: DriverDashboardScreen()),
+        ),
       );
       await tester.pumpAndSettle();
 

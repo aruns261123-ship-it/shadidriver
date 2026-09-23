@@ -7,6 +7,8 @@ import 'package:shadidriver/features/drivers/presentation/driver_dashboard_scree
 import 'package:shadidriver/features/profile/presentation/admin_account_center_screen.dart';
 import 'package:shadidriver/features/profile/presentation/admin_dashboard_screen.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   group('Role Purity & Cross-Role Switcher Removal Tests', () {
     testWidgets(
@@ -20,8 +22,9 @@ void main() {
         });
 
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(home: CustomerAccountCenterScreen()),
+          ProviderScope(
+            overrides: mockModeOverrides(),
+            child: const MaterialApp(home: CustomerAccountCenterScreen()),
           ),
         );
 
@@ -63,8 +66,9 @@ void main() {
         });
 
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(home: DriverAccountCenterScreen()),
+          ProviderScope(
+            overrides: mockModeOverrides(),
+            child: const MaterialApp(home: DriverAccountCenterScreen()),
           ),
         );
 
@@ -99,8 +103,9 @@ void main() {
       'DriverDashboardScreen does not render cross-role switch button',
       (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(home: DriverDashboardScreen()),
+          ProviderScope(
+            overrides: mockModeOverrides(),
+            child: const MaterialApp(home: DriverDashboardScreen()),
           ),
         );
 
@@ -123,8 +128,9 @@ void main() {
         });
 
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(home: AdminAccountCenterScreen()),
+          ProviderScope(
+            overrides: mockModeOverrides(),
+            child: const MaterialApp(home: AdminAccountCenterScreen()),
           ),
         );
 
@@ -159,7 +165,10 @@ void main() {
       'AdminDashboardScreen does not render cross-role switch button',
       (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(child: MaterialApp(home: AdminDashboardScreen())),
+          ProviderScope(
+            overrides: mockModeOverrides(),
+            child: const MaterialApp(home: AdminDashboardScreen()),
+          ),
         );
 
         await tester.pumpAndSettle();

@@ -14,6 +14,7 @@ import '../../../../core/widgets/shadi_primary_button.dart';
 import '../../../../core/widgets/shadi_secondary_button.dart';
 import '../../../../core/widgets/shadi_text_field.dart';
 import '../domain/entities/booking_draft.dart';
+import '../domain/entities/search_handoff.dart';
 import '../../vehicles/domain/entities/vehicle_details.dart';
 import '../../vehicles/presentation/controllers/vehicle_details_controller.dart';
 import 'controllers/booking_draft_controller.dart';
@@ -28,7 +29,15 @@ class BookingEntryScreen extends ConsumerStatefulWidget {
   final String vehicleId;
   final String? draftId;
 
-  const BookingEntryScreen({super.key, required this.vehicleId, this.draftId});
+  /// Search intent (destination, date, occasion) prefilled into the draft.
+  final SearchHandoff? searchHandoff;
+
+  const BookingEntryScreen({
+    super.key,
+    required this.vehicleId,
+    this.draftId,
+    this.searchHandoff,
+  });
 
   @override
   ConsumerState<BookingEntryScreen> createState() => _BookingEntryScreenState();
@@ -221,6 +230,7 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
         final params = BookingDraftParams(
           vehicle: vehicle,
           draftId: widget.draftId,
+          searchHandoff: widget.searchHandoff,
         );
         final draftState = ref.watch(bookingDraftControllerProvider(params));
         final draftNotifier = ref.read(

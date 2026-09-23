@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
 import '../../../vehicles/domain/entities/vehicle_details.dart';
 import '../../domain/entities/booking_draft.dart';
+import '../../domain/entities/search_handoff.dart';
 import '../../domain/policies/booking_pricing_policy.dart';
 import '../../domain/repositories/booking_repository.dart';
 import '../../domain/services/route_distance_service.dart';
@@ -68,12 +69,15 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
   final BookingPricingPolicy pricingPolicy;
   final RouteDistanceService? routeDistanceService;
 
+  final SearchHandoff? searchHandoff;
+
   BookingDraftController({
     required this.bookingRepository,
     required this.pricingPolicy,
     this.routeDistanceService,
     required VehicleDetails vehicle,
     String? initialDraftId,
+    this.searchHandoff,
   }) : super(
          _createInitialState(
            vehicle: vehicle,
@@ -83,7 +87,48 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
        ) {
     if (initialDraftId != null && initialDraftId.isNotEmpty) {
       loadExistingDraft(initialDraftId);
+    } else if (searchHandoff != null && searchHandoff!.hasAny) {
+      _applySearchHandoff();
     }
+  }
+
+  /// Seeds the fresh draft with the customer's search intent (destination,
+  /// event date, occasion, passenger count) so nothing is re-entered.
+  void _applySearchHandoff() {
+    final handoff = searchHandoff!;
+    var draft = state.draft;
+
+    final destination = handoff.destination?.trim() ?? '';
+    final pickup = handoff.pickupLocation?.trim() ?? '';
+    if (destination.isNotEmpty || pickup.isNotEmpty) {
+      draft = draft.copyWith(
+        destinationAddress: destination.isNotEmpty ? destination : draft.destinationAddress,
+        pickupAddress: pickup.isNotEmpty ? pickup : draft.pickupAddress,
+      );
+    }
+    if (handoff.occasion != null && handoff.occasion!.trim().isNotEmpty) {
+      draft = draft.copyWith(ceremonyType: handoff.occasion!.trim());
+    }
+    if (handoff.eventDate != null) {
+      // Keep the draft's default 4:00 PM slot; move it to the searched date.
+      final start = draft.serviceStartDateTime;
+      final newStart = DateTime(
+        handoff.eventDate!.year,
+        handoff.eventDate!.month,
+        handoff.eventDate!.day,
+        start.hour,
+        start.minute,
+      );
+      draft = draft.copyWith(
+        serviceStartDateTime: newStart,
+        serviceEndDateTime: newStart.add(Duration(hours: draft.durationHours)),
+      );
+    }
+    if (handoff.passengerCount != null && handoff.passengerCount! > 0) {
+      draft = draft.copyWith(passengerCount: handoff.passengerCount!);
+    }
+
+    state = state.copyWith(draft: draft, clearError: true);
   }
 
   static BookingDraftState _createInitialState({
@@ -435,17 +480,26 @@ class BookingDraftParams {
   final VehicleDetails vehicle;
   final String? draftId;
 
-  const BookingDraftParams({required this.vehicle, this.draftId});
+  /// Search intent carried forward so the customer never re-enters it
+  /// (destination, event date, occasion, passenger count).
+  final SearchHandoff? searchHandoff;
+
+  const BookingDraftParams({
+    required this.vehicle,
+    this.draftId,
+    this.searchHandoff,
+  });
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is BookingDraftParams &&
           other.vehicle.id == vehicle.id &&
-          other.draftId == draftId);
+          other.draftId == draftId &&
+          other.searchHandoff == searchHandoff);
 
   @override
-  int get hashCode => Object.hash(vehicle.id, draftId);
+  int get hashCode => Object.hash(vehicle.id, draftId, searchHandoff);
 }
 
 /// Provider family for booking draft controller keyed by vehicle and optional draft ID.
@@ -463,5 +517,6 @@ final bookingDraftControllerProvider = StateNotifierProvider.autoDispose
         routeDistanceService: routeDistanceService,
         vehicle: params.vehicle,
         initialDraftId: params.draftId,
+        searchHandoff: params.searchHandoff,
       );
     });

@@ -5,6 +5,8 @@ import 'package:shadidriver/app/providers/app_providers.dart';
 import 'package:shadidriver/features/bookings/data/mock_booking_repository.dart';
 import 'package:shadidriver/features/bookings/presentation/booking_detail_screen.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   group('BookingDetailScreen Widget Tests', () {
     testWidgets(
@@ -15,6 +17,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              ...mockModeOverrides(),
               bookingRepositoryProvider.overrideWithValue(mockBookingRepo),
             ],
             child: const MaterialApp(
@@ -49,7 +52,9 @@ void main() {
           find.byKey(const Key('ceremony_start_otp_badge')),
           findsOneWidget,
         );
-        expect(find.text('1234'), findsOneWidget);
+        // Mock-mode seeded booking displays its OTP; real mode shows masked
+        // '••••' because the code arrives via SMS only.
+        expect(find.text('482913'), findsOneWidget);
       },
     );
 
@@ -61,6 +66,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            ...mockModeOverrides(),
             bookingRepositoryProvider.overrideWithValue(mockBookingRepo),
           ],
           child: const MaterialApp(
@@ -121,6 +127,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            ...mockModeOverrides(),
             bookingRepositoryProvider.overrideWithValue(mockBookingRepo),
           ],
           child: const MaterialApp(

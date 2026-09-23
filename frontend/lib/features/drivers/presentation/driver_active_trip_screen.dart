@@ -818,7 +818,7 @@ class DriverActiveTripScreen extends ConsumerWidget {
                       final code = otpController.text.trim();
                       Navigator.pop(modalCtx);
                       await controller.startCeremonyService(
-                        otp: code.isEmpty ? '1234' : code,
+                        otp: code,
                         attireConfirmed: attireChecked,
                       );
                     },

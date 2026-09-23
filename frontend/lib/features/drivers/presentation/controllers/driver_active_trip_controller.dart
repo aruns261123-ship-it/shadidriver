@@ -47,7 +47,7 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
   /// gates the "Start Journey" action per the PRD's pre-trip protocol.
   bool preTripChecklistSubmitted = false;
 
-  DriverActiveTripController(this._ref, {String bookingId = 'bk_mock_req_1'})
+  DriverActiveTripController(this._ref, {required String bookingId})
     : super(
         DriverActiveTripState(
           trip: DriverActiveTrip.mockInitial(bookingId: bookingId),
@@ -200,7 +200,22 @@ class DriverActiveTripController extends StateNotifier<DriverActiveTripState> {
   }) async {
     state = state.copyWith(isUpdating: true, errorMessage: null);
 
-    if (otp != state.trip.startOtp && otp != '0000') {
+    // REAL MODE: no client-side validation — the START_TRIP transition is
+    // verified server-side against the per-booking hashed trip OTP.
+    // MOCK MODE: mirror that server behavior locally against the seeded
+    // trip OTP so the mock flow still rejects wrong codes.
+    final useMock = _ref.read(
+      environmentConfigProvider.select((c) => c.useMockData),
+    );
+    if (useMock && otp != state.trip.startOtp) {
+      state = state.copyWith(
+        isUpdating: false,
+        errorMessage:
+            'Invalid Host Start OTP. Please ask the family host for the 4-digit code.',
+      );
+      return false;
+    }
+    if (otp.trim().length < 4) {
       state = state.copyWith(
         isUpdating: false,
         errorMessage:
@@ -328,5 +343,6 @@ final driverActiveTripControllerProvider =
       DriverActiveTripState,
       String
     >(
-      (ref, bookingId) => DriverActiveTripController(ref, bookingId: bookingId),
+      (ref, bookingId) =>
+          DriverActiveTripController(ref, bookingId: bookingId),
     );

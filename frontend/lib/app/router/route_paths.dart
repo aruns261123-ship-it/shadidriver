@@ -29,6 +29,13 @@ abstract final class RoutePaths {
   static const String customerUrgentDispatch = '/customer/urgent-dispatch';
   static const String customerSupportTicket = '/customer/support';
 
+  // Group / multi-vehicle booking
+  static const String customerGroupBooking = '/customer/group-booking';
+  static const String customerGroupBookingDetail =
+      '/customer/group-booking/:groupBookingId';
+  static String customerGroupBookingDetailPath(String groupBookingId) =>
+      '/customer/group-booking/$groupBookingId';
+
   static String customerPaymentCheckoutPath(String bookingId) =>
       '/customer/bookings/payment/$bookingId';
   static String customerBookingDetailPath(String bookingId) =>

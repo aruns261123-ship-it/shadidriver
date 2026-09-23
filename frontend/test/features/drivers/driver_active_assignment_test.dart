@@ -12,6 +12,8 @@ import 'package:shadidriver/features/drivers/presentation/controllers/driver_boo
 import 'package:shadidriver/features/drivers/presentation/controllers/driver_dashboard_controller.dart';
 import 'package:shadidriver/features/home/data/mock_repositories.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   late MockDriverRepository mockDriverRepo;
   late MockBookingRepository mockBookingRepo;
@@ -19,6 +21,7 @@ void main() {
   ProviderContainer makeContainer() {
     return ProviderContainer(
       overrides: [
+          ...mockModeOverrides(),
         driverRepositoryProvider.overrideWithValue(mockDriverRepo),
         bookingRepositoryProvider.overrideWithValue(mockBookingRepo),
       ],

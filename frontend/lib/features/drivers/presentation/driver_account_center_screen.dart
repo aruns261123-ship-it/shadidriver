@@ -20,9 +20,12 @@ import '../../auth/presentation/controllers/auth_controller.dart';
 /// Features chauffeur bio, calculated profile completion percentage,
 /// decoupled verification status badge, assigned fleet specs, and operational settings.
 class DriverAccountCenterScreen extends ConsumerWidget {
-  final String driverId;
+  /// Explicit driver ID override. When null (the default), the screen reads
+  /// the authenticated identity from [currentDriverIdProvider] — real mode
+  /// uses the JWT user ID; mock mode resolves the demo roster key.
+  final String? driverId;
 
-  const DriverAccountCenterScreen({super.key, this.driverId = 'd1'});
+  const DriverAccountCenterScreen({super.key, this.driverId});
 
   /// Resolves the badge label/color from live duty status, falling back to the
   /// static profile flag while loading or on error.
@@ -57,9 +60,11 @@ class DriverAccountCenterScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(driverProfileControllerProvider(driverId));
+    final String effectiveDriverId =
+        driverId ?? ref.watch(currentDriverIdProvider);
+    final state = ref.watch(driverProfileControllerProvider(effectiveDriverId));
     final controller = ref.read(
-      driverProfileControllerProvider(driverId).notifier,
+      driverProfileControllerProvider(effectiveDriverId).notifier,
     );
 
     return Scaffold(
@@ -196,7 +201,8 @@ class DriverAccountCenterScreen extends ConsumerWidget {
     final profile = state.profile!;
     // Live operational duty status (single source of truth: DriverRepository,
     // the same store the Chauffeur Console duty chips write to).
-    final dutyAsync = ref.watch(driverDutyStatusProvider(driverId));
+    final dutyAsync =
+        ref.watch(driverDutyStatusProvider(driverId ?? ref.watch(currentDriverIdProvider)));
     final dutyBadge = _resolveDutyBadge(profile, dutyAsync);
 
     return ShadiCard(

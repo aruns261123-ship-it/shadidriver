@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadidriver/features/drivers/presentation/driver_booking_request_screen.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   const testBookingId = 'bk_mock_req_1';
 
@@ -11,8 +13,9 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
+        ProviderScope(
+          overrides: mockModeOverrides(),
+          child: const MaterialApp(
             home: DriverBookingRequestScreen(bookingId: testBookingId),
           ),
         ),
@@ -48,8 +51,9 @@ void main() {
       'decline button opens bottom sheet requiring reason before confirmation',
       (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(
+          ProviderScope(
+            overrides: mockModeOverrides(),
+            child: const MaterialApp(
               home: DriverBookingRequestScreen(bookingId: testBookingId),
             ),
           ),

@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: shadidriver-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shadidriver}
+      POSTGRES_USER: ${POSTGRES_USER:-shadidriver_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shadidriver_secret}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shadidriver_admin} -d ${POSTGRES_DB:-shadidriver}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shadidriver
+
+  redis:
+    image: redis:7-alpine
+    container_name: shadidriver-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-shadidriver_redis_secret}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-shadidriver_redis_secret} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - shadidriver
+
+  api:
+    build: .
+    container_name: shadidriver-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-shadidriver_admin}:${POSTGRES_PASSWORD:-shadidriver_secret}@postgres:5432/${POSTGRES_DB:-shadidriver}?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD:-shadidriver_redis_secret}@redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-only-access-secret-change-me-min-32-chars}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-only-refresh-secret-change-me-min-32-chars}
+      OTP_DEBUG_LOG: ${OTP_DEBUG_LOG:-true}
+      ENABLE_SWAGGER: "true"
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    networks:
+      - shadidriver
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  shadidriver:
+    driver: bridge

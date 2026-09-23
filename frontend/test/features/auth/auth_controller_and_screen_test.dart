@@ -9,6 +9,8 @@ import 'package:shadidriver/features/auth/domain/entities/user_role.dart';
 import 'package:shadidriver/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:shadidriver/features/auth/presentation/login_screen.dart';
 
+import '../../helpers/mock_env.dart';
+
 class InMemorySecureStorage implements SecureStorageService {
   final Map<String, String> _data = {};
 
@@ -39,6 +41,7 @@ void main() {
       storage = InMemorySecureStorage();
       container = ProviderContainer(
         overrides: [
+          ...mockModeOverrides(),
           authRepositoryProvider.overrideWithValue(authRepo),
           secureStorageProvider.overrideWithValue(storage),
         ],
@@ -149,6 +152,7 @@ void main() {
       storage = InMemorySecureStorage();
       container = ProviderContainer(
         overrides: [
+          ...mockModeOverrides(),
           authRepositoryProvider.overrideWithValue(authRepo),
           secureStorageProvider.overrideWithValue(storage),
         ],

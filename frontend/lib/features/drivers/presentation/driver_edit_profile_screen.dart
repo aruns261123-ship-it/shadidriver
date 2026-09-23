@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/router/route_paths.dart';
+import 'controllers/driver_dashboard_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/shadi_card.dart';
@@ -16,9 +17,11 @@ import 'controllers/driver_profile_controller.dart';
 ///
 /// Invariant: Verification status and vehicle assignment are strictly read-only.
 class DriverEditProfileScreen extends ConsumerStatefulWidget {
-  final String driverId;
+  /// Explicit driver ID override. When null (the default), the screen reads
+  /// the authenticated identity from [currentDriverIdProvider].
+  final String? driverId;
 
-  const DriverEditProfileScreen({super.key, this.driverId = 'd1'});
+  const DriverEditProfileScreen({super.key, this.driverId});
 
   @override
   ConsumerState<DriverEditProfileScreen> createState() =>
@@ -168,9 +171,11 @@ class _DriverEditProfileScreenState
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(driverProfileControllerProvider(widget.driverId));
+    final String effectiveDriverId =
+        widget.driverId ?? ref.watch(currentDriverIdProvider);
+    final state = ref.watch(driverProfileControllerProvider(effectiveDriverId));
     final controller = ref.read(
-      driverProfileControllerProvider(widget.driverId).notifier,
+      driverProfileControllerProvider(effectiveDriverId).notifier,
     );
 
     if (state.profile != null) {

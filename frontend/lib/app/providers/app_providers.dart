@@ -8,6 +8,8 @@ import '../../core/security/flutter_secure_storage_impl.dart';
 import '../../core/security/secure_storage_service.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/bookings/domain/repositories/booking_repository.dart';
+import '../../features/bookings/domain/entities/search_handoff.dart';
+import '../../features/search/presentation/controllers/search_controller.dart';
 import '../../features/bookings/domain/policies/booking_pricing_policy.dart';
 import '../../features/bookings/data/mock_booking_pricing_policy.dart';
 import '../../features/drivers/domain/repositories/driver_repository.dart';
@@ -18,6 +20,7 @@ import '../../features/services/domain/repositories/service_category_repository.
 import '../../features/services/domain/repositories/service_addon_repository.dart';
 import '../../features/home/data/mock_repositories.dart';
 import '../../features/bookings/data/mock_booking_repository.dart';
+import '../../features/bookings/data/booking_api_repository.dart';
 import '../../features/vehicles/domain/entities/vehicle_summary.dart';
 import '../../features/vehicles/presentation/controllers/recently_viewed_controller.dart';
 import '../../features/services/domain/entities/service_category.dart';
@@ -36,9 +39,11 @@ import '../../features/profile/domain/repositories/admin_profile_repository.dart
 import '../../features/profile/data/mock_admin_profile_repository.dart';
 import '../../features/auth/domain/entities/auth_session.dart';
 import '../../features/auth/data/mock_auth_repository.dart';
+import '../../features/auth/data/auth_api_repository.dart';
 import '../../features/bookings/domain/services/route_distance_service.dart';
 import '../../features/bookings/data/mock_route_distance_service.dart';
 import '../../features/payments/data/mock_payment_repository.dart';
+import '../../features/payments/data/payment_api_repository.dart';
 import '../../features/notifications/data/mock_notification_repository.dart';
 import '../../features/urgent_dispatch/domain/repositories/urgent_dispatch_repository.dart';
 import '../../features/urgent_dispatch/data/mock_urgent_dispatch_repository.dart';
@@ -48,6 +53,7 @@ import '../../features/reviews/domain/repositories/review_repository.dart';
 import '../../features/reviews/data/mock_review_repository.dart';
 import '../../features/trips/domain/repositories/trip_repository.dart';
 import '../../features/trips/data/mock_trip_repository.dart';
+import '../../features/trips/data/trip_api_repository.dart';
 import 'package:flutter/foundation.dart';
 import '../router/app_router.dart';
 import '../router/route_guards.dart';
@@ -56,9 +62,20 @@ import '../router/route_guards.dart';
 // Core Infrastructure Providers
 // ---------------------------------------------------------------------------
 
-/// Active environment configuration provider (mock development mode).
+/// Active environment configuration provider.
+///
+/// NO-MOCK PRODUCTION RULE: the default application path uses the REAL API
+/// (useMockData == false). Mock repositories remain reachable ONLY behind the
+/// explicit `SHADI_USE_MOCK_AUTH=true` dart-define, which exists for offline
+/// UI development and automated tests. Dev API base URL defaults to the
+/// local backend (Android emulator loopback via 10.0.2.2).
 final environmentConfigProvider = Provider<EnvironmentConfig>((ref) {
-  return EnvironmentConfig.development();
+  return EnvironmentConfig.development(
+    apiBaseUrlOverride: const String.fromEnvironment(
+      'SHADI_API_BASE_URL',
+      defaultValue: 'http://10.0.2.2:3000',
+    ),
+  );
 });
 
 /// Centralized application logger provider.
@@ -77,8 +94,23 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   final config = ref.watch(environmentConfigProvider);
   final logger = ref.watch(loggerProvider);
   final storage = ref.watch(secureStorageProvider);
+  final mockMode = ref.watch(
+    environmentConfigProvider.select((c) => c.useMockData),
+  );
 
-  return ApiClient(config: config, logger: logger, secureStorage: storage);
+  return ApiClient(
+    config: config,
+    logger: logger,
+    secureStorage: storage,
+    onSessionExpired: mockMode
+        ? null
+        : () async {
+            // Real-mode session expiry: clear the in-memory session; the
+            // router redirect sends the user to login.
+            ref.read(activeSessionProvider.notifier).state =
+                AuthSession.unauthenticated();
+          },
+  );
 });
 
 /// Listenable notifier that triggers GoRouter redirect re-evaluation
@@ -100,6 +132,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   return createShadiRouter(
     routeGuard: const ShadiRouteGuard(enforceAuth: true),
     refreshListenable: sessionNotifier,
+    resolveSearchHandoff: () => ref.read(searchHandoffProvider),
     isAuthenticated: () {
       final session = ref.read(activeSessionProvider);
       return session.isAuthenticated;
@@ -137,10 +170,20 @@ final bookingPricingPolicyProvider = Provider<BookingPricingPolicy>((ref) {
 // Domain Repository Providers (Interfaces declared, implementations injected)
 // ---------------------------------------------------------------------------
 
-/// Auth repository provider — resolves to MockAuthRepository for frontend-only phase.
+/// Auth repository provider — REAL API repository by default; the mock is
+/// opt-in via SHADI_USE_MOCK_AUTH for offline UI development and tests only.
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final storage = ref.watch(secureStorageProvider);
-  return MockAuthRepository(storage);
+  final useMock = ref.watch(
+    environmentConfigProvider.select((c) => c.useMockData),
+  );
+  if (useMock) {
+    final storage = ref.watch(secureStorageProvider);
+    return MockAuthRepository(storage);
+  }
+  return AuthApiRepository(
+    ref.watch(apiClientProvider),
+    ref.watch(secureStorageProvider),
+  );
 });
 
 final routeDistanceServiceProvider = Provider<RouteDistanceService>((ref) {
@@ -148,18 +191,22 @@ final routeDistanceServiceProvider = Provider<RouteDistanceService>((ref) {
 });
 
 final bookingRepositoryProvider = Provider<BookingRepository>((ref) {
-  final store = MockBookingRepository();
-
-  // Mirror booking lifecycle events into the notification center feed.
-  final notificationRepo =
-      ref.watch(notificationRepositoryProvider) as MockNotificationRepository;
-  store.onLifecycleEvent = ({required String title, required String body}) {
-    notificationRepo.pushEvent(title: title, body: body);
-    // Refresh any live notification listeners.
-    ref.notifyListeners();
-  };
-
-  return store;
+  final useMock = ref.watch(
+    environmentConfigProvider.select((c) => c.useMockData),
+  );
+  if (useMock) {
+    final store = MockBookingRepository();
+    // Mirror booking lifecycle events into the notification center feed.
+    final notificationRepo =
+        ref.watch(notificationRepositoryProvider) as MockNotificationRepository;
+    store.onLifecycleEvent = ({required String title, required String body}) {
+      notificationRepo.pushEvent(title: title, body: body);
+      // Refresh any live notification listeners.
+      ref.notifyListeners();
+    };
+    return store;
+  }
+  return BookingApiRepository(ref.watch(apiClientProvider));
 });
 
 final driverRepositoryProvider = Provider<DriverRepository>((ref) {
@@ -181,9 +228,15 @@ final serviceAddonRepositoryProvider = Provider<ServiceAddonRepository>((ref) {
 });
 
 final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
-  final bookingStore =
-      ref.watch(bookingRepositoryProvider) as MockBookingRepository;
-  return MockPaymentRepository(bookingRepository: bookingStore);
+  final useMock = ref.watch(
+    environmentConfigProvider.select((c) => c.useMockData),
+  );
+  if (useMock) {
+    final bookingStore =
+        ref.watch(bookingRepositoryProvider) as MockBookingRepository;
+    return MockPaymentRepository(bookingRepository: bookingStore);
+  }
+  return PaymentApiRepository(ref.watch(apiClientProvider));
 });
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
@@ -205,9 +258,15 @@ final reviewRepositoryProvider = Provider<ReviewRepository>((ref) {
 });
 
 final tripRepositoryProvider = Provider<TripRepository>((ref) {
-  final bookingStore =
-      ref.watch(bookingRepositoryProvider) as MockBookingRepository;
-  return MockTripRepository(bookingRepository: bookingStore);
+  final useMock = ref.watch(
+    environmentConfigProvider.select((c) => c.useMockData),
+  );
+  if (useMock) {
+    final bookingStore =
+        ref.watch(bookingRepositoryProvider) as MockBookingRepository;
+    return MockTripRepository(bookingRepository: bookingStore);
+  }
+  return TripApiRepository(ref.watch(apiClientProvider));
 });
 
 final profilePhotoServiceProvider = Provider<ProfilePhotoService>((ref) {
@@ -290,6 +349,21 @@ final urgentDispatchAvailabilityProvider =
       final etaMinutes = (6 + busy ~/ 3).clamp(6, 15);
       return (availableCount: availableCount, eta: '$etaMinutes mins');
     });
+
+/// Bridges the live search session into booking-draft creation: the
+/// customer's destination, event date, occasion and passenger count flow
+/// into the draft so they are never re-entered (Search → Draft handoff).
+final searchHandoffProvider = Provider<SearchHandoff>((ref) {
+  final session = ref.watch(searchControllerProvider);
+  final query = session.query;
+  return SearchHandoff(
+    destination: query.destination,
+    pickupLocation: query.pickupLocation,
+    eventDate: query.eventDate,
+    occasion: query.occasionId,
+    passengerCount: query.passengerCount,
+  );
+});
 
 /// Resolves the customer's recently-viewed vehicle IDs into full summaries.
 final recentlyViewedVehiclesProvider =

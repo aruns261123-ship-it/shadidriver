@@ -74,6 +74,8 @@ class MockBookingRepository implements BookingRepository {
       totalAmountCents: 3500000,
       advanceTokenCents: 700000,
       version: 2,
+      // Mock-mode trip-start OTP (real mode: SMS-delivered, never in API).
+      startOtp: '482913',
     );
     _bookings[b1.id] = b1;
 
@@ -119,6 +121,8 @@ class MockBookingRepository implements BookingRepository {
       totalAmountCents: req1.estimatedTotalPaise,
       advanceTokenCents: req1.advanceTokenPaise,
       version: 1,
+      // Mock-mode trip-start OTP (real mode: SMS-delivered, never in API).
+      startOtp: '482913',
     );
     _bookings[req1.bookingId] = summaryReq1;
   }
@@ -871,8 +875,11 @@ class MockBookingRepository implements BookingRepository {
 
   @override
   Future<Result<FleetAvailabilityResult>> checkFleetAvailability(
-    CustomerFleetIntent intent,
-  ) async {
+    CustomerFleetIntent intent, {
+    DateTime? serviceStartTime,
+    DateTime? serviceEndTime,
+    String? city,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 100));
 
     if (intent.preference == CustomerFleetPreference.preferredModel) {
