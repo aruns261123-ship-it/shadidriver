@@ -10,7 +10,6 @@ import 'package:shadidriver/features/vehicles/domain/entities/pricing_summary.da
 import 'package:shadidriver/features/vehicles/domain/entities/vehicle_details.dart';
 
 const _vehicleUuid = '661bfb4b-4ac7-44b2-9b8b-76e7a29dd66e';
-const _chauffeurUuid = 'de88a65c-3da5-4cae-9636-328891664f07';
 
 VehicleDetails _vehicle() => const VehicleDetails(
   id: _vehicleUuid,
@@ -27,7 +26,6 @@ VehicleDetails _vehicle() => const VehicleDetails(
   amenities: ['Dual AC'],
   ceremonialAddons: [],
   pricing: PricingSummary(basePriceCents: 2500000, billingUnit: 'DAY'),
-  chauffeurId: _chauffeurUuid,
   rating: 4.9,
   reviewCount: 120,
   isAvailableNow: true,

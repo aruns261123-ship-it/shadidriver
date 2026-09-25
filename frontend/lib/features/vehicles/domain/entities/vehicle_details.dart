@@ -17,7 +17,12 @@ class VehicleDetails {
   final List<String> amenities;
   final List<ServiceAddon> ceremonialAddons;
   final PricingSummary pricing;
-  final String chauffeurId;
+
+  /// Whether ShadiDriver can source a VERIFIED chauffeur for this vehicle.
+  ///
+  /// Deliberately a boolean: chauffeur identity is internal operational data
+  /// and is never carried on a customer-facing vehicle payload.
+  final bool hasVerifiedChauffeur;
   final double rating;
   final int reviewCount;
   final bool isAvailableNow;
@@ -37,7 +42,7 @@ class VehicleDetails {
     required this.amenities,
     required this.ceremonialAddons,
     required this.pricing,
-    required this.chauffeurId,
+    this.hasVerifiedChauffeur = false,
     this.rating = 0.0,
     this.reviewCount = 0,
     this.isAvailableNow = false,

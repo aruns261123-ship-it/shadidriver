@@ -12,35 +12,7 @@ final vehicleDetailsProvider = FutureProvider.family<VehicleDetails, String>((
   return result.fold((failure) => throw failure, (details) => details);
 });
 
-/// Session-scoped shortlist state notifier.
-/// Tracks vehicles saved by the user during the active session.
-class ShortlistNotifier extends Notifier<Set<String>> {
-  @override
-  Set<String> build() => const {};
-
-  void toggle(String vehicleId) {
-    if (state.contains(vehicleId)) {
-      state = {...state}..remove(vehicleId);
-    } else {
-      state = {...state, vehicleId};
-    }
-  }
-
-  void add(String vehicleId) {
-    state = {...state, vehicleId};
-  }
-
-  void remove(String vehicleId) {
-    state = {...state}..remove(vehicleId);
-  }
-
-  bool isShortlisted(String vehicleId) => state.contains(vehicleId);
-
-  void clear() {
-    state = const {};
-  }
-}
-
-final shortlistProvider = NotifierProvider<ShortlistNotifier, Set<String>>(
-  ShortlistNotifier.new,
-);
+// Favourites moved to `features/favorites`: they are account-backed and
+// persistent for signed-in customers, and session-local only for guests. See
+// [favoritesProvider]. The old session-only `shortlistProvider` was removed so
+// there is a single source of truth for "is this vehicle saved?".

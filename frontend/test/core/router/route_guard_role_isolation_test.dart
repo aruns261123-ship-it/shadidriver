@@ -65,15 +65,6 @@ void main() {
         () async {
           expect(
             await strictAuthGuard.evaluateRedirect(
-              targetLocation: RoutePaths.customer,
-              isAuthenticated: false,
-              userRole: null,
-            ),
-            equals(RoutePaths.auth),
-          );
-
-          expect(
-            await strictAuthGuard.evaluateRedirect(
               targetLocation: RoutePaths.driver,
               isAuthenticated: false,
               userRole: null,
@@ -89,6 +80,43 @@ void main() {
             ),
             equals(RoutePaths.auth),
           );
+
+          // Transactional customer surfaces are protected and remember where
+          // the visitor was going.
+          expect(
+            await strictAuthGuard.evaluateRedirect(
+              targetLocation: RoutePaths.customerBookings,
+              isAuthenticated: false,
+              userRole: null,
+            ),
+            equals(
+              '/auth?redirect='
+              '${Uri.encodeComponent(RoutePaths.customerBookings)}',
+            ),
+          );
+        },
+      );
+
+      test(
+        'The customer shell is browsable without an account (vehicle-first)',
+        () async {
+          for (final location in <String>[
+            RoutePaths.customer,
+            RoutePaths.customerHome,
+            RoutePaths.customerSearch,
+            RoutePaths.customerSearchResults,
+            RoutePaths.customerVehicleDetailsPath('v1'),
+          ]) {
+            expect(
+              await strictAuthGuard.evaluateRedirect(
+                targetLocation: location,
+                isAuthenticated: false,
+                userRole: null,
+              ),
+              isNull,
+              reason: '$location must not require authentication',
+            );
+          }
         },
       );
 

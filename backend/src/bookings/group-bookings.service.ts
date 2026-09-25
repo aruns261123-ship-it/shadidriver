@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AssignmentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { BookingStatus } from '../booking-state-machine/booking-status';
 import { AvailabilityService, FleetRequestLine } from '../availability/availability.service';
@@ -24,6 +25,10 @@ export interface SubmitGroupBookingInput {
   /** Confirmed fleet composition — must match an availability check the customer saw. */
   fleet: FleetRequestLine[];
   idempotencyKey: string;
+  /** Optional customer requirements (decoration, child seat, early arrival …). */
+  requirements?: string[];
+  /** PHONE | WHATSAPP | EMAIL | PHONE_WHATSAPP */
+  communicationPreference?: string;
 }
 
 /**
@@ -113,9 +118,11 @@ export class GroupBookingsService {
       );
 
       let subtotalPaise = 0n;
+      // No chauffeur is bound at submit time. The customer requests vehicles;
+      // ShadiDriver operations assigns chauffeurs internally afterwards, so a
+      // reservation must never wait on (or be lost to) a driver offer loop.
       const assignmentsData: Array<{
         vehicleId: string;
-        driverId: string;
         sequenceNumber: number;
         requestedModel: string;
         estimatedTotalPaise: bigint;
@@ -131,6 +138,10 @@ export class GroupBookingsService {
             `Unknown vehicle type ${line.vehicleTypeId}`,
           );
         }
+        // Eligibility is a property of the VEHICLE (verified, active,
+        // available, not already allocated) — never of whether a chauffeur
+        // happens to be attached to it. Partner/fleet-owner vehicles are
+        // first-class members of the catalog.
         const candidates = await tx.vehicle.findMany({
           where: {
             vehicleTypeId: line.vehicleTypeId,
@@ -139,12 +150,9 @@ export class GroupBookingsService {
             isAvailable: true,
             city: { contains: input.city, mode: 'insensitive' },
           },
-          include: { independentDriver: true },
           take: line.quantity * 3,
         });
-        const eligible = candidates.filter(
-          (v) => !allocatedIds.has(v.id) && v.independentDriver !== null,
-        );
+        const eligible = candidates.filter((v) => !allocatedIds.has(v.id));
         if (eligible.length < line.quantity) {
           throw new ConflictAppException(
             ErrorCode.FLEET_INSUFFICIENT_AVAILABILITY,
@@ -158,7 +166,6 @@ export class GroupBookingsService {
           subtotalPaise += unitPrice;
           assignmentsData.push({
             vehicleId: vehicle.id,
-            driverId: vehicle.independentDriver!.id,
             sequenceNumber: sequence++,
             requestedModel: type.displayName,
             estimatedTotalPaise: unitPrice,
@@ -181,22 +188,31 @@ export class GroupBookingsService {
           serviceStartTime: input.serviceStartTime,
           serviceEndTime: input.serviceEndTime,
           requestedFleet: input.fleet as never,
+          requestedFleetItems: input.fleet as never,
           passengerCount: input.passengerCount,
+          requirements: (input.requirements ?? []) as never,
+          communicationPreference: input.communicationPreference ?? 'PHONE',
           estimatedTotalPaise: subtotalPaise,
           advanceTokenPaise: totalAdvance,
+          // A customer submission is a REQUEST: operations reviews it before
+          // anything is promised to the customer.
           status: BookingStatus.REQUESTED,
           idempotencyKey: idemKey,
         },
       });
 
       await tx.vehicleAssignment.createMany({
-        data: assignmentsData.map((a) => ({ ...a, groupBookingId: group.id })),
+        data: assignmentsData.map((a) => ({
+          ...a,
+          groupBookingId: group.id,
+          assignmentStatus: 'PROPOSED' as const,
+        })),
       });
 
-      // Calendar locks for every allocated vehicle+driver window.
+      // Calendar locks for every reserved vehicle window. The chauffeur lock is
+      // added when operations assigns one (see assignChauffeur).
       await tx.availability.createMany({
         data: assignmentsData.map((a) => ({
-          driverId: a.driverId,
           vehicleId: a.vehicleId,
           startTime: input.serviceStartTime,
           endTime: input.serviceEndTime,
@@ -215,41 +231,156 @@ export class GroupBookingsService {
       where: { id },
       include: {
         assignments: {
-          include: {
-            vehicle: { include: { vehicleType: true } },
-            driver: { include: { user: { select: { fullName: true, phoneNumber: true } } } },
-          },
+          // Chauffeur PII is deliberately NOT loaded here: the customer-facing
+          // serializer must not be one careless spread away from leaking it.
+          include: { vehicle: { include: { vehicleType: true } } },
           orderBy: { sequenceNumber: 'asc' },
         },
-        serviceCategory: true,
       },
     });
     if (!group) {
       throw new NotFoundAppException(ErrorCode.GROUP_BOOKING_NOT_FOUND, 'Group booking not found.');
     }
-    return {
-      ...group,
-      assignments: group.assignments.map((a) => ({
-        id: a.id,
-        sequence_number: a.sequenceNumber,
-        status: a.status,
-        vehicle: {
-          id: a.vehicle.id,
-          display_name: a.vehicle.vehicleType.displayName,
-          fleet_code: a.vehicle.fleetCode,
-          registration_number: a.vehicle.registrationNumber,
+    return serializeCustomerGroupBooking(group);
+  }
+
+  /**
+   * Operations: confirm the reserved vehicle for one assignment.
+   * PROPOSED → VEHICLE_CONFIRMED. This is the step that used to be delegated
+   * to the driver as an offer/accept loop; it is now an internal action.
+   */
+  async confirmVehicleAllocation(assignmentId: string, actorUserId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const assignment = await tx.vehicleAssignment.findUnique({
+        where: { id: assignmentId },
+        include: { vehicle: { include: { vehicleType: true } } },
+      });
+      if (!assignment) {
+        throw new NotFoundAppException(ErrorCode.NOT_FOUND, 'Assignment not found.');
+      }
+      if (
+        assignment.assignmentStatus !== AssignmentStatus.PROPOSED &&
+        assignment.assignmentStatus !== AssignmentStatus.CHAUFFEUR_DECLINED
+      ) {
+        throw new ConflictAppException(
+          ErrorCode.INVALID_TRANSITION,
+          `Cannot confirm an assignment in state ${assignment.assignmentStatus}.`,
+        );
+      }
+      return tx.vehicleAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          assignmentStatus: AssignmentStatus.VEHICLE_CONFIRMED,
+          assignedByUserId: actorUserId,
+          assignedAt: new Date(),
         },
-        chauffeur: {
-          id: a.driver.userId,
-          full_name: a.driver.user.fullName,
-          phone: a.driver.user.phoneNumber,
-          verification_status: a.driver.verificationStatus,
+      });
+    });
+  }
+
+  /**
+   * Operations: assign the chauffeur for a confirmed vehicle. VEHICLE_CONFIRMED
+   * → CHAUFFEUR_ASSIGNED, and the chauffeur's calendar is locked for the same
+   * window so the same person cannot be booked twice. The chauffeur is NEVER
+   * notified as a marketplace offer and never contacts the customer to
+   * negotiate — operations owns customer communication.
+   */
+  async assignChauffeur(assignmentId: string, driverId: string, actorUserId: string) {
+    const chauffeur = await this.prisma.driverProfile.findUnique({ where: { id: driverId } });
+    if (!chauffeur) {
+      throw new NotFoundAppException(ErrorCode.NOT_FOUND, 'Chauffeur not found.');
+    }
+    if (chauffeur.verificationStatus !== 'APPROVED') {
+      throw new ConflictAppException(
+        ErrorCode.ROLE_FORBIDDEN,
+        'Only verified chauffeurs can be assigned to a booking.',
+      );
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        { id: string; assignment_status: string; group_booking_id: string | null }[]
+      >`SELECT "id", "assignment_status", "group_booking_id" FROM "vehicle_assignments"
+        WHERE "id" = ${assignmentId} FOR UPDATE`;
+      if (!locked?.length) {
+        throw new NotFoundAppException(ErrorCode.NOT_FOUND, 'Assignment not found.');
+      }
+      if (locked[0].assignment_status === AssignmentStatus.VEHICLE_CONFIRMED ||
+          locked[0].assignment_status === AssignmentStatus.CHAUFFEUR_DECLINED) {
+        // legal source states
+      } else {
+        throw new ConflictAppException(
+          ErrorCode.INVALID_TRANSITION,
+          `Assign a chauffeur only to a confirmed vehicle (current: ${locked[0].assignment_status}).`,
+        );
+      }
+
+      const groupId = locked[0].group_booking_id;
+      const group = groupId
+        ? await tx.groupBooking.findUnique({ where: { id: groupId } })
+        : null;
+
+      // Refuse overlapping chauffeur commitments inside the same window.
+      if (group) {
+        const clash = await tx.availability.findFirst({
+          where: {
+            driverId,
+            status: 'BOOKED',
+            startTime: { lt: group.serviceEndTime },
+            endTime: { gt: group.serviceStartTime },
+          },
+        });
+        if (clash) {
+          throw new ConflictAppException(
+            ErrorCode.SLOT_DOUBLE_BOOKED,
+            'This chauffeur is already committed for an overlapping window.',
+          );
+        }
+        await tx.availability.create({
+          data: {
+            driverId,
+            startTime: group.serviceStartTime,
+            endTime: group.serviceEndTime,
+            status: 'BOOKED',
+          },
+        });
+      }
+
+      const assignment = await tx.vehicleAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          driverId,
+          assignmentStatus: AssignmentStatus.CHAUFFEUR_ASSIGNED,
+          assignedByUserId: actorUserId,
+          assignedAt: new Date(),
         },
-        estimated_total_paise: a.estimatedTotalPaise.toString(),
-        advance_token_paise: a.advanceTokenPaise.toString(),
-        requested_model: a.requestedModel,
-      })),
-    };
+      });
+
+      // Parent advances out of REQUESTED once operations has committed a
+      // chauffeur for every vehicle in the fleet.
+      if (groupId) {
+        const all = await tx.vehicleAssignment.findMany({
+          where: { groupBookingId: groupId },
+          select: { assignmentStatus: true },
+        });
+        const everyAssigned = all.every(
+          (a) =>
+            a.assignmentStatus === AssignmentStatus.CHAUFFEUR_ASSIGNED ||
+            a.assignmentStatus === AssignmentStatus.CHAUFFEUR_ACCEPTED ||
+            a.assignmentStatus === AssignmentStatus.VEHICLE_CONFIRMED,
+        );
+        if (everyAssigned) {
+          await tx.groupBooking.update({
+            where: { id: groupId },
+            data: {
+              status: BookingStatus.VEHICLE_OPTIONS_PREPARED,
+              version: { increment: 1 },
+            },
+          });
+        }
+      }
+
+      return assignment;
+    });
   }
 
   /** Driver-scoped assignment list — a chauffeur sees ONLY their own. */
@@ -272,7 +403,7 @@ export class GroupBookingsService {
     });
     return assignments.map((a) => ({
       id: a.id,
-      status: a.status,
+      assignment_status: a.assignmentStatus,
       sequence_number: a.sequenceNumber,
       requested_model: a.requestedModel,
       group_reference: a.groupBooking?.referenceCode,
@@ -290,60 +421,222 @@ export class GroupBookingsService {
     }));
   }
 
-  /** Driver accept for a group assignment (transactional, mirrors single accept). */
-  async acceptAssignment(assignmentId: string, driverUserId: string) {
+  /**
+   * Chauffeur acknowledgement of a duty ALREADY assigned by operations. This
+   * is not an offer and not a marketplace acceptance: the customer's booking
+   * status never depends on it, and the customer is never told a chauffeur
+   * is "accepting" their trip.
+   */
+  async acknowledgeAssignment(assignmentId: string, driverUserId: string) {
+    const driver = await this.ownChauffeurProfile(driverUserId);
+    return this.prisma.$transaction(async (tx) => {
+      const locked = await this.lockAssignment(tx, assignmentId);
+      if (locked.driver_id !== driver.id) {
+        throw new ConflictAppException(
+          ErrorCode.ROLE_FORBIDDEN,
+          'This assignment belongs to another chauffeur.',
+        );
+      }
+      if (locked.assignment_status !== AssignmentStatus.CHAUFFEUR_ASSIGNED) {
+        throw new ConflictAppException(
+          ErrorCode.INVALID_TRANSITION,
+          `Cannot acknowledge an assignment in state ${locked.assignment_status}.`,
+        );
+      }
+      return tx.vehicleAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          assignmentStatus: AssignmentStatus.CHAUFFEUR_ACCEPTED,
+          acceptedAt: new Date(),
+        },
+      });
+    });
+  }
+
+  /**
+   * Chauffeur reports a conflict. The vehicle stays reserved for the customer
+   * (never silently dropped, never substituted) and returns to the operations
+   * queue for re-assignment. The customer sees no churn.
+   */
+  async declineAssignment(assignmentId: string, driverUserId: string, reason: string) {
+    const driver = await this.ownChauffeurProfile(driverUserId);
+    return this.prisma.$transaction(async (tx) => {
+      const locked = await this.lockAssignment(tx, assignmentId);
+      if (locked.driver_id !== driver.id) {
+        throw new ConflictAppException(
+          ErrorCode.ROLE_FORBIDDEN,
+          'This assignment belongs to another chauffeur.',
+        );
+      }
+      // Release the chauffeur's calendar lock — the vehicle lock stays.
+      await tx.availability.deleteMany({
+        where: { driverId: driver.id, bookingId: null, status: 'BOOKED' },
+      });
+      return tx.vehicleAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          assignmentStatus: AssignmentStatus.CHAUFFEUR_DECLINED,
+          declinedAt: new Date(),
+          declineReason: reason,
+          driverId: null,
+        },
+      });
+    });
+  }
+
+  private async ownChauffeurProfile(driverUserId: string) {
     const driver = await this.prisma.driverProfile.findUnique({
       where: { userId: driverUserId },
     });
     if (!driver) {
       throw new NotFoundAppException(ErrorCode.NOT_FOUND, 'Driver profile not found.');
     }
-    if (driver.verificationStatus !== 'APPROVED') {
-      throw new ConflictAppException(
-        ErrorCode.ROLE_FORBIDDEN,
-        'Only verified chauffeurs can accept assignments.',
-      );
-    }
-    return this.prisma.$transaction(async (tx) => {
-      const locked = await tx.$queryRaw<{ id: string; status: string; group_booking_id: string | null }[]>`
-        SELECT "id", "status", "group_booking_id" FROM "vehicle_assignments"
-        WHERE "id" = ${assignmentId} FOR UPDATE`;
-      if (!locked?.length) {
-        throw new NotFoundAppException(ErrorCode.NOT_FOUND, 'Assignment not found.');
-      }
-      if (locked[0].status !== BookingStatus.REQUESTED) {
-        throw new ConflictAppException(
-          ErrorCode.SLOT_DOUBLE_BOOKED,
-          'This assignment was already resolved by another chauffeur.',
-        );
-      }
-      const updated = await tx.vehicleAssignment.update({
-        where: { id: assignmentId },
-        data: { status: BookingStatus.DRIVER_ACCEPTED, driverId: driver.id, acceptedAt: new Date() },
-      });
+    return driver;
+  }
 
-      // Parent status: stays REQUESTED until ALL assignments are accepted
-      // (then DRIVER_ACCEPTED = convoy ready); mixed states stay REQUESTED
-      // until the payment milestone. Terminal states propagate upward.
-      const groupId = locked[0].group_booking_id as string;
-      const all = await tx.vehicleAssignment.findMany({
-        where: { groupBookingId: groupId },
-        select: { status: true },
-      });
-      const allAccepted = all.every((a) => a.status === BookingStatus.DRIVER_ACCEPTED);
-      const anyCancelled = all.some((a) => a.status === BookingStatus.CANCELLED);
-      await tx.groupBooking.update({
-        where: { id: groupId },
-        data: {
-          status: anyCancelled
-            ? BookingStatus.CANCELLED
-            : allAccepted
-              ? BookingStatus.DRIVER_ACCEPTED
-              : BookingStatus.REQUESTED,
-          version: { increment: 1 },
-        },
-      });
-      return updated;
-    });
+  private async lockAssignment(
+    tx: Prisma.TransactionClient,
+    assignmentId: string,
+  ): Promise<{
+    id: string;
+    assignment_status: AssignmentStatus;
+    driver_id: string | null;
+    group_booking_id: string | null;
+  }> {
+    const rows = await tx.$queryRaw<
+      {
+        id: string;
+        assignment_status: AssignmentStatus;
+        driver_id: string | null;
+        group_booking_id: string | null;
+      }[]
+    >`SELECT "id", "assignment_status", "driver_id", "group_booking_id"
+      FROM "vehicle_assignments" WHERE "id" = ${assignmentId} FOR UPDATE`;
+    if (!rows?.length) {
+      throw new NotFoundAppException(ErrorCode.NOT_FOUND, 'Assignment not found.');
+    }
+    return rows[0];
+  }
+}
+
+interface CustomerGroupBookingSource {
+  id: string;
+  referenceCode: string;
+  ceremonyType: string;
+  city: string;
+  pickupAddress: string;
+  destinationAddress: string;
+  serviceStartTime: Date;
+  serviceEndTime: Date;
+  passengerCount: number;
+  status: string;
+  estimatedTotalPaise: bigint;
+  advanceTokenPaise: bigint;
+  requirements?: unknown;
+  communicationPreference?: string;
+  requestedFleetItems?: unknown;
+  assignments: Array<{
+    id: string;
+    sequenceNumber: number;
+    assignmentStatus: string;
+    requestedModel: string | null;
+    estimatedTotalPaise: bigint;
+    advanceTokenPaise: bigint;
+    vehicle: { id: string; fleetCode: string; vehicleType: { displayName: string } };
+  }>;
+}
+
+/**
+ * Keys that must never appear in a customer-facing booking payload. Listed
+ * explicitly (rather than merely omitted) so intent is testable.
+ */
+export const CUSTOMER_FORBIDDEN_ASSIGNMENT_KEYS = [
+  'driver',
+  'driver_id',
+  'chauffeur',
+  'chauffeur_id',
+  'chauffeur_name',
+  'chauffeur_phone',
+  'full_name',
+  'phone',
+  'registration_number',
+  'fleet_owner',
+  'partner',
+  'decline_reason',
+  'assigned_by_user_id',
+  'internal_notes',
+] as const;
+
+/**
+ * CUSTOMER-FACING serialisation. Deliberately exhaustive and additive-only:
+ * partner identity, registration numbers and chauffeur identity are internal
+ * operational data and must never reach a customer response. Chauffeur state is
+ * collapsed to a neutral boolean.
+ */
+export function serializeCustomerGroupBooking(group: CustomerGroupBookingSource) {
+  return {
+    id: group.id,
+    reference_code: group.referenceCode,
+    ceremony_type: group.ceremonyType,
+    city: group.city,
+    pickup_address: group.pickupAddress,
+    destination_address: group.destinationAddress,
+    service_start_time: group.serviceStartTime,
+    service_end_time: group.serviceEndTime,
+    passenger_count: group.passengerCount,
+    status: group.status,
+    estimated_total_paise: group.estimatedTotalPaise.toString(),
+    advance_token_paise: group.advanceTokenPaise.toString(),
+    requirements: group.requirements ?? [],
+    communication_preference: group.communicationPreference ?? 'PHONE',
+    requested_fleet: group.requestedFleetItems ?? [],
+    assignments: group.assignments.map((a) => ({
+      id: a.id,
+      sequence_number: a.sequenceNumber,
+      requested_model: a.requestedModel,
+      vehicle: {
+        id: a.vehicle.id,
+        fleet_code: a.vehicle.fleetCode,
+        display_name: a.vehicle.vehicleType.displayName,
+      },
+      // Neutral operational flag — never the chauffeur's identity.
+      chauffeur_assigned:
+        a.assignmentStatus === AssignmentStatus.CHAUFFEUR_ASSIGNED ||
+        a.assignmentStatus === AssignmentStatus.CHAUFFEUR_ACCEPTED ||
+        a.assignmentStatus === AssignmentStatus.EN_ROUTE ||
+        a.assignmentStatus === AssignmentStatus.ARRIVED ||
+        a.assignmentStatus === AssignmentStatus.IN_PROGRESS,
+      service_state: customerVisibleServiceState(a.assignmentStatus),
+      estimated_total_paise: a.estimatedTotalPaise.toString(),
+      advance_token_paise: a.advanceTokenPaise.toString(),
+    })),
+  };
+}
+
+/**
+ * Maps internal assignment progress onto the only four things a customer needs
+ * to know about a vehicle. Chauffeur identity, decline/re-assignment churn and
+ * partner sourcing are all invisible here.
+ */
+function customerVisibleServiceState(status: string): string {
+  switch (status) {
+    case AssignmentStatus.PROPOSED:
+    case AssignmentStatus.VEHICLE_CONFIRMED:
+    case AssignmentStatus.CHAUFFEUR_ASSIGNED:
+    case AssignmentStatus.CHAUFFEUR_ACCEPTED:
+    case AssignmentStatus.CHAUFFEUR_DECLINED:
+      return 'BEING_PREPARED';
+    case AssignmentStatus.EN_ROUTE:
+      return 'ON_THE_WAY';
+    case AssignmentStatus.ARRIVED:
+      return 'ARRIVED';
+    case AssignmentStatus.IN_PROGRESS:
+      return 'IN_SERVICE';
+    case AssignmentStatus.COMPLETED:
+      return 'COMPLETED';
+    case AssignmentStatus.CANCELLED:
+      return 'CANCELLED';
+    default:
+      return 'BEING_PREPARED';
   }
 }

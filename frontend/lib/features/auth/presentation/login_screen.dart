@@ -22,7 +22,12 @@ import 'controllers/auth_controller.dart';
 /// name + phone + role selection for new users, phone + OTP for returning users,
 /// and authoritative server/account role determination after verification.
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.redirectTo});
+
+  /// Internal location the guest was heading to when authentication became
+  /// mandatory (e.g. `/customer/bookings/create/<vehicleId>`). Honoured after
+  /// a successful sign-in so a pre-login vehicle selection is never lost.
+  final String? redirectTo;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -87,6 +92,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return;
     }
 
+    // Return the guest to the transaction that sent them here. Restricted to
+    // internal customer paths so the parameter can never redirect a freshly
+    // authenticated user off-site.
+    final resume = _safeInternalRedirect(widget.redirectTo);
+    if (resume != null) {
+      context.go(resume);
+      return;
+    }
+
     switch (session.role) {
       case UserRole.customer:
         context.go(RoutePaths.customer);
@@ -102,6 +116,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context.go(RoutePaths.admin);
         break;
     }
+  }
+
+  /// Only accepts absolute in-app customer paths; anything else is ignored.
+  static String? _safeInternalRedirect(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final decoded = Uri.decodeComponent(raw);
+    if (!decoded.startsWith('/customer/')) return null;
+    if (decoded.startsWith('/customer/profile/edit')) return null;
+    if (decoded.contains('//')) return null;
+    return decoded;
   }
 
   void _onRequestOtp() {

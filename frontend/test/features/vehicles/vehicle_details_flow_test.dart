@@ -75,39 +75,43 @@ void main() {
       },
     );
 
-    testWidgets('ChauffeurProfileScreen loads Rajesh Kumar (d1) profile', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        createWidgetToTest(
-          initialLocation: RoutePaths.customerChauffeurProfilePath('d1'),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      expect(find.text('Rajesh Kumar'), findsOneWidget);
-      expect(find.text('POLICE & IDENTITY VERIFIED'), findsOneWidget);
-      expect(find.text('Delhi NCR, Gurugram, Noida'), findsOneWidget);
-    });
-
     testWidgets(
-      'ChauffeurProfileScreen displays error state for invalid driver ID',
+      'the customer vehicle page shows the ShadiDriver assurance panel and NO chauffeur identity',
       (tester) async {
         await tester.pumpWidget(
           createWidgetToTest(
-            initialLocation: RoutePaths.customerChauffeurProfilePath(
-              'invalid_id',
-            ),
+            initialLocation: RoutePaths.customerVehicleDetailsPath('v2'),
           ),
         );
-
         await tester.pumpAndSettle();
 
+        // Trust is expressed by the company, not by a person profile.
+        expect(find.text('ShadiDriver Assurance'), findsOneWidget);
         expect(
-          find.text('Chauffeur details could not be found.'),
+          find.text('Vehicle & chauffeur verified by ShadiDriver'),
           findsOneWidget,
         );
+
+        // No chauffeur surface may exist on a customer screen.
+        expect(find.text('Assigned Chauffeur'), findsNothing);
+        expect(find.text('View Profile'), findsNothing);
+        expect(find.textContaining('Ceremonies'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'a customer cannot reach a chauffeur profile route',
+      (tester) async {
+        await tester.pumpWidget(
+          createWidgetToTest(
+            initialLocation: '/customer/chauffeurs/d1',
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // The route no longer exists: it must not resolve to a chauffeur page.
+        expect(find.text('Rajesh Kumar'), findsNothing);
+        expect(find.textContaining('Page not found'), findsOneWidget);
       },
     );
 

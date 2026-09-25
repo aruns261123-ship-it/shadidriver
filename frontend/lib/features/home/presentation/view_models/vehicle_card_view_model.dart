@@ -41,11 +41,20 @@ class VehicleCardViewModel {
       ratingText: entity.rating.toStringAsFixed(1),
       reviewCountText: '(${entity.reviewCount})',
       distanceText: entity.distanceKm != null ? '${entity.distanceKm} km' : '',
-      priceText: CurrencyFormatter.formatPaise(entity.pricing.basePriceCents),
-      priceUnit: entity.pricing.formattedUnit,
+      // No approved tariff means no price to show. Rendering the zero-valued
+      // placeholder would advertise the car at "Rs 0".
+      priceText: entity.pricing.isUnavailable
+          ? 'On request'
+          : CurrencyFormatter.formatPaise(entity.pricing.basePriceCents),
+      priceUnit: entity.pricing.isUnavailable ? '' : entity.pricing.formattedUnit,
       hasVerifiedChauffeur: entity.hasVerifiedChauffeur,
-      isVerifiedVehicle: entity.verificationStatus == 'VERIFIED',
-      isAvailable: true, // Mock availability
+      // The backend's verified state is APPROVED; comparing against 'VERIFIED'
+      // made every card render as unverified.
+      isVerifiedVehicle:
+          entity.verificationStatus == 'APPROVED' ||
+          entity.verificationStatus == 'VERIFIED',
+      // Sourced from the server, never assumed.
+      isAvailable: entity.isAvailableNow,
     );
   }
 }

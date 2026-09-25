@@ -8,6 +8,9 @@ import { AuthModule } from './auth/auth.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { UsersModule } from './users/users.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
+import { FavoritesModule } from './favorites/favorites.module';
+import { PartnerModule } from './partner/partner.module';
+import { AdminModule } from './admin/admin.module';
 import { QuotesModule } from './quotes/quotes.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { BookingsModule } from './bookings/bookings.module';
@@ -28,6 +31,9 @@ import { PaymentsModule } from './payments/payments.module';
     NotificationsModule,
     UsersModule,
     VehiclesModule,
+    FavoritesModule,
+    PartnerModule,
+    AdminModule,
     QuotesModule,
     AvailabilityModule,
     BookingsModule,

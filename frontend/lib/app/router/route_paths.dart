@@ -11,11 +11,12 @@ abstract final class RoutePaths {
   static const String customerBookings = '/customer/bookings';
   static const String customerMessages = '/customer/messages';
   static const String customerProfile = '/customer/profile';
+  static const String customerFavorites = '/customer/favorites';
   static const String customerNotifications = '/customer/notifications';
   static const String customerSearchResults = '/customer/search/results';
   static const String customerVehicleDetails = '/customer/vehicles/:vehicleId';
-  static const String customerChauffeurProfile =
-      '/customer/chauffeurs/:chauffeurId';
+  // NOTE: there is deliberately no customer-facing chauffeur route. ShadiDriver
+  // assigns chauffeurs internally and never exposes their identity.
   static const String customerBookingCreate =
       '/customer/bookings/create/:vehicleId';
   static const String customerBookingReview =
@@ -43,8 +44,6 @@ abstract final class RoutePaths {
 
   static String customerVehicleDetailsPath(String vehicleId) =>
       '/customer/vehicles/$vehicleId';
-  static String customerChauffeurProfilePath(String chauffeurId) =>
-      '/customer/chauffeurs/$chauffeurId';
   static String customerBookingCreatePath(String vehicleId, {String? draftId}) {
     if (draftId != null && draftId.isNotEmpty) {
       return '/customer/bookings/create/$vehicleId?draftId=$draftId';

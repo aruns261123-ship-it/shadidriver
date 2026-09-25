@@ -59,7 +59,7 @@ async function main(): Promise<void> {
       isPhoneVerified: true,
     },
   });
-  const fleetOwner = await prisma.fleetOwnerProfile.upsert({
+  const fleetOwner = await prisma.partnerProfile.upsert({
     where: { userId: fleetOwnerUser.id },
     update: {},
     create: { userId: fleetOwnerUser.id, companyName: 'Fleur Chauffeurs Pvt Ltd' },
@@ -140,6 +140,33 @@ async function main(): Promise<void> {
         serviceAreas: ['Delhi NCR', 'Gurugram', 'Noida', 'Faridabad', 'Ghaziabad'],
       },
     });
+    // A customer-visible price is an APPROVED tariff, not the legacy column:
+    // the public price indicator now reads only from vehicle_pricing.
+    const existingTariff = await prisma.vehiclePricing.findFirst({
+      where: { vehicleId: vehicle.id, status: 'APPROVED' },
+    });
+    if (!existingTariff) {
+      await prisma.vehiclePricing.create({
+        data: {
+          vehicleId: vehicle.id,
+          version: 1,
+          localIncludedKm: 45,
+          localAmountPaise: v.price,
+          perKmPaise: 2200n,
+          hourlyPaise: 125000n,
+          extraHourPaise: 95000n,
+          fullDayPaise: v.price * 3n,
+          overnightPaise: v.price * 4n,
+          outstationPerDayPaise: v.price * 2n,
+          outstationPerKmPaise: 2600n,
+          status: 'APPROVED',
+          submittedByUserId: fleetOwnerUser.id,
+          reviewedByUserId: adminOps.id,
+          reviewedAt: new Date(),
+          decisionReason: 'Seeded commercial tariff',
+        },
+      });
+    }
     vehicles.push(vehicle);
   }
 

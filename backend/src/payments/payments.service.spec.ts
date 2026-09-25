@@ -14,7 +14,7 @@ describe('PaymentsService (gateway-verified capture)', () => {
     return {
       id: 'bk-1',
       customerFk: customer.id,
-      status: 'DRIVER_ACCEPTED',
+      status: 'PAYMENT_PENDING',
       isAdvancePaid: false,
       advanceTokenPaise: 750_000n,
       estimatedTotalPaise: 3_000_000n,
@@ -103,7 +103,7 @@ describe('PaymentsService (gateway-verified capture)', () => {
       }),
     ).rejects.toThrow(/signature/i);
     expect(prisma.__payments[0].status).toBe('INITIATED');
-    expect(prisma.__booking.status).toBe('DRIVER_ACCEPTED');
+    expect(prisma.__booking.status).toBe('PAYMENT_PENDING');
 
     await expect(
       service.verifyAndCapture({

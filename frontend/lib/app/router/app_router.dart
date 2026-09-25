@@ -6,6 +6,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/drivers/presentation/driver_active_trip_screen.dart';
 import '../../features/drivers/presentation/driver_booking_request_screen.dart';
 import '../../features/drivers/presentation/driver_dashboard_screen.dart';
+import '../../features/favorites/presentation/favorites_screen.dart';
 import '../../features/home/presentation/customer_home_screen.dart';
 import '../../features/home/presentation/customer_home_shell.dart';
 import '../../features/messages/presentation/customer_messages_screen.dart';
@@ -14,7 +15,6 @@ import '../../features/urgent_dispatch/presentation/urgent_dispatch_sos_screen.d
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/search/presentation/search_results_screen.dart';
 import '../../features/vehicles/presentation/vehicle_details_screen.dart';
-import '../../features/drivers/presentation/chauffeur_profile_screen.dart';
 import '../../features/bookings/domain/entities/search_handoff.dart';
 import '../../features/bookings/presentation/booking_entry_screen.dart';
 import '../../features/bookings/presentation/booking_review_screen.dart';
@@ -81,7 +81,12 @@ GoRouter createShadiRouter({
       GoRoute(
         path: RoutePaths.auth,
         name: 'auth',
-        builder: (context, state) => const LoginScreen(),
+        // A guest bounced here mid-flow carries where they were heading, so
+        // authentication returns them to their selection instead of the home
+        // screen.
+        builder: (context, state) => LoginScreen(
+          redirectTo: state.uri.queryParameters['redirect'],
+        ),
       ),
       GoRoute(
         path: RoutePaths.accountSuspended,
@@ -164,17 +169,15 @@ GoRouter createShadiRouter({
             builder: (context, state) => const SavedAddressesScreen(),
           ),
           GoRoute(
+            path: RoutePaths.customerFavorites,
+            name: 'customerFavorites',
+            builder: (context, state) => const FavoritesScreen(),
+          ),
+          GoRoute(
             path: RoutePaths.customerVehicleDetails,
             name: 'customerVehicleDetails',
             builder: (context, state) => VehicleDetailsScreen(
               vehicleId: state.pathParameters['vehicleId'] ?? '',
-            ),
-          ),
-          GoRoute(
-            path: RoutePaths.customerChauffeurProfile,
-            name: 'customerChauffeurProfile',
-            builder: (context, state) => ChauffeurProfileScreen(
-              chauffeurId: state.pathParameters['chauffeurId'] ?? '',
             ),
           ),
           GoRoute(

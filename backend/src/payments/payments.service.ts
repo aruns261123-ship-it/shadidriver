@@ -64,10 +64,16 @@ export class PaymentsService {
         'Advance token already paid for this booking.',
       );
     }
+    // An advance token is payable on an operations-managed request (the
+    // customer paid ahead of ops), once ops has requested it, or on a booking
+    // that is already confirmed and still owes the advance.
     if (
-      ![BookingStatus.DRIVER_ACCEPTED, BookingStatus.REQUESTED].includes(
-        booking.status as BookingStatus,
-      )
+      ![
+        BookingStatus.REQUESTED,
+        BookingStatus.PAYMENT_PENDING,
+        BookingStatus.PAYMENT_FAILED,
+        BookingStatus.CONFIRMED,
+      ].includes(booking.status as BookingStatus)
     ) {
       throw new ConflictAppException(
         ErrorCode.INVALID_TRANSITION,
@@ -294,7 +300,10 @@ export class PaymentsService {
       });
 
       let bookingStatus: string | undefined;
-      if (booking.status === BookingStatus.DRIVER_ACCEPTED) {
+      if (booking.status === BookingStatus.PAYMENT_PENDING) {
+        // Operations-managed path: the customer has agreed to the proposal,
+        // operations requested the advance, and a gateway-verified capture
+        // completes the booking. Nothing here depends on a driver accepting.
         this.stateMachine.assertTransitionAllowed(
           booking.status as BookingStatus,
           'CONFIRM_PAYMENT',
@@ -305,9 +314,16 @@ export class PaymentsService {
           data: { status: BookingStatus.CONFIRMED, isAdvancePaid: true, version: { increment: 1 } },
         });
         bookingStatus = updated.status;
+      } else if (booking.status === BookingStatus.CONFIRMED) {
+        // Advance settlement on an already-confirmed booking: record the
+        // payment without mutating lifecycle state.
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: { isAdvancePaid: true, version: { increment: 1 } },
+        });
       } else if (booking.status === BookingStatus.REQUESTED) {
-        // Pay-to-confirm path: booking advances to CONFIRMED once the
-        // chauffeur accepts (assignment flows stay intact).
+        // The customer paid before operations finished sourcing vehicles.
+        // Record the money, leave the request in the operations queue.
         await tx.booking.update({
           where: { id: bookingId },
           data: { isAdvancePaid: true, version: { increment: 1 } },

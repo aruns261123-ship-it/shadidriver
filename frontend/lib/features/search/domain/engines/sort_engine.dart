@@ -13,15 +13,9 @@ abstract final class SortEngine {
         return list
           ..sort((a, b) => _calculateScore(b).compareTo(_calculateScore(a)));
       case SearchSort.priceLowToHigh:
-        return list..sort(
-          (a, b) =>
-              a.pricing.basePriceCents.compareTo(b.pricing.basePriceCents),
-        );
+        return _sortByPrice(list, ascending: true);
       case SearchSort.priceHighToLow:
-        return list..sort(
-          (a, b) =>
-              b.pricing.basePriceCents.compareTo(a.pricing.basePriceCents),
-        );
+        return _sortByPrice(list, ascending: false);
       case SearchSort.nearest:
         return list..sort(
           (a, b) => (a.distanceKm ?? 999).compareTo(b.distanceKm ?? 999),
@@ -31,6 +25,26 @@ abstract final class SortEngine {
       case SearchSort.newestVehicle:
         return list..sort((a, b) => b.year.compareTo(a.year));
     }
+  }
+
+  /// Price ordering that keeps unpriced vehicles out of the price order.
+  ///
+  /// A vehicle with no approved tariff has no price, so treating its zero
+  /// placeholder as a real number would float every unpriced car to the top of
+  /// "low to high". They are collected after the priced ones instead, in both
+  /// directions.
+  static List<VehicleSummary> _sortByPrice(
+    List<VehicleSummary> list, {
+    required bool ascending,
+  }) {
+    final priced = list.where((v) => !v.pricing.isUnavailable).toList()
+      ..sort(
+        (a, b) => ascending
+            ? a.pricing.basePriceCents.compareTo(b.pricing.basePriceCents)
+            : b.pricing.basePriceCents.compareTo(a.pricing.basePriceCents),
+      );
+    final unpriced = list.where((v) => v.pricing.isUnavailable);
+    return [...priced, ...unpriced];
   }
 
   /// Calculates a deterministic recommendation score for a vehicle.
@@ -44,8 +58,12 @@ abstract final class SortEngine {
     // Availability: 20 points
     if (vehicle.isAvailableNow) score += 20;
 
-    // Verification: 15 points
-    if (vehicle.verificationStatus == 'VERIFIED') score += 10;
+    // Verification: 15 points. The server publishes APPROVED, so accepting
+    // only VERIFIED meant no verified vehicle ever earned this boost.
+    if (vehicle.verificationStatus == 'APPROVED' ||
+        vehicle.verificationStatus == 'VERIFIED') {
+      score += 10;
+    }
     if (vehicle.hasVerifiedChauffeur) score += 5;
 
     // Proximity: Up to 10 points (closer is better)

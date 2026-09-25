@@ -20,6 +20,9 @@ import '../../features/services/domain/repositories/service_category_repository.
 import '../../features/services/domain/repositories/service_addon_repository.dart';
 import '../../features/home/data/mock_repositories.dart';
 import '../../features/vehicles/data/vehicle_api_repository.dart';
+import '../../features/favorites/domain/repositories/favorites_repository.dart';
+import '../../features/favorites/data/favorites_api_repository.dart';
+import '../../features/favorites/data/mock_favorites_repository.dart';
 import '../../features/services/data/service_category_api_repository.dart';
 import '../../features/bookings/data/mock_booking_repository.dart';
 import '../../features/bookings/data/booking_api_repository.dart';
@@ -239,6 +242,18 @@ final vehicleRepositoryProvider = Provider<VehicleRepository>((ref) {
     return MockVehicleRepository();
   }
   return VehicleApiRepository(ref.watch(apiClientProvider));
+});
+
+/// Favourites repository — REAL account-backed API by default. The in-memory
+/// implementation exists only for `useMockData` mode and tests.
+final favoritesRepositoryProvider = Provider<FavoritesRepository>((ref) {
+  final useMock = ref.watch(
+    environmentConfigProvider.select((c) => c.useMockData),
+  );
+  if (useMock) {
+    return MockFavoritesRepository(vehicles: ref.watch(vehicleRepositoryProvider));
+  }
+  return FavoritesApiRepository(ref.watch(apiClientProvider));
 });
 
 final serviceCategoryRepositoryProvider = Provider<ServiceCategoryRepository>((

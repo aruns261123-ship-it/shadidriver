@@ -14,10 +14,56 @@ abstract interface class RouteGuard {
 
 /// Default architecture-ready route guard implementation.
 /// Evaluates access permissions during route transitions.
+///
+/// Authentication is required only for *transactional* surfaces. Browsing the
+/// catalog - home, search, search results, vehicle details - is deliberately
+/// open to signed-out visitors, because a customer must never have to create
+/// an account just to look at cars. The rule is fail-closed: a path is public
+/// only when it appears in [publicPaths] or [publicPathPrefixes], so a newly
+/// added route is protected by default.
 class ShadiRouteGuard implements RouteGuard {
   final bool enforceAuth;
 
   const ShadiRouteGuard({this.enforceAuth = false});
+
+  /// Exact locations a signed-out visitor may reach.
+  static const Set<String> publicPaths = <String>{
+    '/',
+    '',
+    '/splash',
+    '/auth',
+    '/account-suspended',
+    // Customer browsing surface.
+    '/customer',
+    '/customer/home',
+  };
+
+  /// Prefix-matched public surfaces (vehicle details, search + its results).
+  static const List<String> publicPathPrefixes = <String>[
+    '/customer/search',
+    '/customer/vehicles/',
+  ];
+
+  /// TRUE when [location] is a browsable surface that needs no session.
+  static bool isPublicLocation(String location) {
+    if (publicPaths.contains(location)) return true;
+    return publicPathPrefixes.any(location.startsWith);
+  }
+
+  /// Builds the sign-in redirect while preserving where the visitor was going,
+  /// so a guest who was building a booking returns to it after authenticating.
+  ///
+  /// Only customer transactional paths are preserved. Console paths are not:
+  /// a visitor who is not signed in has no proven role, so sending them to
+  /// `/driver` or `/admin` after sign-in would be meaningless — and the login
+  /// screen deliberately ignores any redirect outside `/customer/`.
+  static String signInRedirectFor(String targetLocation) {
+    if (!targetLocation.startsWith('/customer/') ||
+        isPublicLocation(targetLocation)) {
+      return '/auth';
+    }
+    return '/auth?redirect=${Uri.encodeComponent(targetLocation)}';
+  }
 
   @override
   Future<String?> evaluateRedirect({
@@ -38,8 +84,12 @@ class ShadiRouteGuard implements RouteGuard {
       if (targetLocation == '/auth') {
         return null;
       }
+      // Browsing is open to guests regardless of how strictly auth is enforced.
+      if (isPublicLocation(targetLocation)) {
+        return null;
+      }
       if (enforceAuth) {
-        return '/auth';
+        return signInRedirectFor(targetLocation);
       }
       // If auth is not enforced and no specific role is present, allow access
       if (userRole == null) {

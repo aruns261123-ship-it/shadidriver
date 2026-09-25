@@ -12,6 +12,7 @@ import 'package:shadidriver/features/bookings/data/booking_api_repository.dart';
 import 'package:shadidriver/features/bookings/domain/entities/booking_status.dart';
 import 'package:shadidriver/features/bookings/domain/entities/booking_submission_request.dart';
 import 'package:shadidriver/core/constants/app_constants.dart';
+import 'package:shadidriver/features/favorites/data/favorites_api_repository.dart';
 import 'package:shadidriver/features/services/data/service_category_api_repository.dart';
 import 'package:shadidriver/features/vehicles/data/vehicle_api_repository.dart';
 
@@ -120,8 +121,37 @@ void main() {
       final details = detailsResult.dataOrNull!;
       expect(details.id, firstVehicle.id);
       expect(details.make, firstVehicle.make);
-      expect(details.ceremonialAddons.isNotEmpty, true);
       expect(details.amenities.isNotEmpty, true);
+      // Vehicle-first: the customer is promised a verified chauffeur as a
+      // boolean flag, and never receives a chauffeur identity.
+      expect(details.hasVerifiedChauffeur, firstVehicle.hasVerifiedChauffeur);
+      expect(details.pricing.basePriceCents, greaterThan(0));
+
+      // 2C. The raw public payload must not carry chauffeur or partner identity,
+      // nor the registration plate.
+      final raw = await client.get<Map<String, dynamic>>(
+        '/api/v1/vehicles/${firstVehicle.id}',
+      );
+      final rawBody = raw.data!['data'] as Map<String, dynamic>;
+      for (final forbidden in const [
+        'chauffeur',
+        'chauffeur_name',
+        'chauffeur_id',
+        'driver',
+        'owner',
+        'registration_number',
+        'documents',
+      ]) {
+        expect(
+          rawBody.containsKey(forbidden),
+          false,
+          reason: 'public vehicle payload must not expose $forbidden',
+        );
+      }
+      expect(rawBody['has_verified_chauffeur'], isA<bool>());
+
+      // 2D. Suitability is a backend decision, not a client-side guess.
+      expect(rawBody['suitable_ceremonies'], isA<List<dynamic>>());
     });
 
     test('3. Service Categories — Ceremonial categories synchronized with seed', () async {
@@ -240,6 +270,57 @@ void main() {
       expect(myBookingsResult.isSuccess, true);
       final myBookings = myBookingsResult.dataOrNull!;
       expect(myBookings.any((b) => b.id == result.bookingId), true);
+    });
+
+    test('6. Favourites persist for the account and never leak identity', () async {
+      final storedToken = await storage.read(AppConstants.keyAccessToken);
+      if (storedToken == null) {
+        markTestSkipped(
+          'No authenticated session: step 4 needs a server started with '
+          'OTP_DEBUG_EMIT=true (see LIVE_API_BASE_URL).',
+        );
+        return;
+      }
+
+      final favorites = FavoritesApiRepository(client);
+      final target = (await vehicleRepo.getFeaturedVehicles()).dataOrNull!.first.id;
+
+      // A signed-out visitor has no account-backed favourites.
+      expect((await favorites.list()).isSuccess, true);
+
+      final saved = await favorites.add(target);
+      expect(saved.isSuccess, true, reason: 'saving a real vehicle must succeed');
+      expect(saved.dataOrNull!.vehicleIds, contains(target));
+
+      // Idempotent: saving again is a success and does not duplicate.
+      final again = await favorites.add(target);
+      expect(again.dataOrNull!.vehicleIds, contains(target));
+
+      // The payload is the public projection — never chauffeur/partner identity.
+      final item = saved.dataOrNull!.vehicles.first;
+      expect(item.hasVerifiedChauffeur, isA<bool>());
+
+      // A stale guest entry is reported, not thrown.
+      final merged = await favorites.merge(['not-a-uuid']);
+      expect(merged.isSuccess, true);
+      expect(merged.dataOrNull!.ignoredVehicleIds, contains('not-a-uuid'));
+
+      // Unsaving is idempotent.
+      final removed = await favorites.remove(target);
+      expect(removed.dataOrNull!.vehicleIds, isNot(contains(target)));
+      expect((await favorites.remove(target)).isSuccess, true);
+    });
+
+    test('7. A guest cannot read or write another account’s favourites', () async {
+      // No bearer token in a fresh storage: the API must refuse, not silently
+      // return an empty list (which would look like "no favourites").
+      final anonymousClient = ApiClient(
+        config: config,
+        logger: SilentTestLogger(),
+        secureStorage: InMemorySecureStorage(),
+      );
+      final result = await FavoritesApiRepository(anonymousClient).list();
+      expect(result.isFailure, true, reason: 'unauthenticated access must fail');
     });
   });
 }

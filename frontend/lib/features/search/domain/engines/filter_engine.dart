@@ -23,13 +23,21 @@ abstract final class FilterEngine {
         return false;
       }
 
-      // 3. Price Range (using base price for now)
-      final price = vehicle.pricing.basePriceCents;
-      if (query.minPriceCents != null && price < query.minPriceCents!) {
-        return false;
-      }
-      if (query.maxPriceCents != null && price > query.maxPriceCents!) {
-        return false;
+      // 3. Price Range
+      //
+      // A vehicle with no approved tariff has no price, so it cannot be claimed
+      // to satisfy a budget. Filtering on the zero placeholder would show every
+      // unpriced car to someone searching under Rs 1,000.
+      final priced = !vehicle.pricing.isUnavailable;
+      if (query.minPriceCents != null || query.maxPriceCents != null) {
+        if (!priced) return false;
+        final price = vehicle.pricing.basePriceCents;
+        if (query.minPriceCents != null && price < query.minPriceCents!) {
+          return false;
+        }
+        if (query.maxPriceCents != null && price > query.maxPriceCents!) {
+          return false;
+        }
       }
 
       // 4. Seating Capacities

@@ -147,7 +147,9 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
         vehicleId: vehicle.id,
         vehicleName: '${vehicle.make} ${vehicle.model}',
         vehicleClass: vehicle.vehicleClass,
-        chauffeurId: vehicle.chauffeurId,
+        // No chauffeur is bound to a customer selection: ShadiDriver operations
+        // assigns one internally after the request is reviewed.
+        chauffeurId: '',
         basePricePaise: pricing.basePricePaise,
         estimatedTotalPaise: pricing.estimatedTotalPaise,
         advanceTokenPaise: pricing.advanceTokenPaise,
@@ -218,7 +220,7 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
         vehicleId: newVehicle.id,
         vehicleName: '${newVehicle.make} ${newVehicle.model}',
         vehicleClass: newVehicle.vehicleClass,
-        chauffeurId: newVehicle.chauffeurId,
+        chauffeurId: '',
         basePricePaise: pricing.basePricePaise,
         estimatedTotalPaise: pricing.estimatedTotalPaise,
         advanceTokenPaise: pricing.advanceTokenPaise,

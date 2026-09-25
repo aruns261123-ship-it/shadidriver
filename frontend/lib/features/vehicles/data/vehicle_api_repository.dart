@@ -10,6 +10,7 @@ import '../domain/entities/pricing_summary.dart';
 import '../domain/entities/vehicle_details.dart';
 import '../domain/entities/vehicle_summary.dart';
 import '../domain/repositories/vehicle_repository.dart';
+import 'dto/public_vehicle_dto.dart';
 
 /// Real backend implementation of [VehicleRepository] communicating with the
 /// NestJS `/api/v1/vehicles` endpoints.
@@ -147,79 +148,20 @@ class VehicleApiRepository implements VehicleRepository {
   // JSON Mappers
   // ---------------------------------------------------------------------------
 
-  VehicleSummary _mapSummaryFromWire(Map<String, dynamic> json) {
-    final vehicleClass = (json['vehicle_class'] as String?) ?? 'Luxury Sedan';
-    final pricePaise = int.tryParse('${json['base_price_paise']}') ?? 2500000;
-    final rating = (json['average_rating'] as num?)?.toDouble() ?? 4.9;
-    final amenities = (json['amenities'] as List?)?.cast<String>() ?? const [];
+  /// Both the list and detail payloads share one shape, and there is exactly
+  /// one mapper for it ([PublicVehicleDto]) so screens cannot drift apart.
+  VehicleSummary _mapSummaryFromWire(Map<String, dynamic> json) =>
+      PublicVehicleDto.toSummary(json);
 
-    return VehicleSummary(
-      id: (json['id'] as String?) ?? '',
-      make: (json['make'] as String?) ?? '',
-      model: (json['model'] as String?) ?? '',
-      year: (json['year'] as num?)?.toInt() ?? 2024,
-      vehicleClass: _humanizeClass(vehicleClass),
-      registrationNumber:
-          (json['fleet_code'] as String?) ??
-          (json['registration_number'] as String?) ??
-          '',
-      seatingCapacity: (json['seating_capacity'] as num?)?.toInt() ?? 4,
-      verificationStatus:
-          (json['verification_status'] as String?) ?? 'APPROVED',
-      imageUrl: json['image_url'] as String?,
-      rating: rating,
-      reviewCount: 120,
-      hasVerifiedChauffeur: json['chauffeur_id'] != null,
-      pricing: PricingSummary(basePriceCents: pricePaise, billingUnit: 'DAY'),
-      distanceKm: 2.5,
-      transmission: 'AUTOMATIC',
-      amenities: amenities,
-      isAvailableNow: (json['is_available'] as bool?) ?? true,
-      suitableCeremonies: _ceremoniesForClass(vehicleClass),
-    );
-  }
-
-  VehicleSummary _mapSummaryFromDetailsWire(Map<String, dynamic> json) {
-    final vehicleClass = (json['vehicle_class'] as String?) ?? 'Luxury Sedan';
-    final pricePaise = int.tryParse('${json['base_price_paise']}') ?? 2500000;
-    final chauffeur = json['chauffeur'] as Map<String, dynamic>?;
-    final driverRating = (chauffeur?['average_rating'] as num?)?.toDouble();
-    final amenities = (json['amenities'] as List?)?.cast<String>() ?? const [];
-
-    return VehicleSummary(
-      id: (json['id'] as String?) ?? '',
-      make: (json['make'] as String?) ?? '',
-      model: (json['model'] as String?) ?? '',
-      year: (json['year'] as num?)?.toInt() ?? 2024,
-      vehicleClass: _humanizeClass(vehicleClass),
-      registrationNumber:
-          (json['fleet_code'] as String?) ??
-          (json['registration_number'] as String?) ??
-          '',
-      seatingCapacity: (json['seating_capacity'] as num?)?.toInt() ?? 4,
-      verificationStatus:
-          (json['verification_status'] as String?) ?? 'APPROVED',
-      imageUrl: json['image_url'] as String?,
-      rating: driverRating ?? 4.9,
-      reviewCount: 120,
-      hasVerifiedChauffeur: chauffeur != null,
-      pricing: PricingSummary(basePriceCents: pricePaise, billingUnit: 'DAY'),
-      distanceKm: 2.5,
-      transmission: 'AUTOMATIC',
-      amenities: amenities,
-      isAvailableNow: (json['is_available'] as bool?) ?? true,
-      suitableCeremonies: _ceremoniesForClass(vehicleClass),
-    );
-  }
+  VehicleSummary _mapSummaryFromDetailsWire(Map<String, dynamic> json) =>
+      PublicVehicleDto.toSummary(json);
 
   VehicleDetails _mapDetailsFromWire(Map<String, dynamic> json) {
     final vehicleClass = (json['vehicle_class'] as String?) ?? 'Luxury Sedan';
-    final pricePaise = int.tryParse('${json['base_price_paise']}') ?? 2500000;
-    final chauffeur = json['chauffeur'] as Map<String, dynamic>?;
-    final chauffeurId = (chauffeur?['id'] as String?) ?? '';
-    final driverRating =
-        (chauffeur?['average_rating'] as num?)?.toDouble() ?? 4.9;
+    final pricePaise = int.tryParse('${json['price_indicator_paise']}');
     final amenities = (json['amenities'] as List?)?.cast<String>() ?? const [];
+    final ceremonies =
+        (json['suitable_ceremonies'] as List?)?.cast<String>() ?? const [];
     final rawPhotos = (json['photos'] as List?)?.cast<String>() ?? const [];
 
     final make = (json['make'] as String?) ?? '';
@@ -232,94 +174,29 @@ class VehicleApiRepository implements VehicleRepository {
       year: (json['year'] as num?)?.toInt() ?? 2024,
       vehicleClass: _humanizeClass(vehicleClass),
       seatingCapacity: (json['seating_capacity'] as num?)?.toInt() ?? 4,
-      transmission: 'AUTOMATIC',
+      transmission: json['transmission'] as String?,
       verificationStatus:
           (json['verification_status'] as String?) ?? 'APPROVED',
       galleryUrls: rawPhotos,
-      suitabilityInfo:
-          'Executive ceremonial mobility benchmark. Engineered for majestic processions with silent cabin acoustics and dual executive climate comfort.',
-      suitableCeremonies: _ceremoniesForClass(vehicleClass),
+      // Editorial copy is a backend concern; no client-side invention.
+      suitabilityInfo: (json['suitability_info'] as String?) ?? '',
+      suitableCeremonies: ceremonies,
       amenities: amenities,
-      ceremonialAddons: const [
-        ServiceAddon(
-          id: 'addon_fresh_floral',
-          name: 'Floral Vehicle Decoration',
-          description:
-              'Fresh seasonal floral garlands and bonnet arrangements.',
-          features: ['Fresh Orchids / Roses', 'Paint-Safe Clamps'],
-          pricing: PricingSummary(
-            basePriceCents: 350000,
-            billingUnit: 'PACKAGE',
-          ),
-        ),
-        ServiceAddon(
-          id: 'addon_baraat_attire',
-          name: 'Chauffeur Safa & Jodhpuri Attire',
-          description: 'Ceremonial silk safa and bandhgala uniform.',
-          features: [
-            'Custom Color Safa',
-            'Bandhgala Suit',
-            'Formal Etiquette',
-          ],
-          pricing: PricingSummary(
-            basePriceCents: 150000,
-            billingUnit: 'PACKAGE',
-          ),
-        ),
-        ServiceAddon(
-          id: 'addon_hamper',
-          name: 'Welcome Refreshment Hamper',
-          description: 'Premium chilled juices, dry fruits, and mint water.',
-          features: [
-            'Chilled Juices',
-            'Dry Fruits Box',
-            'Ceremonial Mineral Water',
-          ],
-          pricing: PricingSummary(
-            basePriceCents: 80000,
-            billingUnit: 'PACKAGE',
-          ),
-        ),
-      ],
-      pricing: PricingSummary(basePriceCents: pricePaise, billingUnit: 'DAY'),
-      chauffeurId: chauffeurId,
-      rating: driverRating,
-      reviewCount: 120,
+      // Ceremonial add-ons are a SERVER-priced catalog. The client must never
+      // fabricate priced packages, so this stays empty until the catalog
+      // endpoint supplies them, and the section hides itself meanwhile.
+      ceremonialAddons: const <ServiceAddon>[],
+      pricing: pricePaise == null
+          ? const PricingSummary.unavailable()
+          : PricingSummary(basePriceCents: pricePaise, billingUnit: 'DAY'),
+      // Chauffeur identity is never part of a customer-facing vehicle payload.
+      hasVerifiedChauffeur: (json['has_verified_chauffeur'] as bool?) ?? false,
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      reviewCount: (json['review_count'] as num?)?.toInt() ?? 0,
       isAvailableNow: (json['is_available'] as bool?) ?? true,
     );
   }
 
-  static String _humanizeClass(String raw) {
-    return switch (raw.toUpperCase()) {
-      'LUXURY_SEDAN' => 'Luxury Sedan',
-      'EXECUTIVE_MPV' => 'Executive MPV',
-      'ULTRA_LUXURY' => 'Ultra Luxury',
-      'PREMIUM_SUV' => 'Premium SUV',
-      'VINTAGE' => 'Vintage',
-      _ => raw,
-    };
-  }
-
-  static List<String> _ceremoniesForClass(String raw) {
-    return switch (raw.toUpperCase()) {
-      'LUXURY_SEDAN' => const [
-        'Baraat',
-        'Groom Entry',
-        'Reception',
-        'Engagement',
-      ],
-      'EXECUTIVE_MPV' => const [
-        'Guest Transport',
-        'Airport VIP',
-        'Family Escort',
-      ],
-      'ULTRA_LUXURY' => const [
-        'Bride Entry',
-        'Groom Entry',
-        'Vidai',
-        'Royal Reception',
-      ],
-      _ => const ['Baraat', 'Vidai', 'Reception'],
-    };
-  }
+  static String _humanizeClass(String raw) =>
+      PublicVehicleDto.humanizeClass(raw);
 }

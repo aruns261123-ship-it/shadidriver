@@ -3,6 +3,7 @@ import {
   ACTION_TO_STATUS,
   ActorRole,
   BookingStatus,
+  TERMINAL_STATUSES,
   isTransitionAllowed,
 } from './booking-status';
 import { ErrorCode } from '../common/errors/error-codes';
@@ -44,7 +45,7 @@ export class BookingStateMachineService {
   }
 
   isTerminal(status: BookingStatus): boolean {
-    return status === BookingStatus.COMPLETED || status === BookingStatus.CANCELLED;
+    return TERMINAL_STATUSES.includes(status);
   }
 
   /** Guard helper: optimistic-concurrency mismatch becomes VERSION_CONFLICT. */

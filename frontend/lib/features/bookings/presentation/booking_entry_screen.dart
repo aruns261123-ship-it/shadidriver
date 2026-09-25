@@ -616,7 +616,9 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                           ),
                         ),
                         subtitle: Text(
-                          '${v.vehicleClass} • ${CurrencyFormatter.formatPaise(v.pricing.basePriceCents)} / ${v.pricing.billingUnit}',
+                          v.pricing.isUnavailable
+                              ? '${v.vehicleClass} • On request'
+                              : '${v.vehicleClass} • ${CurrencyFormatter.formatPaise(v.pricing.basePriceCents)}${v.pricing.formattedUnit}',
                           style: AppTypography.labelSmall.copyWith(
                             color: AppColors.textSecondaryLight,
                           ),

@@ -132,7 +132,7 @@ class BookingApiRepository implements BookingRepository {
           (booking['advanceTokenLabel'] as String?) ?? request.advanceTokenLabel,
       nextStepMessage: replay
           ? 'Existing booking returned (idempotent replay).'
-          : 'Request submitted. Awaiting chauffeur confirmation.',
+          : 'Request submitted. ShadiDriver operations will review your fleet and confirm.',
       isIdempotentReplay: replay,
     );
   }

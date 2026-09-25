@@ -52,13 +52,27 @@ enum DutyStatus {
   AVAILABLE_NOW
 }
 
+/// Verification lifecycle for partners, chauffeurs and vehicles. A verified
+/// partner does NOT imply verified vehicles: each vehicle is reviewed on its
+/// own. Only APPROVED + active vehicles become customer-bookable.
 enum VerificationStatus {
   PENDING_SUBMISSION
   SUBMITTED
   UNDER_REVIEW
   APPROVED
   ACTION_REQUIRED
+  REJECTED
   SUSPENDED
+  DOCUMENT_EXPIRED
+}
+
+enum PartnerDocumentType {
+  PARTNER_IDENTITY
+  DRIVING_LICENCE
+  TRADE_LICENSE
+  POLICE_VERIFICATION
+  GST_CERTIFICATE
+  BANK_PROOF
 }
 
 enum DriverDocumentType {
@@ -87,17 +101,65 @@ enum DocumentReviewStatus {
   EXPIRED
 }
 
-/// Server-authoritative booking lifecycle (matches frontend BookingStatus).
+/// Server-authoritative booking lifecycle for the *operations-managed*
+/// vehicle-first model. The customer submits a REQUESTED booking; ShadiDriver
+/// operations reviews it, prepares vehicle options, proposes them, and only a
+/// customer-confirmed proposal becomes CONFIRMED.
+///
+/// DEPRECATED VALUES — retained only so the trip-progress code path keeps
+/// compiling while it is migrated:
+///   * DRIVER_ACCEPTED  → replaced by REQUESTED → UNDER_REVIEW
+///   * EN_ROUTE/ARRIVED → moving to AssignmentStatus (chauffeur progress)
+/// `docs/PLATFORM_REDESIGN.md` §4.1 records the migration; removing them from
+/// this enum is a follow-up slice once AssignmentStatus owns trip progress.
 enum BookingStatus {
   DRAFT
   REQUESTED
-  DRIVER_ACCEPTED
+  UNDER_REVIEW
+  VEHICLE_OPTIONS_PREPARED
+  CUSTOMER_CONFIRMATION_PENDING
   CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+  PAYMENT_PENDING
+  PAYMENT_FAILED
+  DRIVER_ACCEPTED
+  EN_ROUTE
+  ARRIVED
+}
+
+/// Operational progress of one allocated vehicle + chauffeur. Ops assigns the
+/// chauffeur; the customer never sees a driver offer/accept loop.
+enum AssignmentStatus {
+  PROPOSED
+  VEHICLE_CONFIRMED
+  CHAUFFEUR_ASSIGNED
+  CHAUFFEUR_ACCEPTED
+  CHAUFFEUR_DECLINED
   EN_ROUTE
   ARRIVED
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+/// Partner tariff approval state — partner edits never leak to customers
+/// before approval, and never mutate a confirmed booking.
+enum PricingStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUPERSEDED
+  ACTIVE
+}
+
+/// Customer review moderation state.
+enum ReviewStatus {
+  PENDING_MODERATION
+  PUBLISHED
+  HIDDEN
 }
 
 enum AvailabilityStatus {
@@ -151,7 +213,7 @@ model User {
 
   customerProfile         CustomerProfile?
   driverProfile           DriverProfile?
-  fleetOwnerProfile       FleetOwnerProfile?
+  partnerProfile          PartnerProfile?
   adminProfile            AdminProfile?
   refreshTokens           RefreshToken[]
   bookingsAsCustomer      Booking[]            @relation("BookingsAsCustomer")
@@ -166,6 +228,8 @@ model User {
   messagesReceived        Message[]            @relation("MessagesReceived")
   verifiedDocuments       DriverDocument[]     @relation("VerifiedDriverDocuments")
   verificationRecords     VerificationRecord[]
+  favoriteVehicles        FavoriteVehicle[]    @relation("FavoriteVehicles")
+  operationsNotes         OperationsNote[]     @relation("OperationsNotesAuthored")
 
   @@index([primaryRole])
   @@index([accountStatus])
@@ -212,7 +276,7 @@ model DriverProfile {
   updatedAt              DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fleetOwner        FleetOwnerProfile?  @relation(fields: [fleetOwnerId], references: [id], onDelete: SetNull)
+  fleetOwner        PartnerProfile?  @relation(fields: [fleetOwnerId], references: [id], onDelete: SetNull)
   documents         DriverDocument[]
   vehicles          Vehicle[]           @relation("IndependentDriverVehicles")
   bookings          Booking[]           @relation("BookingsAsDriver")
@@ -226,23 +290,67 @@ model DriverProfile {
   @@map("drivers")
 }
 
-model FleetOwnerProfile {
+/// A ShadiDriver PARTNER: the business that owns a fleet. Distinct from a
+/// chauffeur ([DriverProfile]) — a partner owns one or MANY vehicles and may or
+/// may not also drive. The table keeps its historical name (`fleet_owners`) so
+/// this rename is non-destructive; "partner" is the product-facing term.
+model PartnerProfile {
   id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId             String   @unique @map("user_id") @db.Uuid
   companyName        String   @map("company_name") @db.VarChar(200)
+  contactName        String?  @map("contact_name") @db.VarChar(150)
   tradeLicenseNumber String?  @map("trade_license_number") @db.VarChar(100)
+  licenseNumber      String?  @map("license_number") @db.VarChar(50)
   panNumber          String?  @map("pan_number") @db.VarChar(10)
   gstin              String?  @db.VarChar(15)
   bankAccountDetails Json?    @map("bank_account_details")
-  verificationStatus String   @default("PENDING") @map("verification_status") @db.VarChar(30)
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  drivers  DriverProfile[]
-  vehicles Vehicle[]
+  // Professional details collected during partner onboarding.
+  baseCity              String?  @map("base_city") @db.VarChar(50)
+  serviceCities         String[] @default([]) @map("service_cities")
+  languagesSpoken       String[] @default(["Hindi"]) @map("languages_spoken")
+  experienceYears       Int      @default(0) @map("experience_years")
+  emergencyContactName  String?  @map("emergency_contact_name") @db.VarChar(150)
+  emergencyContactPhone String?  @map("emergency_contact_phone") @db.VarChar(20)
+
+  verificationStatus VerificationStatus @default(PENDING_SUBMISSION) @map("verification_status")
+  submittedAt        DateTime?          @map("submitted_at") @db.Timestamptz(6)
+  reviewedAt         DateTime?          @map("reviewed_at") @db.Timestamptz(6)
+  decisionReason     String?            @map("decision_reason")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  drivers   DriverProfile[]
+  vehicles  Vehicle[]
+  documents PartnerDocument[]
 
   @@map("fleet_owners")
+}
+
+/// Partner-level compliance documents (identity, licence, trade licence …).
+/// Vehicle paperwork lives on [VehicleDocument].
+model PartnerDocument {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  partnerId          String              @map("partner_id") @db.Uuid
+  documentType       PartnerDocumentType @map("document_type")
+  documentNumber     String?             @map("document_number") @db.VarChar(100)
+  storagePath        String              @map("storage_path")
+  mimeType           String              @map("mime_type") @db.VarChar(50)
+  issuedDate         DateTime?           @map("issued_date") @db.Date
+  expiryDate         DateTime?           @map("expiry_date") @db.Date
+  verificationStatus DocumentReviewStatus @default(PENDING_REVIEW) @map("verification_status")
+  rejectionReason    String?             @map("rejection_reason")
+  verifiedBy         String?             @map("verified_by") @db.Uuid
+  verifiedAt         DateTime?           @map("verified_at") @db.Timestamptz(6)
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  partner PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerId, documentType])
+  @@index([expiryDate])
+  @@map("partner_documents")
 }
 
 model AdminProfile {
@@ -326,6 +434,7 @@ model Vehicle {
   color               String             @db.VarChar(30)
   registrationNumber  String             @unique @map("registration_number") @db.VarChar(30)
   fuelType            String             @map("fuel_type") @db.VarChar(20)
+  transmission        String             @default("AUTOMATIC") @db.VarChar(20)
   isVintage           Boolean            @default(false) @map("is_vintage")
   airConditioningType String             @default("DUAL_CLIMATE_CONTROL") @map("air_conditioning_type") @db.VarChar(30)
   basePricePaise      BigInt             @default(0) @map("base_price_paise") @db.BigInt
@@ -342,13 +451,15 @@ model Vehicle {
 
   vehicleType       VehicleType         @relation(fields: [vehicleTypeId], references: [id])
   independentDriver DriverProfile?      @relation("IndependentDriverVehicles", fields: [independentDriverId], references: [id], onDelete: SetNull)
-  fleetOwner        FleetOwnerProfile?  @relation(fields: [fleetOwnerId], references: [id], onDelete: SetNull)
+  fleetOwner        PartnerProfile?  @relation(fields: [fleetOwnerId], references: [id], onDelete: SetNull)
   documents         VehicleDocument[]
   bookings          Booking[]
   assignments       VehicleAssignment[]
   standbyEntries    StandbyPoolEntry[]
   reviews           Review[]
   availabilityLocks Availability[]
+  pricingVersions   VehiclePricing[]
+  favoritedBy       FavoriteVehicle[]
 
   @@index([vehicleTypeId, city])
   @@index([verificationStatus])
@@ -568,6 +679,7 @@ model Booking {
   review            Review?
   messages          Message[]
   assignments       VehicleAssignment[]
+  operationsNotes   OperationsNote[]
 
   @@index([customerFk])
   @@index([driverFk])
@@ -671,8 +783,21 @@ model GroupBooking {
   serviceEndTime     DateTime @map("service_end_time") @db.Timestamptz(6)
 
   /// Original fleet intent, verbatim: e.g. {"Toyota Innova Crysta": 7}
-  requestedFleet Json @map("requested_fleet")
-  passengerCount Int  @map("passenger_count")
+  requestedFleet      Json @map("requested_fleet")
+  /// Canonical machine-readable intent — the shape new code writes:
+  /// [{vehicleTypeId, quantity, vehicleClass}]. `requestedFleet` is kept for
+  /// display parity with historical rows.
+  requestedFleetItems Json @default("[]") @map("requested_fleet_items")
+  passengerCount      Int  @map("passenger_count")
+
+  /// Optional customer requirements / add-on requests (decoration, child seat,
+  /// preferred colour, early arrival …).
+  requirements            Json?  @default("[]")
+  /// Preferred confirmation channel: PHONE | WHATSAPP | EMAIL | PHONE_WHATSAPP
+  communicationPreference String @default("PHONE") @map("communication_preference") @db.VarChar(30)
+
+  /// Immutable aggregate pricing snapshot captured when the request was priced.
+  pricingSnapshot Json? @map("pricing_snapshot")
 
   /// Aggregate pricing (sum of authoritative per-assignment quotes)
   estimatedTotalPaise BigInt @map("estimated_total_paise") @db.BigInt
@@ -690,6 +815,8 @@ model GroupBooking {
   bookingPolicy   BookingPolicy?      @relation(fields: [bookingPolicyId], references: [id])
   assignments     VehicleAssignment[]
   bookings        Booking[]
+  operationsNotes OperationsNote[]
+  reviews         Review[]
 
   @@index([customerFk])
   @@index([status])
@@ -704,32 +831,115 @@ model VehicleAssignment {
   groupBookingId String? @map("group_booking_id") @db.Uuid
   bookingId      String? @map("booking_id") @db.Uuid
   vehicleId      String  @map("vehicle_id") @db.Uuid
-  driverId       String  @map("driver_id") @db.Uuid
+  /// NULLABLE: operations reserves the vehicle first and assigns a chauffeur
+  /// afterwards. A vehicle must never be blocked on a chauffeur offer loop.
+  driverId       String? @map("driver_id") @db.Uuid
   sequenceNumber Int     @default(1) @map("sequence_number")
 
-  /// REQUESTED until the assigned chauffeur accepts; CANCELLED on decline.
-  status         BookingStatus @default(REQUESTED)
+  /// Operational progress. Customer-facing surfaces collapse this into a
+  /// neutral "chauffeur assigned / on the way" without naming the person.
+  assignmentStatus AssignmentStatus @default(PROPOSED) @map("assignment_status")
   /// Client request ID — never authoritative; kept for display parity.
-  requestedModel String?       @map("requested_model") @db.VarChar(100)
+  requestedModel   String?          @map("requested_model") @db.VarChar(100)
 
   estimatedTotalPaise BigInt @map("estimated_total_paise") @db.BigInt
   advanceTokenPaise   BigInt @map("advance_token_paise") @db.BigInt
 
-  acceptedAt    DateTime? @map("accepted_at") @db.Timestamptz(6)
-  declinedAt    DateTime? @map("declined_at") @db.Timestamptz(6)
-  declineReason String?   @map("decline_reason")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Immutable rate-card + computed lines captured at quote time, so a later
+  /// tariff change can never rewrite an already-agreed price.
+  pricingSnapshot Json? @map("pricing_snapshot")
 
-  groupBooking GroupBooking? @relation(fields: [groupBookingId], references: [id], onDelete: Cascade)
-  booking      Booking?      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  vehicle      Vehicle       @relation(fields: [vehicleId], references: [id])
-  driver       DriverProfile @relation(fields: [driverId], references: [id])
+  assignedByUserId String?   @map("assigned_by_user_id") @db.Uuid
+  assignedAt       DateTime? @map("assigned_at") @db.Timestamptz(6)
+  acceptedAt       DateTime? @map("accepted_at") @db.Timestamptz(6)
+  declinedAt       DateTime? @map("declined_at") @db.Timestamptz(6)
+  declineReason    String?   @map("decline_reason")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  groupBooking GroupBooking?  @relation(fields: [groupBookingId], references: [id], onDelete: Cascade)
+  booking      Booking?       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  vehicle      Vehicle        @relation(fields: [vehicleId], references: [id])
+  driver       DriverProfile? @relation(fields: [driverId], references: [id])
+  review       Review?
 
   @@index([groupBookingId])
-  @@index([driverId, status])
-  @@index([vehicleId])
+  @@index([driverId, assignmentStatus])
+  @@index([vehicleId, assignmentStatus])
   @@map("vehicle_assignments")
+}
+
+/// Persistent per-customer favourites. Guests may keep a local preview only.
+model FavoriteVehicle {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerFk String   @map("customer_id") @db.Uuid
+  vehicleId  String   @map("vehicle_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  customer User    @relation("FavoriteVehicles", fields: [customerFk], references: [id], onDelete: Cascade)
+  vehicle  Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([customerFk, vehicleId])
+  @@index([customerFk])
+  @@map("favorite_vehicles")
+}
+
+/// Partner-submitted commercial tariff for one vehicle. Immutable per version:
+/// edits insert a new PricingVersion so price history is never overwritten.
+model VehiclePricing {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vehicleId String @map("vehicle_id") @db.Uuid
+  /// Monotonic version number per vehicle (1, 2, 3 …).
+  version   Int    @default(1)
+  currency  String @default("INR") @db.VarChar(5)
+
+  // --- local / distance tariff ---
+  localIncludedKm       Int?    @map("local_included_km")
+  localAmountPaise      BigInt? @map("local_amount_paise") @db.BigInt
+  perKmPaise            BigInt? @map("per_km_paise") @db.BigInt
+  // --- time tariff ---
+  hourlyPaise           BigInt? @map("hourly_paise") @db.BigInt
+  extraHourPaise        BigInt? @map("extra_hour_paise") @db.BigInt
+  fullDayPaise          BigInt? @map("full_day_paise") @db.BigInt
+  overnightPaise        BigInt? @map("overnight_paise") @db.BigInt
+  // --- outstation tariff ---
+  outstationPerDayPaise BigInt? @map("outstation_per_day_paise") @db.BigInt
+  outstationPerKmPaise  BigInt? @map("outstation_per_km_paise") @db.BigInt
+
+  status            PricingStatus @default(PENDING_REVIEW)
+  /// Commercial-Rule admin decision trail.
+  submittedByUserId String        @map("submitted_by_user_id") @db.Uuid
+  submittedAt       DateTime      @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  reviewedByUserId  String?       @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt        DateTime?     @map("reviewed_at") @db.Timestamptz(6)
+  decisionReason    String?       @map("decision_reason")
+  effectiveFrom     DateTime?     @map("effective_from") @db.Timestamptz(6)
+  effectiveTo       DateTime?     @map("effective_to") @db.Timestamptz(6)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleId, version])
+  @@index([status])
+  @@map("vehicle_pricing")
+}
+
+/// Internal, admin-only operational notes. Never returned to a customer.
+model OperationsNote {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupBookingId String?  @map("group_booking_id") @db.Uuid
+  bookingId      String?  @map("booking_id") @db.Uuid
+  authorUserId   String   @map("author_user_id") @db.Uuid
+  body           String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  author       User          @relation("OperationsNotesAuthored", fields: [authorUserId], references: [id])
+  booking      Booking?      @relation(fields: [bookingId], references: [id])
+  groupBooking GroupBooking? @relation(fields: [groupBookingId], references: [id])
+
+  @@index([groupBookingId])
+  @@index([bookingId])
+  @@map("operations_notes")
 }
 
 // ----------------------------------------------------------------------------
@@ -800,26 +1010,44 @@ model Notification {
   @@map("notifications")
 }
 
+/// Customer review of a COMPLETED booking. Chauffeur identity is an internal
+/// association only — it is never rendered back to any customer.
 model Review {
-  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  bookingId         String   @unique @map("booking_id") @db.Uuid
-  customerFk        String   @map("customer_id") @db.Uuid
-  driverFk          String   @map("driver_id") @db.Uuid
-  vehicleFk         String   @map("vehicle_id") @db.Uuid
-  overallRating     Int      @map("overall_rating")
-  punctualityRating Int?     @map("punctuality_rating")
-  groomingRating    Int?     @map("grooming_rating")
-  cleanlinessRating Int?     @map("cleanliness_rating")
-  drivingRating     Int?     @map("driving_rating")
-  feedbackText      String?  @map("feedback_text")
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingId            String  @unique @map("booking_id") @db.Uuid
+  groupBookingId       String? @map("group_booking_id") @db.Uuid
+  assignmentId         String? @unique @map("assignment_id") @db.Uuid
+  customerFk           String  @map("customer_id") @db.Uuid
+  /// Nullable: chauffeur association is operational, not structural.
+  driverFk             String? @map("driver_id") @db.Uuid
+  vehicleFk            String  @map("vehicle_id") @db.Uuid
+  overallRating        Int     @map("overall_rating")
+  punctualityRating    Int?    @map("punctuality_rating")
+  groomingRating       Int?    @map("grooming_rating")
+  cleanlinessRating    Int?    @map("cleanliness_rating")
+  drivingRating        Int?    @map("driving_rating")
+  vehicleQualityRating Int?    @map("vehicle_quality_rating")
+  feedbackText         String? @map("feedback_text")
 
-  booking  Booking       @relation(fields: [bookingId], references: [id])
-  customer User          @relation("ReviewsAsCustomer", fields: [customerFk], references: [id])
-  driver   DriverProfile @relation("ReviewsForDriver", fields: [driverFk], references: [id])
-  vehicle  Vehicle       @relation(fields: [vehicleFk], references: [id])
+  /// Moderation state — only PUBLISHED reviews are aggregated publicly.
+  status            ReviewStatus @default(PENDING_MODERATION)
+  moderatedByUserId String?      @map("moderated_by_user_id") @db.Uuid
+  moderatedAt       DateTime?    @map("moderated_at") @db.Timestamptz(6)
+  moderationReason  String?      @map("moderation_reason")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  booking      Booking            @relation(fields: [bookingId], references: [id])
+  groupBooking GroupBooking?      @relation(fields: [groupBookingId], references: [id], onDelete: SetNull)
+  assignment   VehicleAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  customer     User               @relation("ReviewsAsCustomer", fields: [customerFk], references: [id])
+  driver       DriverProfile?     @relation("ReviewsForDriver", fields: [driverFk], references: [id])
+  vehicle      Vehicle            @relation(fields: [vehicleFk], references: [id])
 
   @@index([driverFk])
+  @@index([vehicleFk, status])
+  @@index([status])
   @@map("reviews")
 }
 

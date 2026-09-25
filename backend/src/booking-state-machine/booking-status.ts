@@ -8,13 +8,27 @@
 export enum BookingStatus {
   DRAFT = 'DRAFT',
   REQUESTED = 'REQUESTED',
-  DRIVER_ACCEPTED = 'DRIVER_ACCEPTED',
+  /** Operations is sourcing vehicles for the request. */
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  /** Vehicles reserved and chauffeurs committed internally. */
+  VEHICLE_OPTIONS_PREPARED = 'VEHICLE_OPTIONS_PREPARED',
+  /** Operations has contacted the customer and awaits their agreement. */
+  CUSTOMER_CONFIRMATION_PENDING = 'CUSTOMER_CONFIRMATION_PENDING',
   CONFIRMED = 'CONFIRMED',
-  EN_ROUTE = 'EN_ROUTE',
-  ARRIVED = 'ARRIVED',
   IN_PROGRESS = 'IN_PROGRESS',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
+  EXPIRED = 'EXPIRED',
+  PAYMENT_PENDING = 'PAYMENT_PENDING',
+  PAYMENT_FAILED = 'PAYMENT_FAILED',
+
+  // --- retained only while trip progress migrates to AssignmentStatus ---
+  /** @deprecated marketplace offer loop — superseded by UNDER_REVIEW. */
+  DRIVER_ACCEPTED = 'DRIVER_ACCEPTED',
+  /** @deprecated trip progress — migrating to AssignmentStatus.EN_ROUTE. */
+  EN_ROUTE = 'EN_ROUTE',
+  /** @deprecated trip progress — migrating to AssignmentStatus.ARRIVED. */
+  ARRIVED = 'ARRIVED',
 }
 
 /** Actor categories permitted to trigger transitions. */
@@ -41,6 +55,30 @@ interface TransitionRule {
  * read-only requestors of transitions.
  */
 export const TRANSITIONS: readonly TransitionRule[] = [
+  // ------------------------------------------------ operations-managed path
+  // The customer's request flows through operations. Nothing here is a
+  // driver-facing offer: `driver` appears on no transition out of REQUESTED.
+  { from: BookingStatus.DRAFT, to: BookingStatus.REQUESTED, action: 'SUBMIT_REQUEST', actors: ['customer', 'operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.REQUESTED, to: BookingStatus.UNDER_REVIEW, action: 'BEGIN_REVIEW', actors: ['operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.UNDER_REVIEW, to: BookingStatus.VEHICLE_OPTIONS_PREPARED, action: 'PREPARE_VEHICLE_OPTIONS', actors: ['operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.VEHICLE_OPTIONS_PREPARED, to: BookingStatus.CUSTOMER_CONFIRMATION_PENDING, action: 'REQUEST_CUSTOMER_CONFIRMATION', actors: ['operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.CUSTOMER_CONFIRMATION_PENDING, to: BookingStatus.CONFIRMED, action: 'CONFIRM_BOOKING', actors: ['customer', 'operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.CUSTOMER_CONFIRMATION_PENDING, to: BookingStatus.UNDER_REVIEW, action: 'REVISE_OPTIONS', actors: ['customer', 'operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.REQUESTED, to: BookingStatus.EXPIRED, action: 'EXPIRE', actors: ['SYSTEM', 'operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.UNDER_REVIEW, to: BookingStatus.EXPIRED, action: 'EXPIRE', actors: ['SYSTEM', 'operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.VEHICLE_OPTIONS_PREPARED, to: BookingStatus.EXPIRED, action: 'EXPIRE', actors: ['SYSTEM', 'operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.CUSTOMER_CONFIRMATION_PENDING, to: BookingStatus.EXPIRED, action: 'EXPIRE', actors: ['SYSTEM', 'operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.PAYMENT_PENDING, to: BookingStatus.CONFIRMED, action: 'CONFIRM_PAYMENT', actors: ['SYSTEM', 'financeAdmin', 'superAdmin'] },
+  { from: BookingStatus.PAYMENT_FAILED, to: BookingStatus.PAYMENT_PENDING, action: 'RETRY_PAYMENT', actors: ['customer', 'financeAdmin', 'superAdmin'] },
+  { from: BookingStatus.PAYMENT_PENDING, to: BookingStatus.PAYMENT_FAILED, action: 'FAIL_PAYMENT', actors: ['SYSTEM', 'financeAdmin', 'superAdmin'] },
+  { from: BookingStatus.CONFIRMED, to: BookingStatus.PAYMENT_PENDING, action: 'REQUEST_PAYMENT', actors: ['SYSTEM', 'financeAdmin', 'superAdmin'] },
+  { from: BookingStatus.UNDER_REVIEW, to: BookingStatus.CANCELLED, action: 'CANCEL', actors: ['customer', 'operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.VEHICLE_OPTIONS_PREPARED, to: BookingStatus.CANCELLED, action: 'CANCEL', actors: ['customer', 'operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.CUSTOMER_CONFIRMATION_PENDING, to: BookingStatus.CANCELLED, action: 'CANCEL', actors: ['customer', 'operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.PAYMENT_PENDING, to: BookingStatus.CANCELLED, action: 'CANCEL', actors: ['customer', 'operationsAdmin', 'superAdmin'] },
+  { from: BookingStatus.PAYMENT_FAILED, to: BookingStatus.CANCELLED, action: 'CANCEL', actors: ['customer', 'operationsAdmin', 'superAdmin'] },
+
+  // ------------------------------------------------------- legacy (see enum)
   { from: BookingStatus.REQUESTED, to: BookingStatus.DRIVER_ACCEPTED, action: 'ACCEPT', actors: ['driver', 'fleetOwner', 'operationsAdmin', 'superAdmin'] },
   { from: BookingStatus.REQUESTED, to: BookingStatus.CANCELLED, action: 'CANCEL', actors: ['customer', 'operationsAdmin', 'superAdmin'] },
   { from: BookingStatus.DRIVER_ACCEPTED, to: BookingStatus.CONFIRMED, action: 'CONFIRM_PAYMENT', actors: ['SYSTEM', 'financeAdmin', 'superAdmin'] },
@@ -68,17 +106,31 @@ export function isTransitionAllowed(from: BookingStatus, to: BookingStatus, acto
 
 /** Maps a client-facing action name to its target status. */
 export const ACTION_TO_STATUS: Readonly<Record<string, BookingStatus>> = {
-  ACCEPT: BookingStatus.DRIVER_ACCEPTED,
+  // operations-managed
+  SUBMIT_REQUEST: BookingStatus.REQUESTED,
+  BEGIN_REVIEW: BookingStatus.UNDER_REVIEW,
+  PREPARE_VEHICLE_OPTIONS: BookingStatus.VEHICLE_OPTIONS_PREPARED,
+  REQUEST_CUSTOMER_CONFIRMATION: BookingStatus.CUSTOMER_CONFIRMATION_PENDING,
+  CONFIRM_BOOKING: BookingStatus.CONFIRMED,
+  REVISE_OPTIONS: BookingStatus.UNDER_REVIEW,
+  EXPIRE: BookingStatus.EXPIRED,
+  REQUEST_PAYMENT: BookingStatus.PAYMENT_PENDING,
+  FAIL_PAYMENT: BookingStatus.PAYMENT_FAILED,
+  RETRY_PAYMENT: BookingStatus.PAYMENT_PENDING,
+  // shared
   CANCEL: BookingStatus.CANCELLED,
   CONFIRM_PAYMENT: BookingStatus.CONFIRMED,
-  START_ROUTE: BookingStatus.EN_ROUTE,
-  ARRIVE: BookingStatus.ARRIVED,
   START_TRIP: BookingStatus.IN_PROGRESS,
   COMPLETE_TRIP: BookingStatus.COMPLETED,
+  // legacy (see enum)
+  ACCEPT: BookingStatus.DRIVER_ACCEPTED,
+  START_ROUTE: BookingStatus.EN_ROUTE,
+  ARRIVE: BookingStatus.ARRIVED,
 };
 
 /** Terminal states — no outgoing transitions. */
 export const TERMINAL_STATUSES: readonly BookingStatus[] = [
   BookingStatus.COMPLETED,
   BookingStatus.CANCELLED,
+  BookingStatus.EXPIRED,
 ];

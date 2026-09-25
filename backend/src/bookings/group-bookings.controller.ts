@@ -1,6 +1,18 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { IsArray, IsDateString, IsInt, IsOptional, IsString, Length, Max, Min, ValidateNested } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Length,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/domain/auth.types';
@@ -25,6 +37,19 @@ class SubmitGroupBookingDto {
   fleet!: Array<{ vehicleTypeId: string; quantity: number }>;
   @IsString() @Length(8, 100) idempotencyKey!: string;
   @IsOptional() @IsString() notes?: string;
+
+  /** Optional customer requirements, e.g. "Wedding decoration", "Child seat". */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @Length(1, 120, { each: true })
+  requirements?: string[];
+
+  /** Preferred confirmation channel. */
+  @IsOptional()
+  @IsIn(['PHONE', 'WHATSAPP', 'EMAIL', 'PHONE_WHATSAPP'])
+  communicationPreference?: string;
 }
 
 @ApiTags('group-bookings')
@@ -63,6 +88,8 @@ export class GroupBookingsController {
       passengerCount: dto.passengerCount,
       fleet: dto.fleet,
       idempotencyKey: dto.idempotencyKey,
+      requirements: dto.requirements,
+      communicationPreference: dto.communicationPreference,
     };
     return this.groupBookingsService.submitGroupBooking(input);
   }
@@ -74,23 +101,61 @@ export class GroupBookingsController {
   }
 
   @Get(':id/assignments')
-  @ApiOperation({ summary: 'Vehicle assignments under this group booking' })
+  @ApiOperation({ summary: 'Vehicle assignments under this group booking (customer-safe)' })
   assignments(@Param('id') id: string) {
     return this.groupBookingsService.getGroupBooking(id);
   }
 
   // ------------------------------------------------------------ driver
+  // Chauffeurs see only duties operations already assigned to them. There is
+  // no offer/accept loop: ops decides, the chauffeur acknowledges.
   @Get('driver/assignments')
   @Roles(Role.Driver)
-  @ApiOperation({ summary: 'Driver: own assignments ONLY (never other chauffeurs)' })
+  @ApiOperation({ summary: 'Chauffeur: own assigned duties ONLY (never other chauffeurs)' })
   myAssignments(@CurrentUser() user: AuthenticatedUser) {
     return this.groupBookingsService.listDriverAssignments(user.userId);
   }
 
-  @Post('assignments/:id/accept')
+  @Post('assignments/:id/acknowledge')
   @Roles(Role.Driver)
-  @ApiOperation({ summary: 'Driver accepts a group assignment (transactional)' })
-  acceptAssignment(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.groupBookingsService.acceptAssignment(id, user.userId);
+  @ApiOperation({ summary: 'Chauffeur acknowledges an operations-assigned duty' })
+  acknowledgeAssignment(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.groupBookingsService.acknowledgeAssignment(id, user.userId);
+  }
+
+  @Post('assignments/:id/decline')
+  @Roles(Role.Driver)
+  @ApiOperation({
+    summary: 'Chauffeur reports a conflict; the vehicle stays reserved and returns to the ops queue',
+  })
+  declineAssignment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+  ) {
+    return this.groupBookingsService.declineAssignment(
+      id,
+      user.userId,
+      body?.reason?.trim() || 'Unavailable for this window',
+    );
+  }
+
+  // ------------------------------------------------------- operations
+  @Post('assignments/:id/confirm-vehicle')
+  @Roles(Role.OperationsAdmin)
+  @ApiOperation({ summary: 'Operations: confirm the reserved vehicle for an assignment' })
+  confirmVehicle(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.groupBookingsService.confirmVehicleAllocation(id, user.userId);
+  }
+
+  @Post('assignments/:id/assign-chauffeur')
+  @Roles(Role.OperationsAdmin)
+  @ApiOperation({ summary: 'Operations: assign the chauffeur internally (no customer-visible offer)' })
+  assignChauffeur(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { driverId: string },
+  ) {
+    return this.groupBookingsService.assignChauffeur(id, body.driverId, user.userId);
   }
 }

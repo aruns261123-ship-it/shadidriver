@@ -29,6 +29,10 @@ class BookingDraft {
   final String vehicleId;
   final String vehicleName;
   final String vehicleClass;
+
+  /// Always empty for a customer selection: ShadiDriver operations assigns the
+  /// chauffeur internally after the request is reviewed. Retained so existing
+  /// serialization keeps a stable shape; never populated from a vehicle page.
   final String chauffeurId;
 
   // 1. Event & Ceremony Details
@@ -68,7 +72,7 @@ class BookingDraft {
     required this.vehicleId,
     required this.vehicleName,
     required this.vehicleClass,
-    required this.chauffeurId,
+    this.chauffeurId = '',
     required this.ceremonyType,
     required this.ceremonialAttire,
     this.specialInstructions = '',
@@ -98,7 +102,7 @@ class BookingDraft {
     required String vehicleId,
     required String vehicleName,
     required String vehicleClass,
-    required String chauffeurId,
+    String chauffeurId = '',
     required int basePricePaise,
     required int estimatedTotalPaise,
     required int advanceTokenPaise,

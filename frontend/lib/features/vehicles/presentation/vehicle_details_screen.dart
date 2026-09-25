@@ -10,11 +10,12 @@ import '../../../core/widgets/shadi_error_view.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../core/widgets/shadi_primary_button.dart';
 import '../../../core/widgets/shadi_section_header.dart';
+import '../../favorites/presentation/controllers/favorites_controller.dart';
 import 'controllers/recently_viewed_controller.dart';
 import 'controllers/vehicle_details_controller.dart';
-import 'widgets/chauffeur_preview_card.dart';
 import 'widgets/technical_specs_grid.dart';
 import 'widgets/vehicle_gallery.dart';
+import 'widgets/vehicle_trust_panel.dart';
 
 class VehicleDetailsScreen extends ConsumerWidget {
   final String vehicleId;
@@ -24,8 +25,8 @@ class VehicleDetailsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final vehicleAsync = ref.watch(vehicleDetailsProvider(vehicleId));
-    final shortlist = ref.watch(shortlistProvider);
-    final isShortlisted = shortlist.contains(vehicleId);
+    final favorites = ref.watch(favoritesProvider);
+    final isFavourite = favorites.contains(vehicleId);
 
     // Record this vehicle as recently viewed once its details resolve.
     ref.listen(vehicleDetailsProvider(vehicleId), (previous, next) {
@@ -53,23 +54,28 @@ class VehicleDetailsScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: Icon(
-              isShortlisted
+              isFavourite
                   ? Icons.favorite_rounded
                   : Icons.favorite_border_rounded,
-              color: isShortlisted
+              color: isFavourite
                   ? AppColors.primaryBurgundy
                   : AppColors.textTertiaryLight,
             ),
+            tooltip: isFavourite
+                ? 'Remove from favourites'
+                : 'Save to favourites',
             onPressed: () {
-              ref.read(shortlistProvider.notifier).toggle(vehicleId);
+              ref.read(favoritesProvider.notifier).toggle(vehicleId);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    isShortlisted
-                        ? 'Removed from Shortlist'
-                        : 'Added to Shortlist',
+                    isFavourite
+                        ? 'Removed from Favourites'
+                        : favorites.isAccountBacked
+                        ? 'Saved to your favourites'
+                        : 'Saved for this session — sign in to keep them',
                   ),
-                  duration: const Duration(seconds: 1),
+                  duration: const Duration(seconds: 2),
                 ),
               );
             },
@@ -305,21 +311,17 @@ class VehicleDetailsScreen extends ConsumerWidget {
                             const SizedBox(height: 28),
                           ],
 
-                          // Chauffeur Preview Card
+                          // ShadiDriver assigns the chauffeur internally; the
+                          // customer is promised a verified service and never
+                          // shown (or able to browse) a chauffeur profile.
                           const ShadiSectionHeader(
-                            title: 'Assigned Chauffeur',
-                            subtitle: 'Police-verified ceremonial chauffeur',
+                            title: 'ShadiDriver Assurance',
+                            subtitle: 'Managed by our operations team',
                           ),
                           const SizedBox(height: 12),
-                          ChauffeurPreviewCard(
-                            chauffeurId: vehicle.chauffeurId,
-                            onTap: () {
-                              context.push(
-                                RoutePaths.customerChauffeurProfilePath(
-                                  vehicle.chauffeurId,
-                                ),
-                              );
-                            },
+                          VehicleTrustPanel(
+                            hasVerifiedChauffeur:
+                                vehicle.hasVerifiedChauffeur,
                           ),
                           const SizedBox(height: 32),
                         ],
@@ -357,27 +359,40 @@ class VehicleDetailsScreen extends ConsumerWidget {
                             color: AppColors.textTertiaryLight,
                           ),
                         ),
-                        RichText(
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: CurrencyFormatter.formatPaise(
-                                  vehicle.pricing.basePriceCents,
+                        // A vehicle with no published tariff must never be
+                        // advertised at Rs 0.
+                        if (vehicle.pricing.isUnavailable)
+                          Text(
+                            'Price on request',
+                            style: AppTypography.titleMedium.copyWith(
+                              color: AppColors.primaryBurgundy,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          )
+                        else
+                          RichText(
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: CurrencyFormatter.formatPaise(
+                                    vehicle.pricing.basePriceCents,
+                                  ),
+                                  style: AppTypography.titleLarge.copyWith(
+                                    color: AppColors.primaryBurgundy,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
-                                style: AppTypography.titleLarge.copyWith(
-                                  color: AppColors.primaryBurgundy,
-                                  fontWeight: FontWeight.w700,
+                                TextSpan(
+                                  text: ' / ${vehicle.pricing.billingUnit}',
+                                  style: AppTypography.labelSmall.copyWith(
+                                    color: AppColors.textSecondaryLight,
+                                  ),
                                 ),
-                              ),
-                              TextSpan(
-                                text: ' / ${vehicle.pricing.billingUnit}',
-                                style: AppTypography.labelSmall.copyWith(
-                                  color: AppColors.textSecondaryLight,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(width: 20),
