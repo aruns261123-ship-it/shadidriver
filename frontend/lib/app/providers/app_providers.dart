@@ -19,6 +19,8 @@ import '../../features/vehicles/domain/repositories/vehicle_repository.dart';
 import '../../features/services/domain/repositories/service_category_repository.dart';
 import '../../features/services/domain/repositories/service_addon_repository.dart';
 import '../../features/home/data/mock_repositories.dart';
+import '../../features/vehicles/data/vehicle_api_repository.dart';
+import '../../features/services/data/service_category_api_repository.dart';
 import '../../features/bookings/data/mock_booking_repository.dart';
 import '../../features/bookings/data/booking_api_repository.dart';
 import '../../features/vehicles/domain/entities/vehicle_summary.dart';
@@ -62,19 +64,35 @@ import '../router/route_guards.dart';
 // Core Infrastructure Providers
 // ---------------------------------------------------------------------------
 
+/// Loopback base URL for the local dev backend.
+const _localhostApiBaseUrl = 'http://localhost:3000';
+
+/// Android emulators address the host machine as 10.0.2.2 (host loopback);
+/// every other target (Windows desktop, iOS simulator, web) uses localhost.
+/// A function (not a const) because platform detection is not a const
+/// expression, while `String.fromEnvironment` requires a constant default.
+String defaultDevApiBaseUrl() => kIsWeb
+    ? _localhostApiBaseUrl
+    : (defaultTargetPlatform == TargetPlatform.android
+        ? 'http://10.0.2.2:3000'
+        : _localhostApiBaseUrl);
+
 /// Active environment configuration provider.
 ///
 /// NO-MOCK PRODUCTION RULE: the default application path uses the REAL API
 /// (useMockData == false). Mock repositories remain reachable ONLY behind the
 /// explicit `SHADI_USE_MOCK_AUTH=true` dart-define, which exists for offline
-/// UI development and automated tests. Dev API base URL defaults to the
-/// local backend (Android emulator loopback via 10.0.2.2).
+/// UI development and automated tests.
+///
+/// Dev API base URL: `SHADI_API_BASE_URL` may always be passed explicitly
+/// (e.g. `--dart-define=SHADI_API_BASE_URL=http://10.0.2.2:3000` for the
+/// Android emulator). Unset, it resolves per-platform: Windows desktop and
+/// Android emulators reach the local backend via loopback; physical devices
+/// must pass the host's LAN IP explicitly.
 final environmentConfigProvider = Provider<EnvironmentConfig>((ref) {
+  const envBaseUrl = String.fromEnvironment('SHADI_API_BASE_URL');
   return EnvironmentConfig.development(
-    apiBaseUrlOverride: const String.fromEnvironment(
-      'SHADI_API_BASE_URL',
-      defaultValue: 'http://10.0.2.2:3000',
-    ),
+    apiBaseUrlOverride: envBaseUrl.isNotEmpty ? envBaseUrl : defaultDevApiBaseUrl(),
   );
 });
 
@@ -214,13 +232,25 @@ final driverRepositoryProvider = Provider<DriverRepository>((ref) {
 });
 
 final vehicleRepositoryProvider = Provider<VehicleRepository>((ref) {
-  return MockVehicleRepository();
+  final useMock = ref.watch(
+    environmentConfigProvider.select((c) => c.useMockData),
+  );
+  if (useMock) {
+    return MockVehicleRepository();
+  }
+  return VehicleApiRepository(ref.watch(apiClientProvider));
 });
 
 final serviceCategoryRepositoryProvider = Provider<ServiceCategoryRepository>((
   ref,
 ) {
-  return MockServiceCategoryRepository();
+  final useMock = ref.watch(
+    environmentConfigProvider.select((c) => c.useMockData),
+  );
+  if (useMock) {
+    return MockServiceCategoryRepository();
+  }
+  return ServiceCategoryApiRepository(ref.watch(apiClientProvider));
 });
 
 final serviceAddonRepositoryProvider = Provider<ServiceAddonRepository>((ref) {

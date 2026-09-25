@@ -6,12 +6,17 @@ import 'package:shadidriver/features/home/presentation/widgets/shadi_search_card
 import 'package:shadidriver/features/home/presentation/widgets/shadi_urgent_dispatch_card.dart';
 import 'package:shadidriver/features/vehicles/presentation/widgets/shadi_vehicle_card.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   testWidgets('CustomerHomeScreen renders all production sections', (
     tester,
   ) async {
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: CustomerHomeScreen())),
+      ProviderScope(
+        overrides: mockModeOverrides(),
+        child: const MaterialApp(home: CustomerHomeScreen()),
+      ),
     );
 
     // Initial loading state

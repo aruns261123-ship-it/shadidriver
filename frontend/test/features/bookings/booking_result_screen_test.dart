@@ -9,6 +9,8 @@ import 'package:shadidriver/features/bookings/domain/entities/booking_draft.dart
 import 'package:shadidriver/features/bookings/domain/entities/booking_submission_request.dart';
 import 'package:shadidriver/features/bookings/domain/entities/booking_submission_result.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   group('BookingResultScreen Widget Tests', () {
     late MockBookingRepository mockRepo;
@@ -48,7 +50,10 @@ void main() {
       );
 
       return ProviderScope(
-        overrides: [bookingRepositoryProvider.overrideWithValue(mockRepo)],
+        overrides: [
+          ...mockModeOverrides(),
+          bookingRepositoryProvider.overrideWithValue(mockRepo),
+        ],
         child: MaterialApp.router(routerConfig: router),
       );
     }

@@ -100,7 +100,7 @@ class AuthInterceptor extends Interceptor {
       final dio = Dio(BaseOptions(baseUrl: failedRequest.baseUrl));
       final response = await dio.post<Map<String, dynamic>>(
         '${AppConstants.apiV1Prefix}/auth/refresh',
-        data: {'refresh_token': refreshToken},
+        data: {'refreshToken': refreshToken},
       );
       final body = response.data;
       final accessToken = body?['access_token'] as String?;

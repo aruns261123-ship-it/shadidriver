@@ -37,7 +37,9 @@ export function loadConfig(): AppConfig {
 
   return {
     env,
-    port: Number(process.env.PORT ?? 3000),
+    // `|| 3000` guards against PORT=0/empty/garbage silently binding a random
+    // port in local development (Nest would listen on :0 otherwise).
+    port: Number(process.env.PORT ?? 3000) || 3000,
     apiPrefix: process.env.API_PREFIX ?? 'api/v1',
     corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
       .split(',')

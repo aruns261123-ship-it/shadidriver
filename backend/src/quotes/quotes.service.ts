@@ -55,6 +55,24 @@ const QUOTE_TTL_MINUTES = 15;
 const URGENT_SURCHARGE_PERCENT = Number(process.env.URGENT_SURCHARGE_PERCENT ?? 25);
 
 /**
+ * Maps a human-readable city name to the cityCode used in pricingRule rows.
+ * Case-insensitive. Falls back to 'DEL' (Delhi NCR) which is the only seeded
+ * city in the development dataset. Extend this map as new cities are seeded.
+ */
+function resolveCityCode(city?: string): string {
+  if (!city) return 'DEL';
+  const c = city.trim().toUpperCase();
+  if (c.includes('DELHI') || c.includes('NCR') || c.includes('NOIDA') ||
+      c.includes('GURUGRAM') || c.includes('GURGAON') || c.includes('FARIDABAD') ||
+      c.includes('GHAZIABAD')) {
+    return 'DEL';
+  }
+  // Future cities — add mappings here as seeded
+  // if (c.includes('MUMBAI') || c.includes('PUNE')) return 'BOM';
+  return 'DEL'; // safe default
+}
+
+/**
  * Server-authoritative pricing engine (ADR-007): every rupee a customer sees
  * comes from here. The client NEVER supplies totals; booking submission
  * re-validates against the persisted quote and recalculates.
@@ -86,18 +104,46 @@ export class QuotesService {
       );
     }
 
-    const vehicleType = await this.prisma.vehicleType.findUnique({
+    let vehicleType = await this.prisma.vehicleType.findUnique({
       where: { id: input.vehicleTypeId },
     });
+    const isUuid = /^[0-9a-fA-F-]{36}$/.test(input.vehicleTypeId);
+    if (!vehicleType && isUuid) {
+      // Check if input.vehicleTypeId is a Vehicle UUID
+      const vehicle = await this.prisma.vehicle.findUnique({
+        where: { id: input.vehicleTypeId },
+        include: { vehicleType: true },
+      });
+      if (vehicle) {
+        vehicleType = vehicle.vehicleType;
+      }
+    }
+    if (!vehicleType) {
+      // Check if input.vehicleTypeId matches a vehicleClass string (e.g. LUXURY_SEDAN or Luxury Sedan)
+      const normalizedClass = input.vehicleTypeId.toUpperCase().replace(/\s+/g, '_');
+      vehicleType = await this.prisma.vehicleType.findFirst({
+        where: {
+          OR: [
+            { vehicleClass: input.vehicleTypeId },
+            { vehicleClass: normalizedClass },
+            { id: { contains: normalizedClass, mode: 'insensitive' } },
+          ],
+          isActive: true,
+        },
+      });
+    }
     if (!vehicleType || !vehicleType.isActive) {
       throw new NotFoundAppException(ErrorCode.NOT_FOUND, 'Vehicle type not found.');
     }
+
+    // Resolve city string → city code (DEL is the only seeded city; extend as needed).
+    const cityCode = resolveCityCode(input.city);
 
     const rule = await this.prisma.pricingRule.findFirst({
       where: {
         serviceCategoryId: input.serviceCategoryId,
         vehicleClass: vehicleType.vehicleClass,
-        cityCode: 'DEL',
+        cityCode,
         isActive: true,
         effectiveFrom: { lte: new Date() },
         OR: [{ effectiveTo: null }, { effectiveTo: { gt: new Date() } }],

@@ -178,11 +178,22 @@ async function main(): Promise<void> {
 
   // ------------------------------------------------------------ pricing rules
   const pricingRules = [
+    // Baraat (Grand Entry) — highest-tier pricing
     { cat: 'SVC_BARAAT', vc: 'EXECUTIVE_MPV', base: 2500000n, extraHour: 250000n },
-    { cat: 'SVC_BARAAT', vc: 'LUXURY_SEDAN', base: 3500000n, extraHour: 350000n },
-    { cat: 'SVC_BARAAT', vc: 'ULTRA_LUXURY', base: 5500000n, extraHour: 550000n },
-    { cat: 'SVC_VIDAI', vc: 'EXECUTIVE_MPV', base: 2200000n, extraHour: 220000n },
-    { cat: 'SVC_AIRPORT_VIP', vc: 'LUXURY_SEDAN', base: 1800000n, extraHour: 180000n },
+    { cat: 'SVC_BARAAT', vc: 'LUXURY_SEDAN',  base: 3500000n, extraHour: 350000n },
+    { cat: 'SVC_BARAAT', vc: 'ULTRA_LUXURY',  base: 5500000n, extraHour: 550000n },
+    // Vidai (Departure) — slightly lower than Baraat
+    { cat: 'SVC_VIDAI',  vc: 'EXECUTIVE_MPV', base: 2200000n, extraHour: 220000n },
+    { cat: 'SVC_VIDAI',  vc: 'LUXURY_SEDAN',  base: 3000000n, extraHour: 300000n },
+    { cat: 'SVC_VIDAI',  vc: 'ULTRA_LUXURY',  base: 4800000n, extraHour: 480000n },
+    // Reception / Engagement VIP — guest arrival, shorter trips
+    { cat: 'SVC_RECEPTION', vc: 'EXECUTIVE_MPV', base: 2000000n, extraHour: 200000n },
+    { cat: 'SVC_RECEPTION', vc: 'LUXURY_SEDAN',  base: 2800000n, extraHour: 280000n },
+    { cat: 'SVC_RECEPTION', vc: 'ULTRA_LUXURY',  base: 4500000n, extraHour: 450000n },
+    // Airport / VIP Transfer — flat-rate point-to-point
+    { cat: 'SVC_AIRPORT_VIP', vc: 'EXECUTIVE_MPV', base: 1500000n, extraHour: 150000n },
+    { cat: 'SVC_AIRPORT_VIP', vc: 'LUXURY_SEDAN',  base: 1800000n, extraHour: 180000n },
+    { cat: 'SVC_AIRPORT_VIP', vc: 'ULTRA_LUXURY',  base: 3000000n, extraHour: 300000n },
   ];
   for (const r of pricingRules) {
     const existing = await prisma.pricingRule.findFirst({

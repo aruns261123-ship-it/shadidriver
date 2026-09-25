@@ -80,7 +80,7 @@ class BookingApiRepository implements BookingRepository {
 
   Map<String, dynamic> _submissionBody(BookingSubmissionRequest r) => {
         'serviceCategoryId': _categoryForCeremony(r.ceremonyType),
-        'vehicleTypeId': r.vehicleClass,
+        'vehicleTypeId': r.vehicleId.isNotEmpty ? r.vehicleId : r.vehicleClass,
         'ceremonyType': r.ceremonyType,
         'ceremonialAttire': r.ceremonialAttire,
         'specialInstructions': r.specialInstructions,

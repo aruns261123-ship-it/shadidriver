@@ -147,4 +147,18 @@ describe('QuotesService (pricing engine)', () => {
     expect(q1.total_paise).toBe(q2.total_paise);
     // No field on the request carries amounts; QuoteRequestInput has none.
   });
+
+  it('resolves city to matching cityCode for pricing rule query', async () => {
+    const findFirstMock = jest.fn().mockResolvedValue(pricingRule);
+    const prisma = makePrismaMock({
+      pricingRule: { findFirst: findFirstMock },
+    });
+    const svc = new QuotesService(prisma as never, config);
+    await svc.createQuote({ ...base, city: 'Noida, Delhi NCR' });
+    expect(findFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ cityCode: 'DEL' }),
+      }),
+    );
+  });
 });

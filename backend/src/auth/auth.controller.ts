@@ -17,7 +17,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Request a one-time password (rate limited)' })
   async requestOtp(@Body() dto: RequestOtpDto) {
     const session = await this.authService.requestOtp(dto.phoneNumber, dto.purpose ?? 'LOGIN');
-    return { session_id: session.sessionId, expires_in_seconds: session.expiresInSeconds, resend_available_in_seconds: session.resendAvailableInSeconds };
+    return {
+      session_id: session.sessionId,
+      expires_in_seconds: session.expiresInSeconds,
+      resend_available_in_seconds: session.resendAvailableInSeconds,
+      ...(session.debugCode ? { debug_code: session.debugCode } : {}),
+    };
   }
 
   @Public()

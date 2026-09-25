@@ -14,6 +14,7 @@ export interface OtpSession {
   sessionId: string;
   expiresInSeconds: number;
   resendAvailableInSeconds: number;
+  debugCode?: string;
 }
 
 const OTP_PURPOSE_LOGIN = 'LOGIN';
@@ -110,6 +111,7 @@ export class OtpService {
       sessionId,
       expiresInSeconds: this.config.otp.ttlSeconds,
       resendAvailableInSeconds: this.config.otp.resendCooldownSeconds,
+      debugCode: this.config.env !== 'production' ? code : undefined,
     };
   }
 

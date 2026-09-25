@@ -35,12 +35,14 @@ export class TokenService {
   }
 
   async signAccessToken(userId: string, role: Role, phone: string): Promise<string> {
-    const payload: AccessTokenPayload = {
+    // The `iss` claim is injected by jsonwebtoken via the sign options below —
+    // setting it in the payload as well makes jsonwebtoken throw
+    // `Bad "options.issuer" option. The payload already has an "iss" property.`
+    const payload = {
       sub: userId,
       role,
       phone,
-      iss: this.config.jwt.issuer,
-    };
+    } satisfies Omit<AccessTokenPayload, 'iss'>;
     return this.jwtService.signAsync(payload, {
       secret: this.config.jwt.accessSecret,
       expiresIn: this.config.jwt.accessTtlSeconds,

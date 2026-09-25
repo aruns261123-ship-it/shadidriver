@@ -11,7 +11,8 @@ export interface AccessTokenPayload {
   sub: string;
   role: Role;
   phone: string;
-  iss: string;
+  /** Injected by the JWT library via the sign options `issuer` (TokenService). */
+  iss?: string;
   iat?: number;
   exp?: number;
 }

@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
+import '../../../../core/config/flavor.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/result/result.dart';
 import '../../../../core/security/secure_storage_service.dart';
+import '../../data/auth_api_repository.dart';
 import '../../domain/entities/auth_session.dart';
 import '../../domain/entities/auth_state.dart';
 import '../../domain/entities/user_role.dart';
@@ -136,36 +138,53 @@ class AuthController extends StateNotifier<AuthState> {
     return result;
   }
 
-  /// Developer 1-tap role bypass — MOCK MODE ONLY. In real mode this is a
-  /// no-op: fixed dev OTPs (111111…) do not exist server-side, and pretending
-  /// they do would violate the no-mock production rule.
+  /// Developer 1-tap role login — available in mock mode or development environment.
   Future<void> devLoginAsRole(UserRole role) async {
     final useMock = _ref
             .read(environmentConfigProvider.select((c) => c.useMockData));
-    if (!useMock) {
+    final flavor = _ref
+            .read(environmentConfigProvider.select((c) => c.flavor));
+    if (!useMock && flavor != AppFlavor.development) {
       state = const AuthError(
         failure: UnknownFailure(
-          'Dev role login is only available in mock mode.',
+          'Dev role login is only available in development environments.',
           'DEV_LOGIN_UNAVAILABLE',
         ),
       );
       return;
     }
     state = const AuthLoading(reason: AuthLoadingReason.verifyingOtp);
+
+    final phone = useMock
+        ? '9876543210'
+        : switch (role) {
+            UserRole.customer => '9810000001',
+            UserRole.driver => '9810000002',
+            UserRole.operationsAdmin => '98100000011',
+            UserRole.verificationAdmin => '98100000012',
+            UserRole.fleetOwner => '98100000013',
+            _ => '9810000001',
+          };
+
     final req = await _authRepository.requestOtp(
-      phoneNumber: '9876543210',
+      phoneNumber: phone,
       role: role,
     );
     if (req.isSuccess) {
-      final otp = switch (role) {
-        UserRole.customer => '111111',
-        UserRole.driver => '222222',
-        UserRole.operationsAdmin => '444444',
-        UserRole.verificationAdmin => '555555',
-        UserRole.financeAdmin => '666666',
-        UserRole.superAdmin => '999999',
-        _ => '000000',
-      };
+      String otp = '000000';
+      if (_authRepository is AuthApiRepository) {
+        otp = _authRepository.lastDebugOtpCode ?? '000000';
+      } else {
+        otp = switch (role) {
+          UserRole.customer => '111111',
+          UserRole.driver => '222222',
+          UserRole.operationsAdmin => '444444',
+          UserRole.verificationAdmin => '555555',
+          UserRole.financeAdmin => '666666',
+          UserRole.superAdmin => '999999',
+          _ => '000000',
+        };
+      }
       final res = await _authRepository.verifyOtp(
         otpSessionId: req.dataOrNull!,
         otpCode: otp,

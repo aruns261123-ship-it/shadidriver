@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
+import '../../../../core/network/api_response.dart';
 import '../../domain/entities/booking_draft.dart';
 import '../../domain/entities/booking_submission_request.dart';
 import '../../domain/entities/booking_submission_result.dart';
@@ -62,9 +63,14 @@ class BookingReviewController extends StateNotifier<BookingReviewState> {
   }) : super(
          BookingReviewState(
            isLoadingDraft: true,
+           // Use a short placeholder key until the draft loads and we can
+           // compute a stable hash-based key from vehicleId + startTime.
+           // The verbose "idem_{draftId}_{ms}" format produces ~75 chars,
+           // which after the backend prepends "{customerId}:" (37 chars)
+           // exceeds VARCHAR(100) and causes an INTERNAL_ERROR crash.
            idempotencyKey:
                initialIdempotencyKey ??
-               'idem_${draftId}_${DateTime.now().millisecondsSinceEpoch}',
+               'bk-${draftId.hashCode.abs().toRadixString(36)}-${DateTime.now().millisecondsSinceEpoch ~/ 60000}',
          ),
        ) {
     _loadDraft(draftId);
@@ -92,9 +98,18 @@ class BookingReviewController extends StateNotifier<BookingReviewState> {
             errorMessage: 'Booking draft not found.',
           );
         } else {
+          // Finalize the idempotency key now that we have vehicle + start time.
+          // bookingIdempotencyKey() produces ~35 chars — safe within VARCHAR(100)
+          // even after the backend prepends "{customerId}:" (37 chars).
+          final stableKey = bookingIdempotencyKey(
+            draftId: draft.id,
+            vehicleId: draft.vehicleId,
+            start: draft.serviceStartDateTime,
+          );
           state = state.copyWith(
             isLoadingDraft: false,
             draft: draft,
+            idempotencyKey: stableKey,
             clearError: true,
           );
         }

@@ -57,6 +57,22 @@ describe('TokenService (unit)', () => {
     expect(created.userId).toBe('u1');
   });
 
+  it('passes issuer via sign OPTIONS only — never duplicated as an iss payload claim', async () => {
+    // jsonwebtoken throws `Bad "options.issuer" option. The payload already
+    // has an "iss" property.` when both are supplied; this pins the correct
+    // semantics (issuer in options, injected into the payload by the library).
+    await service.signAccessToken('u1', Role.Customer, user.phoneNumber);
+    const [payload, options] = jwtMock.signAsync.mock.calls[0] as [
+      Record<string, unknown>,
+      { secret: string; issuer: string },
+    ];
+    expect(options.issuer).toBe(config.jwt.issuer);
+    expect(options.secret).toBe(config.jwt.accessSecret);
+    expect(payload.iss).toBeUndefined();
+    expect(payload.sub).toBe('u1');
+    expect(payload.role).toBe(Role.Customer);
+  });
+
   it('rotates a valid refresh token: old revoked, new issued', async () => {
     prismaMock.refreshToken.findUnique.mockResolvedValue({
       id: 'rt_old',

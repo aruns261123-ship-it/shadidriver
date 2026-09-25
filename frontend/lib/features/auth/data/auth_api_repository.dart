@@ -19,6 +19,9 @@ class AuthApiRepository implements AuthRepository {
   final ApiClient _client;
   final SecureStorageService _storage;
 
+  /// Holds the debug code returned by the development server for test flows.
+  String? lastDebugOtpCode;
+
   AuthApiRepository(this._client, this._storage);
 
   static const _basePath = '${AppConstants.apiV1Prefix}/auth';
@@ -81,18 +84,24 @@ class AuthApiRepository implements AuthRepository {
   }) async {
     try {
       // role is advisory in dev only; server decides everything authoritative.
+      final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+      final normalizedPhone = digits.length == 10 ? '+91$digits' : '+$digits';
+
       final response = await _client.post<Map<String, dynamic>>(
         '$_basePath/otp/request',
-        data: {'phone_number': phoneNumber, 'purpose': 'LOGIN'},
+        data: {'phoneNumber': normalizedPhone, 'purpose': 'LOGIN'},
       );
       final envelope = ApiEnvelope.fromJson(response.data);
       final data = (envelope.data as Map<String, dynamic>?) ?? const {};
+      lastDebugOtpCode = data['debug_code'] as String?;
       final sessionId = data['session_id'] as String?;
       if (sessionId == null || sessionId.isEmpty) {
-        return Result.failure(const UnknownFailure(
-          'OTP request was not accepted by the server.',
-          'OTP_SESSION_NOT_FOUND',
-        ));
+        return Result.failure(
+          const UnknownFailure(
+            'OTP request was not accepted by the server.',
+            'OTP_SESSION_NOT_FOUND',
+          ),
+        );
       }
       return Result.success(sessionId);
     } catch (e) {
@@ -110,11 +119,14 @@ class AuthApiRepository implements AuthRepository {
       // Public signup is limited to customer/driver server-side; admins are
       // provisioned internally. We still send only these two roles.
       final wireRole = role == UserRole.driver ? 'driver' : 'customer';
+      final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+      final normalizedPhone = digits.length == 10 ? '+91$digits' : '+$digits';
+
       final response = await _client.post<Map<String, dynamic>>(
         '$_basePath/signup',
         data: {
-          'phone_number': phoneNumber,
-          'display_name': displayName,
+          'phoneNumber': normalizedPhone,
+          'displayName': displayName.trim(),
           'role': wireRole,
         },
       );
@@ -122,10 +134,12 @@ class AuthApiRepository implements AuthRepository {
       final data = (envelope.data as Map<String, dynamic>?) ?? const {};
       final sessionId = data['session_id'] as String?;
       if (sessionId == null || sessionId.isEmpty) {
-        return Result.failure(const UnknownFailure(
-          'Registration was not accepted by the server.',
-          'UNKNOWN_ERROR',
-        ));
+        return Result.failure(
+          const UnknownFailure(
+            'Registration was not accepted by the server.',
+            'UNKNOWN_ERROR',
+          ),
+        );
       }
       return Result.success(sessionId);
     } catch (e) {
@@ -141,20 +155,18 @@ class AuthApiRepository implements AuthRepository {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         '$_basePath/otp/verify',
-        data: {
-          'session_id': otpSessionId,
-          'otp_code': otpCode,
-          'device_id': await _deviceId(),
-        },
+        data: {'sessionId': otpSessionId, 'otpCode': otpCode},
       );
       final envelope = ApiEnvelope.fromJson(response.data);
       final data = (envelope.data as Map<String, dynamic>?) ?? const {};
       final session = await _persistAndBuildSession(data);
       if (session.userId.isEmpty) {
-        return Result.failure(const UnknownFailure(
-          'Verification succeeded but no identity was returned.',
-          'UNKNOWN_ERROR',
-        ));
+        return Result.failure(
+          const UnknownFailure(
+            'Verification succeeded but no identity was returned.',
+            'UNKNOWN_ERROR',
+          ),
+        );
       }
       return Result.success(session);
     } catch (e) {
@@ -173,7 +185,10 @@ class AuthApiRepository implements AuthRepository {
       // rotates it (reuse detection revokes stolen chains).
       final response = await _client.post<Map<String, dynamic>>(
         '$_basePath/refresh',
-        data: {'refresh_token': refreshToken, 'device_id': await _deviceId()},
+        data: {
+          'refreshToken': refreshToken,
+          'deviceId': await _deviceId(),
+        },
       );
       final envelope = ApiEnvelope.fromJson(response.data);
       final data = (envelope.data as Map<String, dynamic>?) ?? const {};
@@ -198,11 +213,11 @@ class AuthApiRepository implements AuthRepository {
       if (refreshToken != null && refreshToken.isNotEmpty) {
         await _client.post<void>(
           '$_basePath/logout',
-          data: {'refresh_token': refreshToken},
+          data: {'refreshToken': refreshToken},
           options: access != null
-              ? Options(headers: {
-                  AppConstants.headerAuthorization: 'Bearer $access',
-                })
+              ? Options(
+                  headers: {AppConstants.headerAuthorization: 'Bearer $access'},
+                )
               : null,
         );
       }
@@ -220,23 +235,27 @@ class AuthApiRepository implements AuthRepository {
     try {
       final refreshToken = await _storage.read(AppConstants.keyRefreshToken);
       if (refreshToken == null || refreshToken.isEmpty) {
-        return const Result.failure(UnauthorizedFailure(
-          'No session to refresh.',
-          'UNAUTHORIZED',
-        ));
+        return const Result.failure(
+          UnauthorizedFailure('No session to refresh.', 'UNAUTHORIZED'),
+        );
       }
       final response = await _client.post<Map<String, dynamic>>(
         '$_basePath/refresh',
-        data: {'refresh_token': refreshToken, 'device_id': await _deviceId()},
+        data: {
+          'refreshToken': refreshToken,
+          'deviceId': await _deviceId(),
+        },
       );
       final envelope = ApiEnvelope.fromJson(response.data);
       final data = (envelope.data as Map<String, dynamic>?) ?? const {};
       final session = await _persistAndBuildSession(data);
       if (session.userId.isEmpty) {
-        return Result.failure(const UnauthorizedFailure(
-          'Refresh returned no identity.',
-          'UNAUTHORIZED',
-        ));
+        return Result.failure(
+          const UnauthorizedFailure(
+            'Refresh returned no identity.',
+            'UNAUTHORIZED',
+          ),
+        );
       }
       return Result.success(session);
     } catch (e) {

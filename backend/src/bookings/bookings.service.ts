@@ -120,6 +120,7 @@ export class BookingsService {
     const quote = await this.quotesService.createQuote({
       serviceCategoryId: input.serviceCategoryId,
       vehicleTypeId: input.vehicleTypeId,
+      city: input.city,
       serviceStartTime: input.serviceStartTime,
       serviceEndTime: input.serviceEndTime,
       routeDistanceKm: input.routeDistanceKm,

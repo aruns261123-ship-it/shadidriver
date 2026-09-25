@@ -3,12 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadidriver/features/search/presentation/search_results_screen.dart';
 
+import '../../helpers/mock_env.dart';
+
 void main() {
   testWidgets('SearchResultsScreen displays results count when loaded', (
     tester,
   ) async {
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: SearchResultsScreen())),
+      ProviderScope(
+        overrides: mockModeOverrides(),
+        child: const MaterialApp(home: SearchResultsScreen()),
+      ),
     );
 
     // Initial loading
@@ -25,7 +30,10 @@ void main() {
 
   testWidgets('SearchResultsScreen shows filters chip', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: SearchResultsScreen())),
+      ProviderScope(
+        overrides: mockModeOverrides(),
+        child: const MaterialApp(home: SearchResultsScreen()),
+      ),
     );
 
     await tester.pump(const Duration(seconds: 1));
