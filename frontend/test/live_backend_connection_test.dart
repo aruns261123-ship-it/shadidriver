@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadidriver/core/config/env_config.dart';
 import 'package:shadidriver/core/config/flavor.dart';
@@ -39,12 +41,34 @@ class SilentTestLogger implements AppLogger {
 }
 
 void main() {
+  // The suite drives a REAL server. Override the target without editing code:
+  //   LIVE_API_BASE_URL=http://localhost:3010 flutter test test/live_backend_connection_test.dart
+  // Run that server with OTP_DEBUG_EMIT=true so the OTP verification step (and
+  // therefore the authenticated booking submission) can be exercised.
+  final liveBaseUrl =
+      Platform.environment['LIVE_API_BASE_URL'] ?? 'http://localhost:3000';
+  final liveWsUrl = liveBaseUrl.replaceFirst('http', 'ws');
+
+  // The backend rate-limits OTP resends per phone (OTP_RESEND_COOLDOWN_SECONDS,
+  // 30s by default), so repeating this suite against the same seeded customer
+  // makes the auth step flaky. Rotate across the seeded customers instead.
+  const seededCustomerPhones = [
+    '9810000008',
+    '9810000001',
+    '9999123456',
+    '6397733545',
+    '7983310686',
+  ];
+  final runPhone = seededCustomerPhones[
+      DateTime.now().millisecondsSinceEpoch ~/ 1000 %
+          seededCustomerPhones.length];
+
   group('End-to-End Live Backend Connection Test', () {
-    const config = EnvironmentConfig(
+    final config = EnvironmentConfig(
       flavor: AppFlavor.development,
       appName: 'ShadiDriver Dev',
-      apiBaseUrl: 'http://localhost:3000',
-      wsBaseUrl: 'ws://localhost:3000',
+      apiBaseUrl: liveBaseUrl,
+      wsBaseUrl: liveWsUrl,
       useMockData: false,
     );
 
@@ -111,16 +135,37 @@ void main() {
 
     test('4. Full Auth Cycle & Token Persistence', () async {
       // 4A. Request OTP for customer
-      final otpResult = await authRepo.requestOtp(phoneNumber: '9810000008');
+      var otpResult = await authRepo.requestOtp(phoneNumber: runPhone);
+      if (!otpResult.isSuccess &&
+          (otpResult.failureOrNull!.message.contains(
+                'before requesting another code',
+              ))) {
+        // The backend enforces a per-phone resend cooldown (30s). Wait it out
+        // rather than reporting a false failure.
+        await Future<void>.delayed(const Duration(seconds: 31));
+        otpResult = await authRepo.requestOtp(phoneNumber: runPhone);
+      }
       expect(otpResult.isSuccess, true, reason: 'OTP request must succeed');
       final sessionId = otpResult.dataOrNull!;
       expect(sessionId.isNotEmpty, true);
-      expect(authRepo.lastDebugOtpCode, isNotNull, reason: 'Debug code must be returned in dev');
 
-      // 4B. Verify OTP with authoritative code
+      // The server never returns the OTP to a client by default. It emits
+      // `debug_code` only when explicitly started with OTP_DEBUG_EMIT=true in a
+      // non-production environment. Without that opt-in a live OTP cannot be
+      // read back, so skip rather than fake a code.
+      final debugCode = authRepo.lastDebugOtpCode;
+      if (debugCode == null) {
+        markTestSkipped(
+          'Server did not emit debug_code. Run the backend with '
+          'OTP_DEBUG_EMIT=true to exercise the live OTP verification step.',
+        );
+        return;
+      }
+
+      // 4B. Verify OTP with the emitted development code
       final verifyResult = await authRepo.verifyOtp(
         otpSessionId: sessionId,
-        otpCode: authRepo.lastDebugOtpCode!,
+        otpCode: debugCode,
       );
       expect(verifyResult.isSuccess, true, reason: 'OTP verify must succeed');
       final session = verifyResult.dataOrNull!;
@@ -133,7 +178,15 @@ void main() {
     });
 
     test('5. End-to-End Booking Submission with Idempotency & Replay', () async {
-      // Reuses the authenticated session from Step 4 (stored in SecureStorage)
+      // Reuses the authenticated session from Step 4 (stored in SecureStorage).
+      final storedToken = await storage.read(AppConstants.keyAccessToken);
+      if (storedToken == null) {
+        markTestSkipped(
+          'No authenticated session: step 4 needs a server started with '
+          'OTP_DEBUG_EMIT=true (see LIVE_API_BASE_URL).',
+        );
+        return;
+      }
 
       final uniqueKey = 'live-test-key-${DateTime.now().millisecondsSinceEpoch}';
       final request = BookingSubmissionRequest(
@@ -149,6 +202,8 @@ void main() {
         serviceEndDateTime: DateTime.now().add(const Duration(days: 30, hours: 8)),
         routeDistanceKm: 42.0,
         city: 'Delhi NCR',
+        // The backend requires >= 5 characters for both addresses
+        // (`@Length(5, 500)`); a shorter value is rejected before the handler.
         pickupAddress: 'Sector 15, Gurugram',
         destinationAddress: 'The Leela Palace, Chanakyapuri, New Delhi',
         venueName: 'The Leela Palace',

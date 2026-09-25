@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/errors/failures.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_response.dart';
 import '../../../core/result/result.dart';
@@ -14,7 +15,9 @@ import '../domain/entities/fleet_availability_result.dart';
 import '../domain/entities/group_booking.dart';
 import '../domain/entities/group_booking_submission_request.dart';
 import '../domain/entities/vehicle_assignment.dart';
+import '../domain/policies/service_category_policy.dart';
 import '../domain/repositories/booking_repository.dart';
+import 'dto/submit_booking_dto.dart';
 
 /// Real backend booking repository.
 ///
@@ -60,10 +63,25 @@ class BookingApiRepository implements BookingRepository {
   Future<Result<BookingSubmissionResult>> submitBooking(
     BookingSubmissionRequest request,
   ) async {
+    // Build the canonical payload first and refuse locally when it violates the
+    // backend's own declared rules. The app never spends a request the server
+    // is guaranteed to answer with VALIDATION_FAILED, and the customer gets the
+    // precise field to fix rather than an opaque rejection.
+    final dto = SubmitBookingDto.fromDomain(
+      request,
+      serviceCategoryId: ServiceCategoryPolicy.forCeremony(request.ceremonyType),
+    );
+    final violation = dto.firstContractViolation();
+    if (violation != null) {
+      return Result.failure(
+        ValidationFailure(violation, code: 'INVALID_BOOKING_DRAFT'),
+      );
+    }
+
     try {
       final response = await _client.post<Map<String, dynamic>>(
         '${AppConstants.apiV1Prefix}/bookings',
-        data: _submissionBody(request),
+        data: dto.toJson(),
         options: _idempotencyHeader(request.idempotencyKey),
       );
       final envelope = ApiEnvelope.fromJson(response.data);
@@ -77,25 +95,6 @@ class BookingApiRepository implements BookingRepository {
       return Result.failure(mapDioError(e));
     }
   }
-
-  Map<String, dynamic> _submissionBody(BookingSubmissionRequest r) => {
-        'serviceCategoryId': _categoryForCeremony(r.ceremonyType),
-        'vehicleTypeId': r.vehicleId.isNotEmpty ? r.vehicleId : r.vehicleClass,
-        'ceremonyType': r.ceremonyType,
-        'ceremonialAttire': r.ceremonialAttire,
-        'specialInstructions': r.specialInstructions,
-        'serviceStartTime': r.serviceStartDateTime.toIso8601String(),
-        'serviceEndTime': r.serviceEndDateTime.toIso8601String(),
-        'city': r.city,
-        'pickupAddress': r.pickupAddress,
-        'destinationAddress': r.destinationAddress,
-        'venueName': r.venueName,
-        'routeDistanceKm': r.routeDistanceKm,
-        'primaryContactName': r.primaryContactName,
-        'primaryContactPhone': r.primaryContactPhone,
-        'passengerCount': r.passengerCount,
-        'selectedAddonIds': const <String>[],
-      };
 
   Options _idempotencyHeader(String key) =>
       Options(headers: {'Idempotency-Key': key});
@@ -466,8 +465,9 @@ class BookingApiRepository implements BookingRepository {
       final response = await _client.post<Map<String, dynamic>>(
         '${AppConstants.apiV1Prefix}/group-bookings',
         data: {
-          'serviceCategoryId':
-              _categoryForCeremony(request.ceremonyType),
+          'serviceCategoryId': ServiceCategoryPolicy.forCeremony(
+            request.ceremonyType,
+          ),
           'ceremonyType': request.ceremonyType,
           'city': request.city,
           'pickupAddress': request.pickupAddress,
@@ -646,12 +646,4 @@ class BookingApiRepository implements BookingRepository {
     return null;
   }
 
-  /// Maps the domain ceremony type onto the seeded service category IDs.
-  String _categoryForCeremony(String ceremonyType) {
-    final t = ceremonyType.toUpperCase();
-    if (t.contains('AIRPORT') || t.contains('VIP')) return 'SVC_AIRPORT_VIP';
-    if (t.contains('RECEPTION') || t.contains('ENGAGEMENT')) return 'SVC_RECEPTION';
-    if (t.contains('VIDAI')) return 'SVC_VIDAI';
-    return 'SVC_BARAAT';
-  }
 }

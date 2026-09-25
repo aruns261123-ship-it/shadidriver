@@ -107,11 +107,14 @@ export class OtpService {
       where: { expiresAt: { lt: new Date(Date.now() - 3600_000) } },
     });
 
+    // The issued code is NEVER returned to the client by default. It may be
+    // surfaced as `debug_code` only when the operator has explicitly opted in
+    // with OTP_DEBUG_EMIT=true in a non-production environment.
     return {
       sessionId,
       expiresInSeconds: this.config.otp.ttlSeconds,
       resendAvailableInSeconds: this.config.otp.resendCooldownSeconds,
-      debugCode: this.config.env !== 'production' ? code : undefined,
+      debugCode: this.config.otp.debugEmit ? code : undefined,
     };
   }
 

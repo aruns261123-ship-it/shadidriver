@@ -32,7 +32,29 @@ by design. Development falls back to clearly-labeled dev-only defaults.
 
 Key variables: `DATABASE_URL`, `REDIS_URL` (optional — API degrades gracefully),
 `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_TTL_SECONDS` (default 900),
-`OTP_DEBUG_LOG` (dev only; hard-disabled in production), `THROTTLE_*`.
+`OTP_DEBUG_LOG` (dev only; hard-disabled in production), `OTP_DEBUG_EMIT` (dev only),
+`THROTTLE_*`.
+
+### 2.1 OTP delivery (SMS provider)
+
+OTP codes are generated server-side (crypto-secure), stored hashed, and delivered
+through a real SMS provider abstraction — the API never reports success unless the
+gateway accepted the message.
+
+| Variable | Required when | Notes |
+|---|---|---|
+| `SMS_PROVIDER` | always | `console` (dev default, forbidden in production) or `msg91` |
+| `SMS_AUTH_KEY` | `SMS_PROVIDER=msg91` | MSG91 auth key |
+| `SMS_OTP_TEMPLATE_ID` | `SMS_PROVIDER=msg91` | DLT-approved OTP template id |
+| `SMS_SENDER_ID` | `SMS_PROVIDER=msg91` | DLT-approved sender id |
+| `SMS_MSG91_BASE_URL` | optional | defaults to `https://control.msg91.com/api/v5/otp` |
+
+If `SMS_PROVIDER=msg91` but credentials are missing, OTP requests fail loudly
+(`SmsProviderError`) and nothing is persisted — the OTP is never faked.
+
+`OTP_DEBUG_EMIT=true` (non-production only) additionally returns the issued code as
+`debug_code` in the OTP/signup response for automated dev harnesses. It is **off by
+default** so codes never reach a client just because the environment is dev.
 
 ## 3. Start infrastructure (Docker)
 

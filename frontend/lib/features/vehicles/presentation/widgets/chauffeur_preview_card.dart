@@ -52,14 +52,18 @@ class ChauffeurPreviewCard extends ConsumerWidget {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              chauffeur.fullName,
-                              style: AppTypography.titleMedium.copyWith(
-                                color: AppColors.primaryBurgundy,
-                                fontWeight: FontWeight.w700,
+                            Flexible(
+                              child: Text(
+                                chauffeur.fullName,
+                                style: AppTypography.titleMedium.copyWith(
+                                  color: AppColors.primaryBurgundy,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const Spacer(),
+                            const SizedBox(width: 8),
                             if (chauffeur.verificationStatus == 'VERIFIED')
                               const ShadiVerificationBadge(
                                 label: 'VERIFIED',
@@ -82,10 +86,14 @@ class ChauffeurPreviewCard extends ConsumerWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            Text(
-                              ' • ${chauffeur.totalTrips} Ceremonies',
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.textTertiaryLight,
+                            Flexible(
+                              child: Text(
+                                ' • ${chauffeur.totalTrips} Ceremonies',
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.textTertiaryLight,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -95,8 +103,9 @@ class ChauffeurPreviewCard extends ConsumerWidget {
                           '${chauffeur.weddingExperienceYears} yrs wedding experience • Safa & Formal Attire',
                           style: AppTypography.bodySmall.copyWith(
                             color: AppColors.textSecondaryLight,
-                            fontSize: 12,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -106,17 +115,24 @@ class ChauffeurPreviewCard extends ConsumerWidget {
               const SizedBox(height: 12),
               const Divider(color: AppColors.borderLight, height: 1),
               const SizedBox(height: 10),
+              // Long status copy + a call to action: both must be able to
+              // shrink, otherwise the row overflows on a narrow phone.
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Ceremonial Etiquette & Police Verified',
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.verifiedEmerald,
-                      fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: Text(
+                      'Ceremonial Etiquette & Police Verified',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.verifiedEmerald,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'View Profile',
@@ -124,6 +140,7 @@ class ChauffeurPreviewCard extends ConsumerWidget {
                           color: AppColors.warmGold,
                           fontWeight: FontWeight.w700,
                         ),
+                        maxLines: 1,
                       ),
                       const SizedBox(width: 4),
                       const Icon(

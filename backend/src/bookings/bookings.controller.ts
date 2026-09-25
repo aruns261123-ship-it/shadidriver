@@ -17,6 +17,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/domain/auth.types';
 import { Roles } from '../auth/guards/roles.guard';
 import { Role } from '../auth/domain/roles';
+import { BadRequestAppException } from '../auth/errors/auth.exceptions';
+import { ErrorCode } from '../common/errors/error-codes';
 import { BookingsService, SubmitBookingInput } from './bookings.service';
 
 export class SubmitBookingDto {
@@ -64,14 +66,14 @@ export class BookingsController {
     const idempotencyKey =
       (request.headers['idempotency-key'] as string | undefined) ?? '';
     if (!idempotencyKey || idempotencyKey.length < 8) {
-      // Validated here so the error contract stays uniform.
-      throw Object.assign(new Error('Idempotency-Key header (>=8 chars) is required.'), {
-        status: 400,
-        response: {
-          code: 'VALIDATION_FAILED',
-          message: 'Idempotency-Key header (>=8 chars) is required.',
-        },
-      });
+      // A header cannot be validated by the DTO pipe, so it is validated here.
+      // Use the app exception type (not a bare Error with a status property) so
+      // the global filter renders the documented 400 VALIDATION_FAILED envelope
+      // instead of falling through to a 500 INTERNAL_ERROR.
+      throw new BadRequestAppException(
+        ErrorCode.VALIDATION_FAILED,
+        'Idempotency-Key header (>=8 chars) is required.',
+      );
     }
     const input: SubmitBookingInput = {
       customerId: user.userId,

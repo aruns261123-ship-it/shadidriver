@@ -6,6 +6,7 @@ import 'package:shadidriver/core/theme/app_colors.dart';
 import 'package:shadidriver/core/theme/app_typography.dart';
 import 'package:shadidriver/core/widgets/shadi_primary_button.dart';
 import 'package:shadidriver/core/widgets/shadi_text_field.dart';
+import '../../bookings/domain/policies/booking_location_rules.dart';
 import 'controllers/search_controller.dart';
 import '../domain/entities/search_query.dart';
 
@@ -22,6 +23,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   DateTime? _selectedDate;
   String? _selectedOccasion;
   int _passengers = 4;
+
+  // The search feeds the booking draft's pickup/destination addresses, and the
+  // backend validates those with `@Length(5, 500)`. Catching it here means the
+  // customer is told while typing instead of after review.
+  String? _pickupError;
+  String? _destinationError;
 
   @override
   void initState() {
@@ -46,6 +53,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _onSearch() {
+    final pickupError = BookingLocationRules.addressError(
+      _pickupController.text,
+      label: 'pickup location',
+    );
+    final destinationError = BookingLocationRules.addressError(
+      _destinationController.text,
+      label: 'destination',
+    );
+    if (pickupError != null || destinationError != null) {
+      setState(() {
+        _pickupError = pickupError;
+        _destinationError = destinationError;
+      });
+      return;
+    }
+
     ref
         .read(searchControllerProvider.notifier)
         .updateQuery(
@@ -83,6 +106,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               label: 'Pickup Location',
               hint: 'Enter pickup address',
               controller: _pickupController,
+              errorText: _pickupError,
+              onChanged: (_) {
+                if (_pickupError != null) setState(() => _pickupError = null);
+              },
               prefixIcon: const Icon(Icons.location_on_rounded),
             ),
             const SizedBox(height: 20),
@@ -90,6 +117,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               label: 'Destination',
               hint: 'Enter venue or destination',
               controller: _destinationController,
+              errorText: _destinationError,
+              onChanged: (_) {
+                if (_destinationError != null) {
+                  setState(() => _destinationError = null);
+                }
+              },
               prefixIcon: const Icon(Icons.map_rounded),
             ),
             const SizedBox(height: 20),

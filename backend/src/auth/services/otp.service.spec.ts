@@ -17,15 +17,17 @@ describe('OtpService (unit)', () => {
     };
   };
   let smsMock: { sendOtp: jest.Mock; name: string };
-  const config = {
+  const makeConfig = (overrides: Record<string, unknown> = {}) => ({
     otp: {
       codeLength: 6,
       ttlSeconds: 300,
       maxAttempts: 3,
       resendCooldownSeconds: 30,
       debugLog: false,
+      debugEmit: false,
+      ...overrides,
     },
-  };
+  });
 
   beforeEach(() => {
     prismaMock = {
@@ -46,7 +48,7 @@ describe('OtpService (unit)', () => {
       void ops;
       return [];
     }) as never;
-    service = new OtpService(prismaMock as never, config as never, smsMock as never);
+    service = new OtpService(prismaMock as never, makeConfig() as never, smsMock as never);
   });
 
   describe('requestOtp', () => {
@@ -98,6 +100,24 @@ describe('OtpService (unit)', () => {
       );
       expect(invalidation).toBeTruthy();
       expect(invalidation![0].where.phoneNumber).toBe('+919810000001');
+    });
+
+    it('never returns the code to the client by default (no debug_code leak)', async () => {
+      const session = await service.requestOtp('+919810000001', 'LOGIN');
+      expect(session.debugCode).toBeUndefined();
+      expect(JSON.stringify(session)).not.toContain(
+        smsMock.sendOtp.mock.calls[0][1],
+      );
+    });
+
+    it('returns debug_code ONLY when OTP_DEBUG_EMIT is explicitly enabled', async () => {
+      service = new OtpService(
+        prismaMock as never,
+        makeConfig({ debugEmit: true }) as never,
+        smsMock as never,
+      );
+      const session = await service.requestOtp('+919810000001', 'LOGIN');
+      expect(session.debugCode).toBe(smsMock.sendOtp.mock.calls[0][1]);
     });
   });
 

@@ -127,9 +127,18 @@ class BookingReviewController extends StateNotifier<BookingReviewState> {
     }
 
     final draft = state.draft;
-    if (draft == null || !draft.isComplete) {
+    if (draft == null) {
+      state = state.copyWith(
+        errorMessage: 'Booking draft is incomplete. Please return to edit missing details.',
+      );
+      return false;
+    }
+    if (!draft.isComplete) {
+      // Name the field the server would reject (e.g. an address shorter than
+      // its 5-character minimum) instead of a generic "incomplete" prompt.
       state = state.copyWith(
         errorMessage:
+            draft.locationValidationMessage ??
             'Booking draft is incomplete. Please return to edit missing details.',
       );
       return false;

@@ -35,6 +35,8 @@ class ShadiVerificationBadge extends StatelessWidget {
           color: AppColors.verifiedEmerald.withValues(alpha: 0.4),
         ),
       ),
+      // The label yields before the badge does; a badge is decoration and must
+      // never be the reason a card overflows.
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -44,12 +46,16 @@ class ShadiVerificationBadge extends StatelessWidget {
             color: AppColors.verifiedEmerald,
           ),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: AppTypography.labelSmall.copyWith(
-              color: AppColors.verifiedEmerald,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
+          Flexible(
+            child: Text(
+              label,
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.verifiedEmerald,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

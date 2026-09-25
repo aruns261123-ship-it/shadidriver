@@ -18,6 +18,13 @@ export interface AppConfig {
     maxAttempts: number;
     resendCooldownSeconds: number;
     debugLog: boolean;
+    /**
+     * Explicit dev-only opt-in that returns the issued code as
+     * `debug_code` in the OTP/signup response. Requires NODE_ENV !==
+     * 'production' AND OTP_DEBUG_EMIT=true — it is never on by default so
+     * codes can never leak to a client merely because the environment is dev.
+     */
+    debugEmit: boolean;
   };
   enableSwagger: boolean;
   enableRequestLogging: boolean;
@@ -61,6 +68,8 @@ export function loadConfig(): AppConfig {
       resendCooldownSeconds: Number(process.env.OTP_RESEND_COOLDOWN_SECONDS ?? 30),
       // OTP debug logging is hard-disabled outside development.
       debugLog: (process.env.OTP_DEBUG_LOG ?? 'false') === 'true' && !isProd,
+      // Returning the code to the client requires an explicit dev-only opt-in.
+      debugEmit: (process.env.OTP_DEBUG_EMIT ?? 'false') === 'true' && !isProd,
     },
     enableSwagger: (process.env.ENABLE_SWAGGER ?? 'true') === 'true',
     enableRequestLogging: (process.env.ENABLE_REQUEST_LOGGING ?? 'true') === 'true',

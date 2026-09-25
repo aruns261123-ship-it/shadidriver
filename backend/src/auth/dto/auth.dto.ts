@@ -8,10 +8,26 @@ import {
   MaxLength,
 } from 'class-validator';
 
+/**
+ * Canonical API phone contract (E.164): `+<countrycode><subscriber>`, digits
+ * only after the leading `+`, 8–15 digits total (ITU-T E.164) — e.g.
+ * `+919876543210`.
+ *
+ * Indian numbers are additionally validated with an explicit subscriber-prefix
+ * rule (`[6-9]`) so the accepted format is exact, not merely "any E.164".
+ * The regex is shared with the frontend normalizer (tests assert parity) so
+ * client and server always agree on the wire format.
+ */
+export const PHONE_NUMBER_REGEX = /^\+[1-9]\d{7,14}$/;
+export const INDIAN_MOBILE_REGEX = /^\+91[6-9]\d{9}$/;
+
 export class RequestOtpDto {
   @ApiProperty({ example: '+919810000001' })
   @IsString()
-  @Matches(/^\+[1-9]\d{7,14}$/)
+  @Matches(PHONE_NUMBER_REGEX, {
+    message:
+      'phoneNumber must be an E.164 string like +919876543210 (leading +, no spaces or formatting characters).',
+  })
   phoneNumber!: string;
 
   @ApiProperty({ enum: ['LOGIN', 'SIGNUP'], default: 'LOGIN' })
@@ -41,7 +57,14 @@ export class VerifyOtpDto {
 export class SignUpDto {
   @ApiProperty({ example: '+919810000009' })
   @IsString()
-  @Matches(/^\+[1-9]\d{7,14}$/)
+  @Matches(PHONE_NUMBER_REGEX, {
+    message:
+      'phoneNumber must be an E.164 string like +919876543210 (leading +, no spaces or formatting characters).',
+  })
+  @Matches(INDIAN_MOBILE_REGEX, {
+    message:
+      'phoneNumber must be a valid Indian mobile (+91 followed by a 10-digit number starting 6-9).',
+  })
   phoneNumber!: string;
 
   @ApiProperty({ example: 'Aarav Sharma' })

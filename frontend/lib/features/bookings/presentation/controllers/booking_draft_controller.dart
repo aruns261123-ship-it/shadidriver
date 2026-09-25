@@ -374,8 +374,12 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
         break;
       case 2:
         if (!state.draft.isLocationsValid) {
+          // The server requires 5..500 characters for both addresses
+          // (`@Length(5, 500)`); say exactly which field is wrong instead of a
+          // generic prompt that leads to a rejected submission.
           state = state.copyWith(
             errorMessage:
+                state.draft.locationValidationMessage ??
                 'Please specify pickup address and destination venue.',
           );
           return false;
@@ -420,7 +424,9 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
 
     if (!state.draft.isComplete) {
       state = state.copyWith(
-        errorMessage: 'Please complete all required event and contact details.',
+        errorMessage:
+            state.draft.locationValidationMessage ??
+            'Please complete all required event and contact details.',
       );
       return false;
     }

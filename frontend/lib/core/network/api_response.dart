@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../../features/auth/domain/entities/account_status.dart';
 import '../../features/auth/domain/entities/user_role.dart';
 import '../constants/app_constants.dart';
 import '../errors/failures.dart';
+import 'validation_messages.dart';
 
 /// Versioned API path segments shared by all API repositories.
 abstract final class ApiPaths {
@@ -34,24 +36,73 @@ class ApiEnvelope {
 }
 
 /// Backend error payload shape:
-/// `{ success: false, error: { code, message, details? }, request_id? }`.
-({String code, String message}) _extractBackendError(dynamic body) {
+/// `{ success: false, error: { code, message, details? }, meta }`.
+///
+/// class-validator failures land in `error.details.validation` as an array of
+/// message strings; they are parsed into [fieldErrors] so the UI can show a
+/// friendly per-field message while the raw detail stays available.
+({String code, String message, Map<String, List<String>>? fieldErrors}) _extractBackendError(
+  dynamic body,
+) {
   if (body is Map<String, dynamic>) {
     final error = body['error'];
     if (error is Map<String, dynamic>) {
+      // `message` is normally a string (the global filter joins class-validator
+      // arrays), but tolerate a raw array so a validation error never crashes
+      // the client.
+      final messageValue = error['message'];
+      final rawMessage = switch (messageValue) {
+        final String value => value,
+        final List list => list.whereType<String>().join('; '),
+        _ => 'Request failed.',
+      };
+      final fieldErrors = _parseFieldErrors(error['details']);
       return (
         code: (error['code'] as String?) ?? 'UNKNOWN_ERROR',
-        message: (error['message'] as String?) ?? 'Request failed.',
+        // A supported field whose VALUE was rejected and a field the server
+        // does not know at all are different problems: only the latter means
+        // the app is out of date. See validation_messages.dart.
+        message: customerValidationMessage(fieldErrors ?? const {}) ?? rawMessage,
+        fieldErrors: fieldErrors,
       );
     }
     // Fallbacks for legacy shapes.
     final code = body['code'] as String?;
     final message = body['message'] as String?;
     if (code != null || message != null) {
-      return (code: code ?? 'UNKNOWN_ERROR', message: message ?? 'Request failed.');
+      return (
+        code: code ?? 'UNKNOWN_ERROR',
+        message: message ?? 'Request failed.',
+        fieldErrors: null,
+      );
     }
   }
-  return (code: 'UNKNOWN_ERROR', message: 'Request failed.');
+  return (code: 'UNKNOWN_ERROR', message: 'Request failed.', fieldErrors: null);
+}
+
+/// Parses `error.details.validation` (array of class-validator messages) into
+/// a `{ field: [raw messages] }` map. Returns null when absent/empty.
+Map<String, List<String>>? _parseFieldErrors(dynamic details) {
+  if (details is! Map<String, dynamic>) return null;
+  final raw = details['validation'];
+  if (raw is! List) return null;
+  final result = <String, List<String>>{};
+  for (final entry in raw) {
+    if (entry is! String) continue;
+    result.putIfAbsent(_fieldFromValidationMessage(entry), () => []).add(entry);
+  }
+  return result.isEmpty ? null : result;
+}
+
+/// class-validator messages begin with the property name, e.g.
+/// `phoneNumber must be a string` or `property phone_number should not exist`.
+String _fieldFromValidationMessage(String message) {
+  final unknownProperty = RegExp(
+    r'^property (\S+) should not exist',
+  ).firstMatch(message);
+  if (unknownProperty != null) return unknownProperty.group(1)!;
+  final firstToken = message.split(' ').first;
+  return firstToken.isEmpty ? message : firstToken;
 }
 
 /// Maps Dio exceptions onto the typed [AppFailure] hierarchy.
@@ -71,13 +122,30 @@ AppFailure mapDioError(Object error) {
       case DioExceptionType.badResponse:
         final status = error.response?.statusCode ?? 0;
         final parsed = _extractBackendError(error.response?.data);
+        // Diagnostics for developers: endpoint, method, status, backend code
+        // and the safe field NAMES that failed. Never request bodies, tokens,
+        // OTP codes or any other personal data.
+        final fields = parsed.fieldErrors;
+        debugPrint(
+          '[api] ${error.requestOptions.method} '
+          '${error.requestOptions.path} → $status ${parsed.code}'
+          '${fields == null ? '' : ' fields=${fields.keys.toList()}'}',
+        );
         return switch (status) {
-          400 => ValidationFailure(parsed.message, code: parsed.code),
+          400 => ValidationFailure(
+            parsed.message,
+            code: parsed.code,
+            fieldErrors: parsed.fieldErrors,
+          ),
           401 => UnauthorizedFailure(parsed.message, parsed.code),
           403 => ForbiddenFailure(parsed.message, parsed.code),
           404 => NotFoundFailure(parsed.message),
           409 => ConflictFailure(parsed.message),
-          422 => ValidationFailure(parsed.message, code: parsed.code),
+          422 => ValidationFailure(
+            parsed.message,
+            code: parsed.code,
+            fieldErrors: parsed.fieldErrors,
+          ),
           _ => ServerFailure(parsed.message, parsed.code, null, status),
         };
       case DioExceptionType.unknown:

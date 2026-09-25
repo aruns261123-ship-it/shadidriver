@@ -5,6 +5,13 @@ import '../../../../core/widgets/shadi_card.dart';
 import '../../../../core/widgets/shadi_verification_badge.dart';
 import '../../../home/presentation/view_models/vehicle_card_view_model.dart';
 
+/// Vehicle result card used by the home carousel and the search results list.
+///
+/// Layout contract: every text run is either [Flexible]/[Expanded] or bounded
+/// and ellipsized, so real backend values (long model names, UUID ids, long
+/// billing units, increased system text scale) can never produce a
+/// `RenderFlex overflow`. Verified by
+/// `test/features/vehicles/vehicle_card_responsive_test.dart`.
 class ShadiVehicleCard extends StatelessWidget {
   final VehicleCardViewModel viewModel;
   final VoidCallback onTap;
@@ -45,8 +52,9 @@ class ShadiVehicleCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // -------------------------------------------------- title
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Text(
@@ -54,58 +62,93 @@ class ShadiVehicleCard extends StatelessWidget {
                         style: AppTypography.titleLarge.copyWith(
                           color: AppColors.primaryBurgundy,
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (viewModel.isVerifiedVehicle)
-                      const ShadiVerificationBadge(
-                        label: 'VERIFIED',
-                        isCompact: false,
+                    if (viewModel.isVerifiedVehicle) ...[
+                      const SizedBox(width: 8),
+                      const Flexible(
+                        child: ShadiVerificationBadge(
+                          label: 'VERIFIED',
+                          isCompact: false,
+                        ),
                       ),
+                    ],
                   ],
                 ),
+                const SizedBox(height: 2),
                 Text(
                   viewModel.subtitle,
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textSecondaryLight,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 12),
+
+                // ------------------------------------- rating + distance
+                // Two flexible groups: the rating block and the distance chip
+                // each give way instead of forcing a horizontal overflow.
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      color: AppColors.champagneGold,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      viewModel.ratingText,
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textPrimaryLight,
-                        fontWeight: FontWeight.w700,
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            color: AppColors.champagneGold,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            viewModel.ratingText,
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textPrimaryLight,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              viewModel.reviewCountText,
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.textTertiaryLight,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      viewModel.reviewCountText,
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.textTertiaryLight,
-                      ),
-                    ),
-                    const Spacer(),
                     if (viewModel.distanceText.isNotEmpty) ...[
-                      const Icon(
-                        Icons.location_on_outlined,
-                        color: AppColors.textTertiaryLight,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        viewModel.distanceText,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.textTertiaryLight,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              color: AppColors.textTertiaryLight,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 2),
+                            Flexible(
+                              child: Text(
+                                viewModel.distanceText,
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.textTertiaryLight,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.end,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -114,53 +157,61 @@ class ShadiVehicleCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 const Divider(color: AppColors.borderLight),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+                // -------------------------------------- price + action
+                // The price is full width and the action sits on its own row.
+                // Nothing competes for horizontal space, so a long billing
+                // unit or a large system text scale cannot push the row past
+                // the card edge (the old side-by-side row overflowed).
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Price',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.textTertiaryLight,
-                          ),
-                        ),
-                        RichText(
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: viewModel.priceText,
-                                style: AppTypography.titleMedium.copyWith(
-                                  color: AppColors.primaryBurgundy,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              TextSpan(
-                                text: ' ${viewModel.priceUnit}',
-                                style: AppTypography.labelSmall.copyWith(
-                                  color: AppColors.textSecondaryLight,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'Price',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.textTertiaryLight,
+                      ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: viewModel.priceText,
+                            style: AppTypography.titleMedium.copyWith(
+                              color: AppColors.primaryBurgundy,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' ${viewModel.priceUnit}',
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textSecondaryLight,
+                            ),
+                          ),
+                        ],
                       ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryBurgundy,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'View Details',
-                        style: AppTypography.labelSmall.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 12),
+                    // The whole card is tappable; this is its affordance.
+                    SizedBox(
+                      width: double.infinity,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryBurgundy,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'View Details',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),

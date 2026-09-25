@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/vehicle_reference.dart';
 import '../../../../core/widgets/shadi_card.dart';
 import '../../../../core/widgets/shadi_error_view.dart';
 import '../../../../core/widgets/shadi_loading_indicator.dart';
@@ -180,12 +181,23 @@ class BookingReviewScreen extends ConsumerWidget {
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.textPrimaryLight,
                                     ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 2),
-                                  Text(
-                                    '${draft.vehicleClass} • Vehicle ID: ${draft.vehicleId}',
-                                    style: AppTypography.labelSmall.copyWith(
-                                      color: AppColors.textSecondaryLight,
+                                  // A full UUID here used to run past the card
+                                  // edge; show a short reference and keep the
+                                  // exact value available on long-press.
+                                  Tooltip(
+                                    message: 'Vehicle ID: ${draft.vehicleId}',
+                                    child: Text(
+                                      '${draft.vehicleClass} • Vehicle ID: '
+                                      '${VehicleReference.shorten(draft.vehicleId)}',
+                                      style: AppTypography.labelSmall.copyWith(
+                                        color: AppColors.textSecondaryLight,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
@@ -209,11 +221,16 @@ class BookingReviewScreen extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            Text(
-                              'Verified Professional (${draft.chauffeurId})',
-                              style: AppTypography.labelSmall.copyWith(
-                                color: AppColors.textPrimaryLight,
-                                fontWeight: FontWeight.w600,
+                            Expanded(
+                              child: Text(
+                                'Verified Professional '
+                                '(${VehicleReference.shorten(draft.chauffeurId)})',
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: AppColors.textPrimaryLight,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -424,15 +441,22 @@ class BookingReviewScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 12),
+                        // Label expands, amount keeps its natural width: a
+                        // spaceBetween row with two unbounded Texts overflows
+                        // on a narrow phone / large text scale.
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Estimated Total (${draft.durationHours} hrs)',
-                              style: AppTypography.bodyMedium.copyWith(
-                                color: AppColors.textSecondaryLight,
+                            Expanded(
+                              child: Text(
+                                'Estimated Total (${draft.durationHours} hrs)',
+                                style: AppTypography.bodyMedium.copyWith(
+                                  color: AppColors.textSecondaryLight,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            const SizedBox(width: 12),
                             Text(
                               CurrencyFormatter.formatPaise(
                                 draft.estimatedTotalPaise,
@@ -441,19 +465,24 @@ class BookingReviewScreen extends ConsumerWidget {
                                 color: AppColors.primaryBurgundy,
                                 fontWeight: FontWeight.w700,
                               ),
+                              maxLines: 1,
                             ),
                           ],
                         ),
                         const SizedBox(height: 6),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              draft.advanceTokenLabel,
-                              style: AppTypography.labelSmall.copyWith(
-                                color: AppColors.textSecondaryLight,
+                            Expanded(
+                              child: Text(
+                                draft.advanceTokenLabel,
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: AppColors.textSecondaryLight,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            const SizedBox(width: 12),
                             Text(
                               CurrencyFormatter.formatPaise(
                                 draft.advanceTokenPaise,
@@ -462,6 +491,7 @@ class BookingReviewScreen extends ConsumerWidget {
                                 color: AppColors.warmGold,
                                 fontWeight: FontWeight.w700,
                               ),
+                              maxLines: 1,
                             ),
                           ],
                         ),

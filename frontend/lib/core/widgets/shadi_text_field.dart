@@ -16,12 +16,17 @@ class ShadiTextField extends StatelessWidget {
   final bool enabled;
   final ValueChanged<String>? onChanged;
 
+  /// Inline validation message shown under the field (e.g. a server-parity
+  /// length rule) so the customer fixes the value before submitting.
+  final String? errorText;
+
   const ShadiTextField({
     super.key,
     required this.label,
     this.hint,
     this.controller,
     this.validator,
+    this.errorText,
     this.keyboardType,
     this.obscureText = false,
     this.prefixIcon,
@@ -59,6 +64,8 @@ class ShadiTextField extends StatelessWidget {
             hintText: hint,
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
+            errorText: errorText,
+            errorMaxLines: 2,
           ),
         ),
       ],

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../policies/booking_location_rules.dart';
 import 'booking_draft.dart';
 
 /// Immutable domain model representing customer submission intent.
@@ -121,30 +122,72 @@ class BookingSubmissionRequest {
     );
   }
 
-  /// Validates that all required fields are complete and non-empty.
-  bool get isValid {
-    final hasVehicle = vehicleId.trim().isNotEmpty;
-    final hasCeremony =
-        ceremonyType.trim().isNotEmpty && ceremonialAttire.trim().isNotEmpty;
-    final hasTiming =
-        serviceEndDateTime.isAfter(serviceStartDateTime) &&
-        serviceEndDateTime.difference(serviceStartDateTime).inMinutes >= 60;
-    final hasLocations =
-        city.trim().isNotEmpty &&
-        pickupAddress.trim().isNotEmpty &&
-        destinationAddress.trim().isNotEmpty;
-    final hasContact =
-        primaryContactName.trim().length >= 2 &&
-        primaryContactPhone.replaceAll(RegExp(r'\D'), '').length >= 10;
-    final hasPricing = estimatedTotalPaise > 0 && advanceTokenPaise > 0;
-    final hasKey = idempotencyKey.trim().isNotEmpty;
+  bool get _hasVehicle => vehicleId.trim().isNotEmpty;
 
-    return hasVehicle &&
-        hasCeremony &&
-        hasTiming &&
-        hasLocations &&
-        hasContact &&
-        hasPricing &&
-        hasKey;
+  bool get _hasCeremony =>
+      ceremonyType.trim().isNotEmpty && ceremonialAttire.trim().isNotEmpty;
+
+  bool get _hasTiming =>
+      serviceEndDateTime.isAfter(serviceStartDateTime) &&
+      serviceEndDateTime.difference(serviceStartDateTime).inMinutes >= 60;
+
+  /// Mirrors the backend's own bounds (`@Length(5, 500)` addresses,
+  /// `@Length(2, 50)` city) so the app can never send a request the server is
+  /// guaranteed to reject with a validation error.
+  bool get _hasLocations =>
+      BookingLocationRules.isCityValid(city) &&
+      BookingLocationRules.isAddressValid(pickupAddress) &&
+      BookingLocationRules.isAddressValid(destinationAddress);
+
+  bool get _hasContact =>
+      primaryContactName.trim().length >= 2 &&
+      primaryContactPhone.replaceAll(RegExp(r'\D'), '').length >= 10;
+
+  bool get _hasPricing => estimatedTotalPaise > 0 && advanceTokenPaise > 0;
+
+  bool get _hasKey => idempotencyKey.trim().isNotEmpty;
+
+  /// Validates that all required fields are complete and non-empty.
+  bool get isValid =>
+      _hasVehicle &&
+      _hasCeremony &&
+      _hasTiming &&
+      _hasLocations &&
+      _hasContact &&
+      _hasPricing &&
+      _hasKey;
+
+  /// Customer-facing explanation of the first incomplete requirement, used by
+  /// the review screen instead of a generic "incomplete draft" message.
+  String? get validationMessage {
+    if (!_hasVehicle) return 'Select a vehicle to continue.';
+    if (!_hasCeremony) return 'Choose the ceremony and ceremonial attire.';
+    if (!_hasTiming) {
+      return 'Service must run for at least 1 hour and end after it starts.';
+    }
+    if (cityError != null) return cityError;
+    if (pickupAddressError != null) return pickupAddressError;
+    if (destinationAddressError != null) return destinationAddressError;
+    if (primaryContactName.trim().length < 2) {
+      return 'Enter the host contact name (at least 2 characters).';
+    }
+    if (primaryContactPhone.replaceAll(RegExp(r'\D'), '').length < 10) {
+      return 'Enter a valid 10-digit contact phone number.';
+    }
+    if (!_hasPricing) {
+      return 'Pricing could not be confirmed. Please restart the booking.';
+    }
+    if (!_hasKey) return 'Prepare the booking again before submitting.';
+    return null;
   }
+
+  String? get cityError => BookingLocationRules.cityError(city);
+
+  String? get pickupAddressError =>
+      BookingLocationRules.addressError(pickupAddress, label: 'pickup address');
+
+  String? get destinationAddressError => BookingLocationRules.addressError(
+    destinationAddress,
+    label: 'destination address',
+  );
 }

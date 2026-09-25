@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../policies/booking_location_rules.dart';
 
 /// Status of a customer booking draft during Milestone 4A.
 enum BookingDraftStatus {
@@ -221,11 +222,28 @@ class BookingDraft {
     return serviceStartDateTime.isAfter(yesterday);
   }
 
-  /// Validates Section 3: Pickup & Destination
+  /// Validates Section 3: Pickup & Destination against the backend's own
+  /// bounds (`@Length(5, 500)` on addresses, `@Length(2, 50)` on city) so a
+  /// draft the server would reject can never be submitted.
   bool get isLocationsValid =>
-      city.trim().isNotEmpty &&
-      pickupAddress.trim().isNotEmpty &&
-      destinationAddress.trim().isNotEmpty;
+      BookingLocationRules.isCityValid(city) &&
+      BookingLocationRules.isAddressValid(pickupAddress) &&
+      BookingLocationRules.isAddressValid(destinationAddress);
+
+  /// The first location problem to show the customer, or null when Section 3
+  /// is complete. Drives the inline field errors in the booking form.
+  String? get pickupAddressError =>
+      BookingLocationRules.addressError(pickupAddress, label: 'pickup address');
+
+  String? get destinationAddressError => BookingLocationRules.addressError(
+    destinationAddress,
+    label: 'destination address',
+  );
+
+  String? get cityError => BookingLocationRules.cityError(city);
+
+  String? get locationValidationMessage =>
+      cityError ?? pickupAddressError ?? destinationAddressError;
 
   /// Validates Section 4: Passenger Details
   bool get isPassengerDetailsValid {

@@ -7,6 +7,7 @@ import '../../../app/router/route_paths.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/phone_number.dart';
 import '../../../core/widgets/shadi_card.dart';
 import '../../../core/widgets/shadi_primary_button.dart';
 import '../domain/entities/account_status.dart';
@@ -43,15 +44,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _errorMessage;
   int _resendCountdown = 30;
   Timer? _countdownTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    assert(() {
-      _phoneController.text = '9876543210';
-      return true;
-    }());
-  }
 
   @override
   void dispose() {
@@ -114,10 +106,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _onRequestOtp() {
     final phone = _phoneController.text.trim();
-    if (phone.length < 10) {
+    if (!PhoneNumber.isValidIndian(phone)) {
       setState(() {
-        _errorMessage = 'Please enter a valid 10-digit mobile number.';
+        _errorMessage = 'Enter a valid mobile number.';
       });
+      _phoneFocusNode.requestFocus();
       return;
     }
     setState(() => _errorMessage = null);
@@ -125,18 +118,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _onSignUp() {
+    // Client-side validation mirrors the backend DTO (authoritative): name at
+    // least 2 characters and a valid Indian mobile number.
     final name = _nameController.text.trim();
     if (name.length < 2) {
       setState(() {
-        _errorMessage = 'Please enter your full name.';
+        _errorMessage = 'Name must be at least 2 characters.';
       });
       _nameFocusNode.requestFocus();
       return;
     }
     final phone = _phoneController.text.trim();
-    if (phone.length < 10) {
+    if (!PhoneNumber.isValidIndian(phone)) {
       setState(() {
-        _errorMessage = 'Please enter a valid 10-digit mobile number.';
+        _errorMessage = 'Enter a valid mobile number.';
       });
       _phoneFocusNode.requestFocus();
       return;

@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/vehicle_reference.dart';
 import '../../../../core/widgets/shadi_card.dart';
 import '../../../../core/widgets/shadi_error_view.dart';
 import '../../../../core/widgets/shadi_loading_indicator.dart';
@@ -461,34 +462,52 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Both children are flexible: the name ellipsizes first, and
+                // the id badge is shortened so a 36-char UUID can never push
+                // this row past the screen edge.
                 Row(
                   children: [
                     Flexible(
+                      flex: 3,
                       child: Text(
                         vehicleName,
                         style: AppTypography.titleSmall.copyWith(
                           color: AppColors.primaryBurgundy,
                           fontWeight: FontWeight.w700,
                         ),
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.champagneGold.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'Vehicle ID: $vehicleId',
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.warmGold,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 10,
+                    Flexible(
+                      flex: 2,
+                      child: Tooltip(
+                        message: 'Vehicle ID: $vehicleId',
+                        child: Semantics(
+                          label: 'Vehicle ID $vehicleId',
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.champagneGold.withValues(
+                                alpha: 0.15,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Vehicle ID: ${VehicleReference.shorten(vehicleId)}',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.warmGold,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 10,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -500,6 +519,8 @@ class _BookingEntryScreenState extends ConsumerState<BookingEntryScreen> {
                   style: AppTypography.labelSmall.copyWith(
                     color: AppColors.textSecondaryLight,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

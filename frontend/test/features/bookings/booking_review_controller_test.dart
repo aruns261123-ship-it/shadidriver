@@ -106,7 +106,9 @@ void main() {
 
       expect(success, isFalse);
       expect(controller.state.isSuccess, isFalse);
-      expect(controller.state.errorMessage, contains('incomplete'));
+      // The message names the field the server would reject rather than a
+      // generic "incomplete draft" prompt.
+      expect(controller.state.errorMessage, contains('pickup address'));
     });
 
     test('double-tap protection blocks concurrent submissions', () async {

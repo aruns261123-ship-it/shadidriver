@@ -5,6 +5,7 @@ import '../../../core/errors/failures.dart';
 import '../../../core/result/result.dart';
 import '../../../core/security/secure_storage_service.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/phone_number.dart';
 import '../domain/entities/auth_session.dart';
 import '../domain/entities/user_role.dart';
 import '../domain/repositories/auth_repository.dart';
@@ -82,11 +83,17 @@ class AuthApiRepository implements AuthRepository {
     required String phoneNumber,
     UserRole? role,
   }) async {
+    // Normalize/validate locally first so a malformed number is never sent
+    // (the wire value is always `+91XXXXXXXXXX`, matching the backend DTO).
+    final normalizedPhone = PhoneNumber.tryNormalizeIndian(phoneNumber);
+    if (normalizedPhone == null) {
+      return const Result.failure(
+        ValidationFailure('Enter a valid mobile number.', code: 'INVALID_PHONE'),
+      );
+    }
+
     try {
       // role is advisory in dev only; server decides everything authoritative.
-      final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
-      final normalizedPhone = digits.length == 10 ? '+91$digits' : '+$digits';
-
       final response = await _client.post<Map<String, dynamic>>(
         '$_basePath/otp/request',
         data: {'phoneNumber': normalizedPhone, 'purpose': 'LOGIN'},
@@ -115,18 +122,34 @@ class AuthApiRepository implements AuthRepository {
     required String displayName,
     UserRole role = UserRole.customer,
   }) async {
+    // Normalize/validate before the request: canonical `+91XXXXXXXXXX` phone
+    // string and a display name of at least 2 characters (server re-validates).
+    final normalizedPhone = PhoneNumber.tryNormalizeIndian(phoneNumber);
+    if (normalizedPhone == null) {
+      return const Result.failure(
+        ValidationFailure('Enter a valid mobile number.', code: 'INVALID_PHONE'),
+      );
+    }
+    final trimmedName = displayName.trim();
+    if (trimmedName.length < 2) {
+      return const Result.failure(
+        ValidationFailure(
+          'Name must be at least 2 characters.',
+          code: 'INVALID_NAME',
+        ),
+      );
+    }
+
     try {
       // Public signup is limited to customer/driver server-side; admins are
       // provisioned internally. We still send only these two roles.
       final wireRole = role == UserRole.driver ? 'driver' : 'customer';
-      final digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
-      final normalizedPhone = digits.length == 10 ? '+91$digits' : '+$digits';
 
       final response = await _client.post<Map<String, dynamic>>(
         '$_basePath/signup',
         data: {
           'phoneNumber': normalizedPhone,
-          'displayName': displayName.trim(),
+          'displayName': trimmedName,
           'role': wireRole,
         },
       );
