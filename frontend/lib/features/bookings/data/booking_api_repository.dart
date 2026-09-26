@@ -479,6 +479,9 @@ class BookingApiRepository implements BookingRepository {
           'passengerCount': request.fleetIntent.passengerCount,
           'fleet': fleet,
           'idempotencyKey': request.idempotencyKey,
+          if (request.requirements.isNotEmpty)
+            'requirements': request.requirements,
+          'communicationPreference': request.communicationPreference,
         },
       );
       final envelope = ApiEnvelope.fromJson(response.data);
@@ -507,57 +510,79 @@ class BookingApiRepository implements BookingRepository {
     }
   }
 
+  /// Maps the CUSTOMER group-booking payload.
+  ///
+  /// The wire format is snake_case and deliberately narrow: it carries the
+  /// customer's own booking plus a neutral `chauffeur_assigned` flag. Partner
+  /// identity, registration plates and chauffeur names are internal operational
+  /// data that the backend does not send — this mapper must never expect them,
+  /// and never invent a price of 0 for a booking that has not been quoted.
   GroupBooking _groupFromServer(Map<String, dynamic> group) {
     final assignmentsRaw =
         (group['assignments'] as List? ?? const []).whereType<Map<String, dynamic>>();
     final assignments = assignmentsRaw.map((a) {
       final vehicle = (a['vehicle'] as Map<String, dynamic>?) ?? const {};
-      final chauffeur = (a['chauffeur'] as Map<String, dynamic>?) ?? const {};
       return VehicleAssignment(
         assignmentId: (a['id'] as String?) ?? '',
         parentBookingId: (group['id'] as String?) ?? '',
         vehicleId: (vehicle['id'] as String?) ?? '',
         vehicleName:
             '${vehicle['display_name'] ?? ''} ${vehicle['fleet_code'] ?? ''}'.trim(),
-        vehicleModel:
-            (a['requested_model'] as String?) ?? (vehicle['display_name'] as String?) ?? '',
-        capacity: 0,
-        ownerName: (vehicle['registration_number'] as String?) ?? '',
-        chauffeurId: (chauffeur['id'] as String?),
-        chauffeurName: (chauffeur['full_name'] as String?),
-        pricePaise: parseIntAmount(a['estimated_total_paise']),
-        status: (a['status'] as String?) ?? 'PENDING',
+        vehicleModel: (a['requested_model'] as String?) ??
+            (vehicle['display_name'] as String?) ??
+            '',
+        capacity: (a['seating_capacity'] as num?)?.toInt() ?? 0,
+        // No partner/owner identity in a customer payload, by design.
+        ownerName: '',
+        chauffeurAssigned: a['chauffeur_assigned'] == true,
+        pricePaise: parseIntAmountOrNull(a['estimated_total_paise']),
+        status: (a['service_state'] as String?) ?? 'BEING_PREPARED',
       );
     }).toList();
 
-    // Reconstruct fleet intent from the assignments' requested models.
+    // Reconstruct the requested fleet from the server's own intent record when
+    // present, falling back to the allocated assignments.
     final units = <String, int>{};
-    for (final a in assignments) {
-      units[a.vehicleModel] = (units[a.vehicleModel] ?? 0) + 1;
+    final requested = (group['requested_fleet'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>();
+    for (final line in requested) {
+      final name =
+          (line['vehicle_class'] as String?) ?? (line['vehicleTypeId'] as String?) ?? '';
+      final qty = (line['quantity'] as num?)?.toInt() ?? 0;
+      if (name.isNotEmpty && qty > 0) units[name] = (units[name] ?? 0) + qty;
+    }
+    if (units.isEmpty) {
+      for (final a in assignments) {
+        units[a.vehicleModel] = (units[a.vehicleModel] ?? 0) + 1;
+      }
     }
 
     return GroupBooking(
       parentBookingId: (group['id'] as String?) ?? '',
-      bookingReference: (group['referenceCode'] as String?) ?? '',
+      bookingReference: (group['reference_code'] as String?) ?? '',
       status: _statusFromWire(group['status'] as String?),
       customerIntent: CustomerFleetIntent.mixed(
-        passengerCount: (group['passengerCount'] as num?)?.toInt() ?? 0,
+        passengerCount: (group['passenger_count'] as num?)?.toInt() ?? 0,
         units: units,
       ),
-      totalPassengers: (group['passengerCount'] as num?)?.toInt() ?? 0,
+      totalPassengers: (group['passenger_count'] as num?)?.toInt() ?? 0,
       totalVehicles: assignments.length,
       assignments: assignments,
-      ceremonyType: (group['ceremonyType'] as String?) ?? '',
-      serviceStartDateTime: parseDateTime(group['serviceStartTime']),
-      serviceEndDateTime: parseDateTime(group['serviceEndTime']),
+      ceremonyType: (group['ceremony_type'] as String?) ?? '',
+      serviceStartDateTime: parseDateTime(group['service_start_time']),
+      serviceEndDateTime: parseDateTime(group['service_end_time']),
       city: (group['city'] as String?) ?? '',
-      pickupAddress: (group['pickupAddress'] as String?) ?? '',
-      destinationAddress: (group['destinationAddress'] as String?) ?? '',
-      primaryContactName: (group['primaryContactName'] as String?) ?? '',
-      primaryContactPhone: (group['primaryContactPhone'] as String?) ?? '',
-      estimatedTotalPaise: parseIntAmount(group['estimatedTotalPaise']),
-      advanceTokenPaise: parseIntAmount(group['advanceTokenPaise']),
-      createdAt: parseDateTime(group['createdAt']),
+      pickupAddress: (group['pickup_address'] as String?) ?? '',
+      destinationAddress: (group['destination_address'] as String?) ?? '',
+      estimatedTotalPaise: parseIntAmountOrNull(group['estimated_total_paise']),
+      advanceTokenPaise: parseIntAmountOrNull(group['advance_token_paise']),
+      requirements: (group['requirements'] as List? ?? const [])
+          .whereType<String>()
+          .toList(),
+      communicationPreference:
+          (group['communication_preference'] as String?) ?? 'PHONE',
+      version: (group['version'] as num?)?.toInt() ?? 1,
+      createdAt: parseDateTime(group['created_at']),
     );
   }
 
@@ -568,6 +593,9 @@ class BookingApiRepository implements BookingRepository {
   BookingStatus _statusFromWire(String? wire) => switch ((wire ?? '').toUpperCase()) {
     'DRAFT' => BookingStatus.requested,
     'REQUESTED' => BookingStatus.requested,
+    'UNDER_REVIEW' => BookingStatus.underReview,
+    'VEHICLE_OPTIONS_PREPARED' => BookingStatus.vehicleOptionsPrepared,
+    'CUSTOMER_CONFIRMATION_PENDING' => BookingStatus.customerConfirmationPending,
     'DRIVER_ACCEPTED' => BookingStatus.driverAccepted,
     'CONFIRMED' => BookingStatus.confirmed,
     'EN_ROUTE' => BookingStatus.driverArriving,

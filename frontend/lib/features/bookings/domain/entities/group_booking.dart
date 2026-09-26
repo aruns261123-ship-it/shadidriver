@@ -51,16 +51,32 @@ class GroupBooking {
   final String destinationAddress;
 
   /// Primary host contact name.
+  ///
+  /// The customer-facing payload does not echo the contact back — it is the
+  /// caller's own record — so API-sourced bookings leave this empty.
   final String primaryContactName;
 
-  /// Primary host phone number.
+  /// Primary host phone number (see [primaryContactName]).
   final String primaryContactPhone;
 
   /// Aggregated estimated total price across all vehicle assignments in paise.
-  final int estimatedTotalPaise;
+  ///
+  /// null = not quoted yet. The backend returns null (never 0) while the
+  /// reserved vehicles have no approved tariff or operations has not quoted,
+  /// and the UI renders that as "On request".
+  final int? estimatedTotalPaise;
 
-  /// Aggregated advance token required in paise.
-  final int advanceTokenPaise;
+  /// Aggregated advance token required in paise (null while unquoted).
+  final int? advanceTokenPaise;
+
+  /// Customer requirements captured with the request (optional).
+  final List<String> requirements;
+
+  /// PHONE | WHATSAPP | EMAIL | PHONE_WHATSAPP — how operations will contact.
+  final String communicationPreference;
+
+  /// Optimistic-concurrency version, so a stale view can be detected.
+  final int version;
 
   /// Advance token label.
   final String advanceTokenLabel;
@@ -82,13 +98,19 @@ class GroupBooking {
     required this.city,
     required this.pickupAddress,
     required this.destinationAddress,
-    required this.primaryContactName,
-    required this.primaryContactPhone,
+    this.primaryContactName = '',
+    this.primaryContactPhone = '',
     required this.estimatedTotalPaise,
     required this.advanceTokenPaise,
+    this.requirements = const [],
+    this.communicationPreference = 'PHONE',
+    this.version = 1,
     this.advanceTokenLabel = 'Advance Token',
     required this.createdAt,
   });
+
+  /// True while the server has not produced a complete price for this booking.
+  bool get quotePending => estimatedTotalPaise == null;
 
   /// Total seating capacity provided across all active assignments.
   int get totalAllocatedCapacity =>

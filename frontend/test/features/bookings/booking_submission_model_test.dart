@@ -8,15 +8,39 @@ void main() {
   group('Booking Submission Models & Status Tests', () {
     test('BookingStatus provides user-facing non-confirmed labels', () {
       expect(BookingStatus.requested.displayLabel, equals('Request Submitted'));
+      // The customer waits on ShadiDriver OPERATIONS, never on a driver deciding
+      // whether to accept their booking.
       expect(
         BookingStatus.requested.customerSubtitle,
-        contains('Awaiting chauffeur confirmation'),
+        contains('ShadiDriver'),
       );
       expect(BookingStatus.confirmed.displayLabel, equals('Booking Confirmed'));
       expect(
         BookingStatus.paymentPending.displayLabel,
         equals('Payment Pending'),
       );
+    });
+
+    test('the managed-booking states are customer-readable', () {
+      const managed = <BookingStatus, String>{
+        BookingStatus.underReview: 'Under Review',
+        BookingStatus.vehicleOptionsPrepared: 'Vehicles Reserved',
+        BookingStatus.customerConfirmationPending: 'Awaiting Your Confirmation',
+      };
+
+      for (final entry in managed.entries) {
+        expect(entry.key.displayLabel, equals(entry.value));
+        expect(entry.key.customerSubtitle, isNotEmpty);
+      }
+    });
+
+    test('no customer-facing status copy mentions a driver accepting the job', () {
+      for (final status in BookingStatus.values) {
+        final copy =
+            '${status.displayLabel} ${status.customerSubtitle}'.toLowerCase();
+        expect(copy, isNot(contains('driver accepted')));
+        expect(copy, isNot(contains('awaiting chauffeur confirmation')));
+      }
     });
 
     test(

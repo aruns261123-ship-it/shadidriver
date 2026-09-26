@@ -230,6 +230,7 @@ model User {
   verificationRecords     VerificationRecord[]
   favoriteVehicles        FavoriteVehicle[]    @relation("FavoriteVehicles")
   operationsNotes         OperationsNote[]     @relation("OperationsNotesAuthored")
+  groupBookingEvents      GroupBookingEvent[]  @relation("GroupBookingEventsTriggered")
 
   @@index([primaryRole])
   @@index([accountStatus])
@@ -276,7 +277,7 @@ model DriverProfile {
   updatedAt              DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fleetOwner        PartnerProfile?  @relation(fields: [fleetOwnerId], references: [id], onDelete: SetNull)
+  fleetOwner        PartnerProfile?     @relation(fields: [fleetOwnerId], references: [id], onDelete: SetNull)
   documents         DriverDocument[]
   vehicles          Vehicle[]           @relation("IndependentDriverVehicles")
   bookings          Booking[]           @relation("BookingsAsDriver")
@@ -295,15 +296,15 @@ model DriverProfile {
 /// may not also drive. The table keeps its historical name (`fleet_owners`) so
 /// this rename is non-destructive; "partner" is the product-facing term.
 model PartnerProfile {
-  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId             String   @unique @map("user_id") @db.Uuid
-  companyName        String   @map("company_name") @db.VarChar(200)
-  contactName        String?  @map("contact_name") @db.VarChar(150)
-  tradeLicenseNumber String?  @map("trade_license_number") @db.VarChar(100)
-  licenseNumber      String?  @map("license_number") @db.VarChar(50)
-  panNumber          String?  @map("pan_number") @db.VarChar(10)
-  gstin              String?  @db.VarChar(15)
-  bankAccountDetails Json?    @map("bank_account_details")
+  id                 String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String  @unique @map("user_id") @db.Uuid
+  companyName        String  @map("company_name") @db.VarChar(200)
+  contactName        String? @map("contact_name") @db.VarChar(150)
+  tradeLicenseNumber String? @map("trade_license_number") @db.VarChar(100)
+  licenseNumber      String? @map("license_number") @db.VarChar(50)
+  panNumber          String? @map("pan_number") @db.VarChar(10)
+  gstin              String? @db.VarChar(15)
+  bankAccountDetails Json?   @map("bank_account_details")
 
   // Professional details collected during partner onboarding.
   baseCity              String?  @map("base_city") @db.VarChar(50)
@@ -331,20 +332,20 @@ model PartnerProfile {
 /// Partner-level compliance documents (identity, licence, trade licence …).
 /// Vehicle paperwork lives on [VehicleDocument].
 model PartnerDocument {
-  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  partnerId          String              @map("partner_id") @db.Uuid
-  documentType       PartnerDocumentType @map("document_type")
-  documentNumber     String?             @map("document_number") @db.VarChar(100)
-  storagePath        String              @map("storage_path")
-  mimeType           String              @map("mime_type") @db.VarChar(50)
-  issuedDate         DateTime?           @map("issued_date") @db.Date
-  expiryDate         DateTime?           @map("expiry_date") @db.Date
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  partnerId          String               @map("partner_id") @db.Uuid
+  documentType       PartnerDocumentType  @map("document_type")
+  documentNumber     String?              @map("document_number") @db.VarChar(100)
+  storagePath        String               @map("storage_path")
+  mimeType           String               @map("mime_type") @db.VarChar(50)
+  issuedDate         DateTime?            @map("issued_date") @db.Date
+  expiryDate         DateTime?            @map("expiry_date") @db.Date
   verificationStatus DocumentReviewStatus @default(PENDING_REVIEW) @map("verification_status")
-  rejectionReason    String?             @map("rejection_reason")
-  verifiedBy         String?             @map("verified_by") @db.Uuid
-  verifiedAt         DateTime?           @map("verified_at") @db.Timestamptz(6)
-  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  rejectionReason    String?              @map("rejection_reason")
+  verifiedBy         String?              @map("verified_by") @db.Uuid
+  verifiedAt         DateTime?            @map("verified_at") @db.Timestamptz(6)
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   partner PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
 
@@ -451,7 +452,7 @@ model Vehicle {
 
   vehicleType       VehicleType         @relation(fields: [vehicleTypeId], references: [id])
   independentDriver DriverProfile?      @relation("IndependentDriverVehicles", fields: [independentDriverId], references: [id], onDelete: SetNull)
-  fleetOwner        PartnerProfile?  @relation(fields: [fleetOwnerId], references: [id], onDelete: SetNull)
+  fleetOwner        PartnerProfile?     @relation(fields: [fleetOwnerId], references: [id], onDelete: SetNull)
   documents         VehicleDocument[]
   bookings          Booking[]
   assignments       VehicleAssignment[]
@@ -799,12 +800,22 @@ model GroupBooking {
   /// Immutable aggregate pricing snapshot captured when the request was priced.
   pricingSnapshot Json? @map("pricing_snapshot")
 
-  /// Aggregate pricing (sum of authoritative per-assignment quotes)
-  estimatedTotalPaise BigInt @map("estimated_total_paise") @db.BigInt
-  advanceTokenPaise   BigInt @map("advance_token_paise") @db.BigInt
+  /// Aggregate pricing (sum of authoritative per-assignment quotes).
+  /// NULL means "not yet priced" — a request whose vehicles have no approved
+  /// tariff must never be advertised to the customer as ₹0.
+  estimatedTotalPaise BigInt? @map("estimated_total_paise") @db.BigInt
+  advanceTokenPaise   BigInt? @map("advance_token_paise") @db.BigInt
 
   status         BookingStatus @default(REQUESTED)
   idempotencyKey String        @unique @map("idempotency_key") @db.VarChar(100)
+  /// Trip start OTP — generated server-side when the customer CONFIRMS the
+  /// booking (the moment the fleet is locked). Hashed at rest; the plaintext
+  /// goes to the customer's phone only. Nullable until generated.
+  startOtpHash   String?       @map("start_otp_hash") @db.VarChar(64)
+  /// Settlement stages on the managed path. The advance is collected when the
+  /// customer confirms; the balance before the trip can be marked COMPLETED.
+  advancePaidAt  DateTime?     @map("advance_paid_at") @db.Timestamptz(6)
+  balancePaidAt  DateTime?     @map("balance_paid_at") @db.Timestamptz(6)
   version        Int           @default(1)
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -816,6 +827,8 @@ model GroupBooking {
   assignments     VehicleAssignment[]
   bookings        Booking[]
   operationsNotes OperationsNote[]
+  events          GroupBookingEvent[]
+  payments        Payment[]
   reviews         Review[]
 
   @@index([customerFk])
@@ -842,8 +855,9 @@ model VehicleAssignment {
   /// Client request ID — never authoritative; kept for display parity.
   requestedModel   String?          @map("requested_model") @db.VarChar(100)
 
-  estimatedTotalPaise BigInt @map("estimated_total_paise") @db.BigInt
-  advanceTokenPaise   BigInt @map("advance_token_paise") @db.BigInt
+  /// NULL = not yet priced (see GroupBooking.estimatedTotalPaise).
+  estimatedTotalPaise BigInt? @map("estimated_total_paise") @db.BigInt
+  advanceTokenPaise   BigInt? @map("advance_token_paise") @db.BigInt
 
   /// Immutable rate-card + computed lines captured at quote time, so a later
   /// tariff change can never rewrite an already-agreed price.
@@ -924,6 +938,27 @@ model VehiclePricing {
   @@map("vehicle_pricing")
 }
 
+/// Group-booking lifecycle history — the audit trail operations answers to.
+/// Mirrors booking_events for the single-booking path; kept separate because a
+/// group booking is a different aggregate with a different actor surface.
+model GroupBookingEvent {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupBookingId    String   @map("group_booking_id") @db.Uuid
+  fromStatus        String   @map("from_status") @db.VarChar(40)
+  toStatus          String   @map("to_status") @db.VarChar(40)
+  action            String   @db.VarChar(60)
+  triggeredByUserId String   @map("triggered_by_user_id") @db.Uuid
+  triggerRole       String   @map("trigger_role") @db.VarChar(30)
+  eventReason       String?  @map("event_reason")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  groupBooking GroupBooking @relation(fields: [groupBookingId], references: [id], onDelete: Cascade)
+  actor        User         @relation("GroupBookingEventsTriggered", fields: [triggeredByUserId], references: [id])
+
+  @@index([groupBookingId, createdAt])
+  @@map("group_booking_events")
+}
+
 /// Internal, admin-only operational notes. Never returned to a customer.
 model OperationsNote {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -948,7 +983,10 @@ model OperationsNote {
 
 model Payment {
   id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  bookingId        String        @map("booking_id") @db.Uuid
+  /// Legacy single-booking path. Managed (group) bookings attach payments to
+  /// the GROUP booking instead — exactly one of the two is set.
+  bookingId        String?       @map("booking_id") @db.Uuid
+  groupBookingId   String?       @map("group_booking_id") @db.Uuid
   customerFk       String        @map("customer_id") @db.Uuid
   paymentType      PaymentType   @map("payment_type")
   amountPaise      BigInt        @map("amount_paise") @db.BigInt
@@ -964,8 +1002,9 @@ model Payment {
   paidAt           DateTime?     @map("paid_at") @db.Timestamptz(6)
   createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  booking  Booking @relation(fields: [bookingId], references: [id])
-  customer User    @relation("PaymentsAsCustomer", fields: [customerFk], references: [id])
+  booking      Booking?      @relation(fields: [bookingId], references: [id])
+  groupBooking GroupBooking? @relation(fields: [groupBookingId], references: [id])
+  customer     User          @relation("PaymentsAsCustomer", fields: [customerFk], references: [id])
 
   @@index([bookingId])
   @@index([gatewayOrderId])
@@ -1014,7 +1053,9 @@ model Notification {
 /// association only — it is never rendered back to any customer.
 model Review {
   id                   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  bookingId            String  @unique @map("booking_id") @db.Uuid
+  /// Legacy single-booking path. Managed (group) bookings review against the
+  /// GROUP booking instead — one review per vehicle per group booking.
+  bookingId            String? @unique @map("booking_id") @db.Uuid
   groupBookingId       String? @map("group_booking_id") @db.Uuid
   assignmentId         String? @unique @map("assignment_id") @db.Uuid
   customerFk           String  @map("customer_id") @db.Uuid
@@ -1038,7 +1079,7 @@ model Review {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  booking      Booking            @relation(fields: [bookingId], references: [id])
+  booking      Booking?           @relation(fields: [bookingId], references: [id])
   groupBooking GroupBooking?      @relation(fields: [groupBookingId], references: [id], onDelete: SetNull)
   assignment   VehicleAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
   customer     User               @relation("ReviewsAsCustomer", fields: [customerFk], references: [id])
@@ -1048,6 +1089,7 @@ model Review {
   @@index([driverFk])
   @@index([vehicleFk, status])
   @@index([status])
+  @@index([groupBookingId])
   @@map("reviews")
 }
 

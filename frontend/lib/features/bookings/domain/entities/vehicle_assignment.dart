@@ -32,10 +32,21 @@ class VehicleAssignment {
   final String? chauffeurId;
 
   /// Assigned chauffeur display name.
+  ///
+  /// LEGACY: chauffeur identity is internal. The ShadiDriver backend never
+  /// sends a chauffeur name to a customer payload, so this stays null for all
+  /// API-sourced assignments — use [chauffeurAssigned] instead.
   final String? chauffeurName;
 
+  /// True when operations has internally committed a chauffeur to this unit.
+  /// Deliberately a boolean: the customer is told a chauffeur is arranged,
+  /// never who it is.
+  final bool chauffeurAssigned;
+
   /// Monetary price allocated to this vehicle assignment in paise.
-  final int pricePaise;
+  ///
+  /// null = operations has not quoted this unit yet ("on request").
+  final int? pricePaise;
 
   /// Assignment operational status (e.g. 'PENDING', 'ASSIGNED', 'DISPATCHED', 'COMPLETED').
   final String status;
@@ -50,6 +61,7 @@ class VehicleAssignment {
     required this.ownerName,
     this.chauffeurId,
     this.chauffeurName,
+    this.chauffeurAssigned = false,
     required this.pricePaise,
     this.status = 'ASSIGNED',
   });
@@ -64,6 +76,7 @@ class VehicleAssignment {
     String? ownerName,
     String? chauffeurId,
     String? chauffeurName,
+    bool? chauffeurAssigned,
     int? pricePaise,
     String? status,
   }) {
@@ -77,6 +90,7 @@ class VehicleAssignment {
       ownerName: ownerName ?? this.ownerName,
       chauffeurId: chauffeurId ?? this.chauffeurId,
       chauffeurName: chauffeurName ?? this.chauffeurName,
+      chauffeurAssigned: chauffeurAssigned ?? this.chauffeurAssigned,
       pricePaise: pricePaise ?? this.pricePaise,
       status: status ?? this.status,
     );

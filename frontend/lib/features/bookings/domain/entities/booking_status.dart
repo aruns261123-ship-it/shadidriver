@@ -3,10 +3,21 @@
 /// NOTE: The mobile client NEVER invents or forces booking states.
 /// All states are determined and returned authoritatively by the backend.
 enum BookingStatus {
-  /// Customer has submitted the booking intent. Chauffeur/fleet confirmation pending.
+  /// Customer has submitted the booking intent. ShadiDriver operations now owns it.
   requested,
 
-  /// Driver/Fleet has accepted the booking request.
+  /// Operations is sourcing vehicles for the request.
+  underReview,
+
+  /// Operations reserved vehicles and committed chauffeurs internally.
+  vehicleOptionsPrepared,
+
+  /// Operations has contacted the customer and awaits their agreement.
+  customerConfirmationPending,
+
+  /// Legacy marketplace state — kept only so old payloads still parse.
+  /// Presented neutrally: the customer waits on ShadiDriver, not on a driver
+  /// accepting their job.
   driverAccepted,
 
   /// Driver or fleet declined or was unavailable.
@@ -50,8 +61,14 @@ enum BookingStatus {
     switch (this) {
       case BookingStatus.requested:
         return 'Request Submitted';
+      case BookingStatus.underReview:
+        return 'Under Review';
+      case BookingStatus.vehicleOptionsPrepared:
+        return 'Vehicles Reserved';
+      case BookingStatus.customerConfirmationPending:
+        return 'Awaiting Your Confirmation';
       case BookingStatus.driverAccepted:
-        return 'Driver Accepted';
+        return 'Being Prepared';
       case BookingStatus.rejected:
         return 'Booking Declined';
       case BookingStatus.expired:
@@ -83,9 +100,15 @@ enum BookingStatus {
   String get customerSubtitle {
     switch (this) {
       case BookingStatus.requested:
-        return 'Awaiting chauffeur confirmation and schedule lock.';
+        return 'ShadiDriver is reviewing your request and preparing your fleet.';
+      case BookingStatus.underReview:
+        return 'Operations is allocating vehicles and chauffeurs for your dates.';
+      case BookingStatus.vehicleOptionsPrepared:
+        return 'Your vehicles and chauffeurs are reserved. We will contact you to confirm.';
+      case BookingStatus.customerConfirmationPending:
+        return 'ShadiDriver has shared your final fleet and price — confirm to lock it in.';
       case BookingStatus.driverAccepted:
-        return 'Chauffeur accepted. Preparing advance token order.';
+        return 'ShadiDriver is preparing your fleet and chauffeur.';
       case BookingStatus.paymentPending:
         return 'Please complete advance token deposit to lock reservation.';
       case BookingStatus.confirmed:

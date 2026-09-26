@@ -50,7 +50,9 @@ export class MockPaymentGateway implements PaymentGateway {
       .digest('hex');
     const ok = this.safeEqual(expected, input.signature);
     if (!ok) {
-      throw new Error('PAYMENT_SIGNATURE_MISMATCH');
+      // Contract: report failure via the boolean, never by throwing — a raw
+      // Error here escapes AppException mapping and surfaces as a 500.
+      return { verified: false, amountPaise: 0 };
     }
     const order = [...this.orders.values()].find((o) => o.gatewayOrderId === input.gatewayOrderId);
     return { verified: true, amountPaise: order?.amountPaise ?? 0 };

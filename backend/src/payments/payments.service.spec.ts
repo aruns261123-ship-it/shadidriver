@@ -69,6 +69,7 @@ describe('PaymentsService (gateway-verified capture)', () => {
     service = new PaymentsService(
       prisma,
       new BookingStateMachineService(),
+      { assertConfirmable: jest.fn() } as never, // GroupBookingsService (unused on the legacy path)
       gateway as never,
     );
   });

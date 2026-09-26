@@ -50,9 +50,19 @@ describe('BookingStateMachineService', () => {
       ).toThrow(/not permitted/);
     });
 
-    it('cannot skip EN_ROUTE and mark trip started', () => {
-      expect(() =>
+    it('CONFIRMED → IN_PROGRESS is now the MANAGED trip edge (per-vehicle ladder carries progress)', () => {
+      // On the operations-managed path the chauffeur's per-vehicle milestones
+      // (AssignmentStatus) own the progress; the parent booking flips to
+      // IN_PROGRESS when service begins. The legacy EN_ROUTE staging lives only
+      // on old single-booking rows.
+      expect(
         service.assertTransitionAllowed(BookingStatus.CONFIRMED, 'START_TRIP', 'driver'),
+      ).toBe(BookingStatus.IN_PROGRESS);
+      expect(() =>
+        service.assertTransitionAllowed(BookingStatus.CUSTOMER_CONFIRMATION_PENDING, 'START_TRIP', 'driver'),
+      ).toThrow(/not permitted/);
+      expect(() =>
+        service.assertTransitionAllowed(BookingStatus.UNDER_REVIEW, 'START_TRIP', 'driver'),
       ).toThrow(/not permitted/);
     });
 

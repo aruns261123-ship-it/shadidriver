@@ -78,6 +78,13 @@ export const TRANSITIONS: readonly TransitionRule[] = [
   { from: BookingStatus.PAYMENT_PENDING, to: BookingStatus.CANCELLED, action: 'CANCEL', actors: ['customer', 'operationsAdmin', 'superAdmin'] },
   { from: BookingStatus.PAYMENT_FAILED, to: BookingStatus.CANCELLED, action: 'CANCEL', actors: ['customer', 'operationsAdmin', 'superAdmin'] },
 
+  // ------------------------------------------------- managed trip execution
+  // On the operations-managed path a CONFIRMED booking goes straight into
+  // service when the chauffeur starts the duty (the per-vehicle progress lives
+  // on AssignmentStatus; the parent reflects that service has begun). The
+  // legacy CONFIRMED → EN_ROUTE edge above is kept only for old rows.
+  { from: BookingStatus.CONFIRMED, to: BookingStatus.IN_PROGRESS, action: 'START_TRIP', actors: ['driver', 'operationsAdmin', 'superAdmin'] },
+
   // ------------------------------------------------------- legacy (see enum)
   { from: BookingStatus.REQUESTED, to: BookingStatus.DRIVER_ACCEPTED, action: 'ACCEPT', actors: ['driver', 'fleetOwner', 'operationsAdmin', 'superAdmin'] },
   { from: BookingStatus.REQUESTED, to: BookingStatus.CANCELLED, action: 'CANCEL', actors: ['customer', 'operationsAdmin', 'superAdmin'] },

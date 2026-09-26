@@ -321,12 +321,93 @@ booking offer**:
 
 **Customer-facing payload** (`serializeCustomerGroupBooking`) exposes only:
 reference, ceremony, city, addresses, service window, passenger count, status,
-amounts, requirements, communication preference, requested fleet and, per
-assignment, the vehicle's display name + `fleet_code`, `chauffeur_assigned:
-boolean` and a neutral `service_state`
+`version`, `quote_pending`, amounts, requirements, communication preference,
+requested fleet and, per assignment, the vehicle's display name + `fleet_code`,
+`chauffeur_assigned: boolean` and a neutral `service_state`
 (`BEING_PREPARED | ON_THE_WAY | ARRIVED | IN_SERVICE | COMPLETED | CANCELLED`).
-It never contains the chauffeur's identity, the partner, the registration plate
-or a decline reason.
+It never contains the chauffeur's identity, the partner, the registration plate,
+a decline reason or the tariff derivation behind the price.
+
+**Reading a booking.** `GET /group-bookings/:id` is scoped to the OWNER (or an
+admin). Another customer receives `404 GROUP_BOOKING_NOT_FOUND` — identical to a
+nonexistent id, so the endpoint cannot be used to probe which bookings exist.
+`GET /group-bookings/my` lists only the caller's own requests.
+
+**Customer lifecycle actions** — `POST /group-bookings/:id/transition`
+`{action: "CONFIRM_BOOKING" | "REVISE_OPTIONS" (reason required) | "CANCEL"}`.
+A customer can only confirm a booking that operations has moved to
+`CUSTOMER_CONFIRMATION_PENDING`, and only when the fleet really is ready
+(every reserved vehicle confirmed, a chauffeur committed to each, and a complete
+price). The platform is authoritative here — the tap is a request to the server,
+not a state change.
+
+**Pricing.** `estimated_total_paise` is derived on the server from each
+allocated vehicle's newest **APPROVED** tariff (overnight → full-day → hourly →
+local package), never from a client or the legacy `base_price_paise` column.
+A request whose vehicles are not all priced returns **`null`** with
+`quote_pending: true` — never `0`. Each assignment freezes an immutable
+`pricing_snapshot` (tariff id + version + basis + amount) so a later tariff edit
+cannot rewrite an agreed price.
+
+**Trip execution (implemented).** Confirming the booking mints a **trip start
+OTP** server-side (`crypto.randomInt`), stores only its SHA-256 hash on the
+booking, and texts the plaintext to the **customer's** phone. It never appears
+in any API response, log or admin payload. The assigned chauffeur then executes
+the duty through the ladder:
+
+```
+POST /api/v1/group-bookings/assignments/:id/milestones   (role: driver)
+{ "milestone": "EN_ROUTE" }        CHAUFFEUR_ASSIGNED/ACCEPTED → EN_ROUTE
+{ "milestone": "ARRIVED" }         EN_ROUTE → ARRIVED
+{ "milestone": "START_SERVICE",
+  "otp": "3983" }                  ARRIVED → IN_PROGRESS  (customer OTP required)
+{ "milestone": "COMPLETE" }        IN_PROGRESS → COMPLETED
+```
+
+Rules enforced in the service (row-locked, tested):
+* only the ASSIGNED chauffeur can move a vehicle — anyone else gets the same
+  404 as a missing row;
+* the ladder is strictly forward — no skipping, no replay;
+* the booking must be CONFIRMED (or already IN_PROGRESS) before any milestone;
+* `START_SERVICE` without the customer's current OTP is `INVALID_OTP` — the
+  chauffeur collects the code from the customer in person;
+* the parent booking flips to `IN_PROGRESS` when the first vehicle starts and
+  to `COMPLETED` only when **every** vehicle completes (calendar locks released
+  in the same transaction); one finished car does not complete the booking;
+* every milestone writes a `group_booking_events` row
+  (`CHAUFFEUR_EN_ROUTE` … `START_TRIP` … `COMPLETE_TRIP`).
+
+The customer can request a fresh OTP while the booking is CONFIRMED via
+`POST /group-bookings/:id/trip-otp/resend` (customer-role; mints a new code and
+invalidates the old hash).
+
+### 5.4 Customer Reviews & Moderation (Implemented)
+
+`/api/v1/reviews/*` — a completed booking becomes reviewable, per vehicle.
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| `POST` | `/reviews` | customer | Review ONE vehicle of your own COMPLETED booking: `{groupBookingId, vehicleId, overallRating 1-5, punctuality?, grooming?, cleanliness?, driving?, vehicleQuality?, feedbackText?}` → `PENDING_MODERATION` |
+| `GET` | `/reviews/mine` | customer | Your reviews with moderation state |
+| `GET` | `/reviews/pending` | customer | Completed, not-yet-reviewed vehicles (drives the "rate your cars" screen) |
+| `GET` | `/reviews/vehicle/:vehicleId` | **public** | Published reviews for a vehicle + `average_rating`; author is a FIRST NAME only |
+| `GET` | `/reviews/moderation/queue` | admin | Pending reviews with full context (booking ref, vehicle + partner, chauffeur, customer contact) |
+| `POST` | `/reviews/:id/moderation` | admin | `PUBLISH \| HIDE (reason required) \| REOPEN` — every decision audited |
+
+Invariants (all test-asserted and live-verified):
+* **Eligibility is server-authoritative**: only the booking's own customer, only
+  a COMPLETED booking, one review per vehicle per booking. Anyone else —
+  including admins and drivers — receives the SAME 404 as a nonexistent booking
+  (no id-probing oracle).
+* **Attribution is derived, never submitted**: the chauffeur link comes from the
+  confirmed assignment server-side; a body cannot smuggle `status`, `driverId`
+  or `customerId` (`forbidNonWhitelisted` → 400).
+* **Moderation gates the catalog**: only `PUBLISHED` reviews feed the public
+  aggregates — the catalog rating/count the customer browses changes only when
+  an admin publishes. Hiding removes it from public view without destroying the
+  record.
+* **Privacy**: public payloads expose ratings, comment, first-name author and
+  date — never chauffeur identity, contact details, plates or internal state.
 
 > ⚠️ **Retiring:** `GET /bookings/driver/offers`, `POST /bookings/:id/accept` and
 > `POST /bookings/:id/decline` are the legacy driver-marketplace surface. They are
@@ -561,6 +642,75 @@ or a decline reason.
 * **Auth:** Cryptographic Webhook Signature Header (`X-Gateway-Signature: HMAC-SHA256`)
 * **Backend Invariant:** Rejects any webhook failing signature verification. Processes transaction idempotently using `gateway_payment_id`. Transitions booking to `CONFIRMED`.
 
+### 6.3 Managed (Group) Booking Payments (Implemented)
+
+The vehicle-first, operations-managed booking path settles in two server-derived
+instalments on `group_bookings`: a **25% advance token** that confirms the booking,
+and a **balance settlement** (the remaining 75%) that must be paid before the trip
+can be completed. Amounts are ALWAYS derived from the booking row's
+`estimated_total_paise` — no client-supplied amount is ever read.
+Source of truth: `backend/src/payments/payments.controller.ts` + `payments.service.ts`
+(`createGroupAdvanceOrder` / `createGroupBalanceOrder` / `captureGroupPayment`).
+
+**Create order** — `POST /api/v1/payments/group/order` (`CUSTOMER`, owner only):
+
+```json
+{
+  "groupBookingId": "29faa662-43cb-47d6-bed7-e95df97acb87",
+  "paymentType": "ADVANCE_TOKEN",
+  "idempotencyKey": "live-1790418038-adv-01"
+}
+```
+
+| Field | Rule |
+|---|---|
+| `groupBookingId` | UUID |
+| `paymentType` | `ADVANCE_TOKEN` \| `BALANCE_SETTLEMENT` — the type decides the stage |
+| `idempotencyKey` | string 8–100; scoped per customer+type, replay returns the SAME gateway order |
+
+* **Response `200 OK`:** `{ payment_id, gateway, gateway_order_id, amount_paise, currency }`.
+* **Invariants & errors:** non-owner or unknown booking → `404 GROUP_BOOKING_NOT_FOUND`
+  (no probing oracle); incomplete quote → `409 CONFLICT`; advance offered outside the
+  pre-confirmation window → `409 INVALID_TRANSITION`; balance before a settled advance
+  → `409 INVALID_TRANSITION`; already-settled stage → `409 PAYMENT_ALREADY_FINALIZED`.
+
+**Capture** — `POST /api/v1/payments/group/verify` (`CUSTOMER`, payment owner only):
+
+```json
+{
+  "paymentId": "pay_00000001",
+  "gatewayOrderId": "order_ab12cd34",
+  "gatewayPaymentId": "pay_x1y2z3",
+  "signature": "<HMAC-SHA256 hex>"
+}
+```
+
+* **Signature is MANDATORY:** HMAC-SHA256 over `gatewayOrderId|gatewayPaymentId` with the
+  gateway webhook secret (the same construction Razorpay uses). A mismatch returns
+  `401 PAYMENT_SIGNATURE_MISMATCH` and writes nothing; the captured amount is also
+  cross-checked against the payment row.
+* **Effects:** payment row → `SUCCESS`; `ADVANCE_TOKEN` stamps `advance_paid_at` and
+  confirms the booking (`CUSTOMER_CONFIRMATION_PENDING` / `PAYMENT_PENDING` → `CONFIRMED`)
+  with a `group_booking_events` entry `ADVANCE_PAID`; `BALANCE_SETTLEMENT` stamps
+  `balance_paid_at` with event `BALANCE_PAID`.
+
+**Dev-only hosted checkout** — `POST /api/v1/payments/group/dev/checkout`
+(`{ paymentId, gatewayOrderId }`): the SERVER signs the payment and runs the real
+verification path; forbidden in production. With a real gateway this is replaced by
+the hosted flow.
+
+**Settlement history** — `GET /api/v1/payments/group/:groupBookingId`: owner or admin
+(anyone else gets the same `404` as a missing booking). Returns the payment list plus
+`settlement { fully_settled, advance_paid_at, balance_paid_at }`; paise amounts as strings.
+
+**Webhooks:** the existing `POST /api/v1/payments/webhook` routes by payload — a payment
+that references a group booking flows through the group capture above (advancing the
+booking state), everything else keeps the legacy single-booking capture.
+
+**Completion gate:** a chauffeur `COMPLETE` milestone that would finish the whole fleet
+returns `409 PAYMENT_REQUIRED` while `balance_paid_at` is null — the balance settlement
+unblocks completion (enforced in `group-bookings.service.ts` on the shared milestone path).
+
 ---
 
 ## 7. Real-Time Telemetry Contracts (WebSocket)
@@ -586,6 +736,34 @@ or a decline reason.
 * **Auth:** Required (`VERIFICATION_ADMIN` or `SUPER_ADMIN`)
 * **Payload:** `{ decision: "APPROVED" | "REJECTED" | "ACTION_REQUIRED", reason: "..." }`
 * **Audit:** Mandatory log entry in `verification_records` and `audit_logs`.
+
+### 8.1a Operations Booking Workspace (Implemented)
+
+`/api/v1/operations/*` — where a submitted customer request is actually worked.
+Reads are open to every admin role (a verification admin needs to see a booking
+waiting on paperwork); **mutations are limited to `operationsAdmin` / `superAdmin`**,
+which the booking state machine re-checks independently of the route decorator.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/operations/booking-requests` | Operational queue, oldest first: customer + phone, window, fleet readiness, missing chauffeurs, `awaiting`, `quote_pending`, age. Filters: `status`, `statuses`, `awaitingConfirmation=true`, `city` |
+| `GET` | `/operations/booking-requests/:id` | Full workspace: customer + communication preference, request, **full internal allocation** (vehicle + owning partner + chauffeur + document states), calendar locks, quote + frozen snapshot, internal notes, complete status history |
+| `POST` | `/operations/booking-requests/:id/transition` | `BEGIN_REVIEW` \| `PREPARE_VEHICLE_OPTIONS` \| `REQUEST_CUSTOMER_CONFIRMATION` \| `REVISE_OPTIONS` \| `CONFIRM_BOOKING` \| `EXPIRE` \| `CANCEL` (reason required to cancel/expire) |
+| `POST` | `/operations/booking-requests/:id/contact` | Log the customer contact attempt (`channel`, `outcome`, `note`), optionally advancing to `CUSTOMER_CONFIRMATION_PENDING` |
+| `POST` | `/operations/booking-requests/:id/requote` | Re-price from the vehicles actually allocated (optional `routeDistanceKm` adds per-km beyond the tariff package); retains the superseded snapshot |
+| `POST` | `/operations/booking-requests/:id/notes` | Internal operations note (author + timestamp + audit). **Never returned to a customer** |
+| `GET` | `/operations/assignments/:id/chauffeurs` | Chauffeurs eligible for this window (verified, not already committed), with partner affinity |
+| `POST` | `/operations/assignments/:id/vehicle` | Re-allocate the reserved vehicle (must be verified + active + free, else `409`) |
+| `POST` | `/operations/assignments/:id/chauffeur/unassign` | Release the chauffeur so the duty can be re-assigned |
+
+Guards worth knowing:
+* `CONFIRM_BOOKING` is refused with `INVALID_TRANSITION` unless every reserved
+  vehicle is confirmed, every one has a chauffeur and the price is complete —
+  the SAME guard binds the customer's own confirm tap, so there is no bypass.
+* Every mutation writes an `audit_logs` row; lifecycle changes also write a
+  `group_booking_events` row (`from`, `to`, `action`, actor id + role).
+* Cancelling or expiring a booking releases its vehicle and chauffeur calendar
+  locks in the same transaction.
 
 ### 8.2 Emergency Standby Chauffeur Reassignment
 * **Scope:** `[MVP REQUIRED]` | `[IDEMPOTENT - Header Required]` | `[CONCURRENCY-SENSITIVE]` | `[AUDIT-SENSITIVE]`

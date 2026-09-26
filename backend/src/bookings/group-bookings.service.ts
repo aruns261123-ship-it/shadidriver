@@ -1,14 +1,27 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AssignmentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
-import { BookingStatus } from '../booking-state-machine/booking-status';
+import { BookingStateMachineService } from '../booking-state-machine/booking-state-machine.service';
+import { ActorRole, BookingStatus, TERMINAL_STATUSES } from '../booking-state-machine/booking-status';
 import { AvailabilityService, FleetRequestLine } from '../availability/availability.service';
 import {
   BadRequestAppException,
   ConflictAppException,
   NotFoundAppException,
+  UnauthorizedException,
 } from '../auth/errors/auth.exceptions';
 import { ErrorCode } from '../common/errors/error-codes';
+import { isAdminRole, Role } from '../auth/domain/roles';
+import { AuthenticatedUser } from '../auth/domain/auth.types';
+import { SMS_PROVIDER } from '../notifications/sms/sms.factory';
+import { SmsProvider } from '../notifications/sms/sms-provider.interface';
+import { generateTripOtp, hashOtp, verifyOtp } from './bookings.service';
+import {
+  advanceFor,
+  crossesMidnight,
+  deriveLineQuote,
+  serviceHours,
+} from './group-booking-pricing';
 
 export interface SubmitGroupBookingInput {
   customerId: string;
@@ -43,6 +56,8 @@ export class GroupBookingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly availabilityService: AvailabilityService,
+    private readonly stateMachine: BookingStateMachineService,
+    @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
   ) {}
 
   async checkAvailability(input: {
@@ -117,7 +132,11 @@ export class GroupBookingsService {
         ).map((a) => a.vehicleId as string),
       );
 
-      let subtotalPaise = 0n;
+      const hours = serviceHours(input.serviceStartTime, input.serviceEndTime);
+      const overnight = crossesMidnight(input.serviceStartTime, input.serviceEndTime);
+      let quotedTotalPaise = 0n;
+      const unpricedVehicleIds: string[] = [];
+      const quotedLines: Array<Record<string, unknown>> = [];
       // No chauffeur is bound at submit time. The customer requests vehicles;
       // ShadiDriver operations assigns chauffeurs internally afterwards, so a
       // reservation must never wait on (or be lost to) a driver offer loop.
@@ -125,8 +144,9 @@ export class GroupBookingsService {
         vehicleId: string;
         sequenceNumber: number;
         requestedModel: string;
-        estimatedTotalPaise: bigint;
-        advanceTokenPaise: bigint;
+        estimatedTotalPaise: bigint | null;
+        advanceTokenPaise: bigint | null;
+        pricingSnapshot: Prisma.InputJsonValue;
       }> = [];
       let sequence = 1;
 
@@ -162,19 +182,59 @@ export class GroupBookingsService {
         const chosen = eligible.slice(0, line.quantity);
         for (const vehicle of chosen) {
           allocatedIds.add(vehicle.id);
-          const unitPrice = vehicle.basePricePaise;
-          subtotalPaise += unitPrice;
+          // Price comes from the vehicle's newest APPROVED tariff — NEVER from
+          // a client, and never from the legacy base_price column (which
+          // defaults to 0 and would advertise the fleet as free).
+          const tariff = await tx.vehiclePricing.findFirst({
+            where: { vehicleId: vehicle.id, status: 'APPROVED' },
+            orderBy: { version: 'desc' },
+          });
+          const quote = deriveLineQuote(tariff, hours, overnight);
+          if (quote.amountPaise == null) {
+            unpricedVehicleIds.push(vehicle.id);
+          } else {
+            quotedTotalPaise += quote.amountPaise;
+          }
+          quotedLines.push({
+            assignment_vehicle_id: vehicle.id,
+            vehicle_type_id: line.vehicleTypeId,
+            requested_model: type.displayName,
+            basis: quote.basis,
+            amount_paise: quote.amountPaise?.toString() ?? null,
+            tariff_version: quote.tariffVersion ?? null,
+          });
           assignmentsData.push({
             vehicleId: vehicle.id,
             sequenceNumber: sequence++,
             requestedModel: type.displayName,
-            estimatedTotalPaise: unitPrice,
-            advanceTokenPaise: (unitPrice * 25n) / 100n,
+            estimatedTotalPaise: quote.amountPaise,
+            advanceTokenPaise:
+              quote.amountPaise != null ? advanceFor(quote.amountPaise) : null,
+            pricingSnapshot: {
+              source: 'TARIFF_AUTO',
+              quoted_at: new Date().toISOString(),
+              service_hours: hours,
+              crosses_midnight: overnight,
+              basis: quote.basis,
+              amount_paise: quote.amountPaise?.toString() ?? null,
+              billable_hours: quote.billableHours ?? null,
+              included_km: quote.includedKm ?? null,
+              per_km_paise: quote.perKmPaise?.toString() ?? null,
+              tariff_version: quote.tariffVersion ?? null,
+              tariff_id: quote.tariffId ?? null,
+            },
           });
         }
       }
 
-      const totalAdvance = assignmentsData.reduce((s, a) => s + a.advanceTokenPaise, 0n);
+      // A quote is only complete when EVERY reserved vehicle is priced. An
+      // incomplete quote is stored as NULL with the reason, so the price shown
+      // is "on request" rather than a fabricated zero.
+      const quoteComplete = unpricedVehicleIds.length === 0;
+      const totalPaise = quoteComplete ? quotedTotalPaise : null;
+      const totalAdvance = quoteComplete
+        ? assignmentsData.reduce((s, a) => s + (a.advanceTokenPaise ?? 0n), 0n)
+        : null;
 
       const group = await tx.groupBooking.create({
         data: {
@@ -192,8 +252,19 @@ export class GroupBookingsService {
           passengerCount: input.passengerCount,
           requirements: (input.requirements ?? []) as never,
           communicationPreference: input.communicationPreference ?? 'PHONE',
-          estimatedTotalPaise: subtotalPaise,
+          estimatedTotalPaise: totalPaise,
           advanceTokenPaise: totalAdvance,
+          pricingSnapshot: {
+            source: 'TARIFF_AUTO',
+            quoted_at: new Date().toISOString(),
+            complete: quoteComplete,
+            service_hours: hours,
+            crosses_midnight: overnight,
+            total_paise: totalPaise?.toString() ?? null,
+            advance_paise: totalAdvance?.toString() ?? null,
+            unpriced_vehicle_ids: unpricedVehicleIds,
+            lines: quotedLines,
+          } as unknown as never,
           // A customer submission is a REQUEST: operations reviews it before
           // anything is promised to the customer.
           status: BookingStatus.REQUESTED,
@@ -220,13 +291,32 @@ export class GroupBookingsService {
         })),
       });
 
+      await tx.groupBookingEvent.create({
+        data: {
+          groupBookingId: group.id,
+          fromStatus: BookingStatus.DRAFT,
+          toStatus: BookingStatus.REQUESTED,
+          action: 'SUBMIT_REQUEST',
+          triggeredByUserId: input.customerId,
+          triggerRole: Role.Customer,
+        },
+      });
+
       return group;
     });
 
     return { groupBooking, idempotentReplay: false };
   }
 
-  async getGroupBooking(id: string) {
+  /**
+   * Customer-facing read. Ownership is enforced HERE, not in the controller:
+   * an `:id` alone must never be enough to read someone else's booking — that
+   * would leak another customer's addresses, requirements and pricing. Admins
+   * (who legitimately read any booking) pass through `viewer.role`.
+   * A non-owner gets 404, the same response as a nonexistent id, so the
+   * endpoint cannot be used to probe which booking ids exist.
+   */
+  async getGroupBooking(id: string, viewer: AuthenticatedUser) {
     const group = await this.prisma.groupBooking.findUnique({
       where: { id },
       include: {
@@ -241,7 +331,459 @@ export class GroupBookingsService {
     if (!group) {
       throw new NotFoundAppException(ErrorCode.GROUP_BOOKING_NOT_FOUND, 'Group booking not found.');
     }
+    if (group.customerFk !== viewer.userId && !isAdminRole(viewer.role)) {
+      throw new NotFoundAppException(ErrorCode.GROUP_BOOKING_NOT_FOUND, 'Group booking not found.');
+    }
     return serializeCustomerGroupBooking(group);
+  }
+
+  /** Every group booking the signed-in customer owns, newest first. */
+  async listMyGroupBookings(customerId: string, page = 1, limit = 20) {
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.groupBooking.findMany({
+        where: { customerFk: customerId },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          assignments: {
+            include: { vehicle: { include: { vehicleType: true } } },
+            orderBy: { sequenceNumber: 'asc' },
+          },
+        },
+      }),
+      this.prisma.groupBooking.count({ where: { customerFk: customerId } }),
+    ]);
+    return {
+      items: items.map((g) => serializeCustomerGroupBooking(g)),
+      page,
+      limit,
+      total,
+    };
+  }
+
+  // ----------------------------------------------------- trip execution
+
+  /** Assignment states that count as "the duty is in progress or done". */
+  private static readonly SERVICE_STARTED: AssignmentStatus[] = [
+    AssignmentStatus.IN_PROGRESS,
+    AssignmentStatus.COMPLETED,
+  ];
+
+  /**
+   * The chauffeur executes their assigned duty. `milestone` is one of
+   * EN_ROUTE | ARRIVED | START_SERVICE | COMPLETE — a strictly forward ladder
+   * per assignment, validated against the row's own state (row-locked).
+   *
+   * START_SERVICE requires the CUSTOMER's trip OTP — generated server-side at
+   * customer confirmation and delivered to the customer's phone. The chauffeur
+   * never stores or sees the code in advance; they collect it in person.
+   *
+   * The PARENT booking advances automatically when the fleet's collective
+   * progress warrants it, and every milestone writes a group_booking_event.
+   */
+  async recordMilestone(
+    assignmentId: string,
+    milestone: 'EN_ROUTE' | 'ARRIVED' | 'START_SERVICE' | 'COMPLETE',
+    chauffeurUserId: string,
+    otp?: string,
+  ) {
+    const driver = await this.ownChauffeurProfile(chauffeurUserId);
+    const targetStatus =
+      milestone === 'EN_ROUTE'
+        ? AssignmentStatus.EN_ROUTE
+        : milestone === 'ARRIVED'
+          ? AssignmentStatus.ARRIVED
+          : milestone === 'START_SERVICE'
+            ? AssignmentStatus.IN_PROGRESS
+            : AssignmentStatus.COMPLETED;
+
+    const previousGroupStatus = await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<
+        {
+          id: string;
+          driver_id: string | null;
+          assignment_status: AssignmentStatus;
+          group_booking_id: string | null;
+        }[]
+      >`SELECT "id", "driver_id", "assignment_status", "group_booking_id"
+        FROM "vehicle_assignments" WHERE "id" = ${assignmentId}::uuid FOR UPDATE`;
+      if (!rows?.length) {
+        throw new NotFoundAppException(ErrorCode.NOT_FOUND, 'Assignment not found.');
+      }
+      const assignment = rows[0];
+      if (assignment.driver_id !== driver.id) {
+        // Not yours — and not enumerable: same 404 as a missing row.
+        throw new NotFoundAppException(ErrorCode.NOT_FOUND, 'Assignment not found.');
+      }
+
+      const legalPredecessors: Partial<Record<AssignmentStatus, AssignmentStatus[]>> = {
+        [AssignmentStatus.EN_ROUTE]: [AssignmentStatus.CHAUFFEUR_ASSIGNED, AssignmentStatus.CHAUFFEUR_ACCEPTED],
+        [AssignmentStatus.ARRIVED]: [AssignmentStatus.EN_ROUTE],
+        [AssignmentStatus.IN_PROGRESS]: [AssignmentStatus.ARRIVED],
+        [AssignmentStatus.COMPLETED]: [AssignmentStatus.IN_PROGRESS],
+      };
+      const from = assignment.assignment_status;
+      if (!legalPredecessors[targetStatus]?.includes(from)) {
+        throw new ConflictAppException(
+          ErrorCode.INVALID_TRANSITION,
+          `Cannot record ${milestone} on an assignment in state ${from}.`,
+        );
+      }
+
+      const groupId = assignment.group_booking_id;
+      const group = groupId
+        ? await tx.groupBooking.findUnique({ where: { id: groupId } })
+        : null;
+      if (!group) {
+        throw new NotFoundAppException(
+          ErrorCode.GROUP_BOOKING_NOT_FOUND,
+          'Assignment is not part of a group booking.',
+        );
+      }
+      // Only an executed booking can be progressed. An unconfirmed or cancelled
+      // booking must never be driven forward by a chauffeur milestone.
+      if (group.status !== BookingStatus.CONFIRMED && group.status !== BookingStatus.IN_PROGRESS) {
+        throw new ConflictAppException(
+          ErrorCode.INVALID_TRANSITION,
+          `The booking is ${group.status}; service can only be executed on a CONFIRMED booking.`,
+        );
+      }
+
+      // The customer's handover: starting service requires the OTP the
+      // customer received when they confirmed the booking. It is passed per
+      // request (NEVER stashed on the service — a singleton field would race
+      // across concurrent chauffeurs).
+      if (milestone === 'START_SERVICE') {
+        const code = otp?.trim();
+        if (!code || !group.startOtpHash || !verifyOtp(code, group.startOtpHash)) {
+          throw new UnauthorizedException(
+            ErrorCode.INVALID_OTP,
+            'Invalid trip start OTP. Ask the customer for the code shown on their booking.',
+          );
+        }
+      }
+
+      await tx.vehicleAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          assignmentStatus: targetStatus,
+          ...(milestone === 'ARRIVED' ? { acceptedAt: new Date() } : {}),
+        },
+      });
+
+      await tx.groupBookingEvent.create({
+        data: {
+          groupBookingId: group.id,
+          fromStatus: group.status,
+          toStatus: group.status,
+          action: `CHAUFFEUR_${milestone}`,
+          triggeredByUserId: chauffeurUserId,
+          triggerRole: Role.Driver,
+        },
+      });
+
+      // Parent advancement: the whole fleet is on the road / in service / done.
+      const all = await tx.vehicleAssignment.findMany({
+        where: { groupBookingId: group.id },
+        select: { vehicleId: true, assignmentStatus: true },
+      });
+      const everyCompleted =
+        all.length > 0 && all.every((a) => a.assignmentStatus === AssignmentStatus.COMPLETED);
+      const anyStarted = all.some((a) =>
+        GroupBookingsService.SERVICE_STARTED.includes(a.assignmentStatus),
+      );
+
+      // group.status is guaranteed CONFIRMED or IN_PROGRESS here (enforced
+      // above), so completion is always a forward move — but the money must be
+      // settled first: the balance outstanding means the trip cannot complete.
+      if (everyCompleted && group.balancePaidAt == null) {
+        throw new ConflictAppException(
+          ErrorCode.PAYMENT_REQUIRED,
+          'The balance settlement is outstanding — pay it before the trip can be completed.',
+        );
+      }
+      if (everyCompleted) {
+        await tx.groupBooking.update({
+          where: { id: group.id },
+          data: { status: BookingStatus.COMPLETED, version: { increment: 1 } },
+        });
+        await tx.groupBookingEvent.create({
+          data: {
+            groupBookingId: group.id,
+            fromStatus: group.status,
+            toStatus: BookingStatus.COMPLETED,
+            action: 'COMPLETE_TRIP',
+            triggeredByUserId: chauffeurUserId,
+            triggerRole: Role.Driver,
+          },
+        });
+        // Service delivered: the vehicles go back into the pool.
+        await tx.availability.deleteMany({
+          where: {
+            vehicleId: { in: all.map((a) => a.vehicleId) },
+            bookingId: null,
+            status: 'BOOKED',
+          },
+        });
+      } else if (anyStarted && group.status === BookingStatus.CONFIRMED) {
+        await tx.groupBooking.update({
+          where: { id: group.id },
+          data: { status: BookingStatus.IN_PROGRESS, version: { increment: 1 } },
+        });
+        await tx.groupBookingEvent.create({
+          data: {
+            groupBookingId: group.id,
+            fromStatus: BookingStatus.CONFIRMED,
+            toStatus: BookingStatus.IN_PROGRESS,
+            action: 'START_TRIP',
+            triggeredByUserId: chauffeurUserId,
+            triggerRole: Role.Driver,
+          },
+        });
+      }
+
+      return group.status;
+    });
+
+    return {
+      assignment_id: assignmentId,
+      assignment_status: targetStatus,
+      booking_status: previousGroupStatus,
+    };
+  }
+
+  /**
+   * Re-sends the trip start OTP to the customer's phone. Only the booking's
+   * owner may request it, only while the trip has not started, and each resend
+   * generates a NEW code that invalidates the previous hash.
+   */
+  async resendTripOtp(id: string, requester: AuthenticatedUser) {
+    const group = await this.prisma.groupBooking.findUnique({ where: { id } });
+    if (!group) {
+      throw new NotFoundAppException(ErrorCode.GROUP_BOOKING_NOT_FOUND, 'Group booking not found.');
+    }
+    if (group.customerFk !== requester.userId) {
+      throw new UnauthorizedException(
+        ErrorCode.ROLE_FORBIDDEN,
+        'Only the booking customer may resend the trip OTP.',
+      );
+    }
+    if (group.status !== BookingStatus.CONFIRMED) {
+      throw new BadRequestAppException(
+        ErrorCode.INVALID_TRANSITION,
+        'Trip OTP is only active on a CONFIRMED booking.',
+      );
+    }
+    const booking = await this.prisma.groupBooking.findUnique({
+      where: { id },
+      include: { customer: { select: { phoneNumber: true } } },
+    });
+    if (!booking?.customer) {
+      throw new NotFoundAppException(ErrorCode.GROUP_BOOKING_NOT_FOUND, 'Group booking not found.');
+    }
+    const tripOtp = generateTripOtp();
+    await this.prisma.groupBooking.update({
+      where: { id },
+      data: { startOtpHash: hashOtp(tripOtp) },
+    });
+    await this.sms.sendOtp(booking.customer.phoneNumber, tripOtp);
+    return { resent: true };
+  }
+
+  /**
+   * CUSTOMER transitions on their own request. The customer can confirm the
+   * options operations prepared, send them back for revision, or cancel — and
+   * nothing else. The legal set is enforced by the shared state machine with
+   * actor 'customer'; a customer can never drive the booking into a state
+   * operations owns (CONFIRMED is only reachable from the confirmation-pending
+   * state, which operations is the one to enter).
+   */
+  async customerTransition(
+    id: string,
+    action: string,
+    viewer: AuthenticatedUser,
+    reason?: string,
+  ) {
+    const group = await this.prisma.groupBooking.findUnique({ where: { id } });
+    if (!group || group.customerFk !== viewer.userId) {
+      throw new NotFoundAppException(ErrorCode.GROUP_BOOKING_NOT_FOUND, 'Group booking not found.');
+    }
+    const target = this.stateMachine.assertTransitionAllowed(
+      group.status as BookingStatus,
+      action,
+      'customer' as ActorRole,
+    );
+    if (action === 'REVISE_OPTIONS' && !reason?.trim()) {
+      throw new BadRequestAppException(
+        ErrorCode.VALIDATION_FAILED,
+        'Tell operations what needs to change.',
+      );
+    }
+    // A booking may only become CONFIRMED when the fleet really is ready. This
+    // guard lives on the SHARED path: whether the customer taps confirm or
+    // operations does, the same rule applies.
+    if (action === 'CONFIRM_BOOKING') {
+      await this.assertConfirmable(id);
+    }
+    return this.applyTransition({
+      group,
+      target,
+      action,
+      actorUserId: viewer.userId,
+      actorRole: Role.Customer,
+      reason,
+    });
+  }
+
+  /**
+   * A booking may only be PROMISED once every reserved vehicle is confirmed,
+   * carries a chauffeur, and the price is real. Living on the shared service
+   * (rather than only in the operations desk) means the customer's own confirm
+   * tap cannot become a loophole that confirms a fleet nobody can field.
+   */
+  async assertConfirmable(id: string) {
+    const group = await this.prisma.groupBooking.findUnique({
+      where: { id },
+      include: { assignments: { select: { id: true, driverId: true, assignmentStatus: true } } },
+    });
+    if (!group) {
+      throw new NotFoundAppException(ErrorCode.GROUP_BOOKING_NOT_FOUND, 'Group booking not found.');
+    }
+    if (group.assignments.length === 0) {
+      throw new ConflictAppException(
+        ErrorCode.CONFLICT,
+        'No vehicles are allocated yet — nothing can be confirmed with the customer.',
+      );
+    }
+    const unconfirmed = group.assignments.filter(
+      (a) => a.assignmentStatus === AssignmentStatus.PROPOSED,
+    );
+    if (unconfirmed.length > 0) {
+      throw new ConflictAppException(
+        ErrorCode.INVALID_TRANSITION,
+        `${unconfirmed.length} reserved vehicle(s) still need an operations vehicle confirmation.`,
+        { assignment_ids: unconfirmed.map((a) => a.id) },
+      );
+    }
+    const withoutChauffeur = group.assignments.filter((a) => a.driverId == null);
+    if (withoutChauffeur.length > 0) {
+      throw new ConflictAppException(
+        ErrorCode.INVALID_TRANSITION,
+        `${withoutChauffeur.length} vehicle(s) have no chauffeur assigned yet.`,
+        { assignment_ids: withoutChauffeur.map((a) => a.id) },
+      );
+    }
+    if (group.estimatedTotalPaise == null) {
+      throw new ConflictAppException(
+        ErrorCode.CONFLICT,
+        'This booking has no complete price yet — re-quote before confirming with the customer.',
+      );
+    }
+  }
+
+  /**
+   * Applies a state-machine-approved transition: status + version + history in
+   * ONE transaction, releasing calendar locks when the booking leaves the live
+   * pipeline. Shared by the customer and operations paths so both write
+   * identical history rows.
+   */
+  async applyTransition(input: {
+    group: { id: string; status: string; version: number; estimatedTotalPaise?: bigint | null };
+    target: BookingStatus;
+    action: string;
+    actorUserId: string;
+    actorRole: Role;
+    reason?: string;
+  }) {
+    const { group, target, action, actorUserId, actorRole, reason } = input;
+
+    // The trip start OTP is minted at the moment the customer CONFIRMS — that
+    // is when the fleet becomes real and the handover code becomes meaningful.
+    // Hashed at rest; the plaintext is delivered to the customer's phone after
+    // the transaction commits. Delivery failure is logged, not fatal: the
+    // customer can request a fresh code (which invalidates this one).
+    let tripOtp: string | null = null;
+    if (action === 'CONFIRM_BOOKING') {
+      tripOtp = generateTripOtp();
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.groupBooking.update({
+        where: { id: group.id },
+        data: {
+          status: target,
+          version: { increment: 1 },
+          ...(tripOtp ? { startOtpHash: hashOtp(tripOtp) } : {}),
+        },
+      });
+      await tx.groupBookingEvent.create({
+        data: {
+          groupBookingId: group.id,
+          fromStatus: group.status,
+          toStatus: target,
+          action,
+          triggeredByUserId: actorUserId,
+          triggerRole: actorRole,
+          eventReason: reason ?? null,
+        },
+      });
+      if (TERMINAL_STATUSES.includes(target)) {
+        // The vehicles go back into the pool the moment the booking dies.
+        await tx.availability.deleteMany({
+          where: {
+            vehicleId: {
+              in: (
+                await tx.vehicleAssignment.findMany({
+                  where: { groupBookingId: group.id },
+                  select: { vehicleId: true },
+                })
+              ).map((a) => a.vehicleId),
+            },
+            bookingId: null,
+            status: 'BOOKED',
+          },
+        });
+        const driverIds = (
+          await tx.vehicleAssignment.findMany({
+            where: { groupBookingId: group.id, driverId: { not: null } },
+            select: { driverId: true },
+          })
+        ).map((a) => a.driverId as string);
+        if (driverIds.length) {
+          await tx.availability.deleteMany({
+            where: { driverId: { in: driverIds }, bookingId: null, status: 'BOOKED' },
+          });
+        }
+      }
+      return {
+        id: updated.id,
+        reference_code: updated.referenceCode,
+        status: updated.status,
+        version: updated.version,
+      };
+    });
+
+    // Post-commit: deliver the OTP to the customer. Never logged, never
+    // returned in the response body.
+    if (tripOtp) {
+      try {
+        const booking = await this.prisma.groupBooking.findUnique({
+          where: { id: group.id },
+          select: { customer: { select: { phoneNumber: true } } },
+        });
+        if (booking) {
+          await this.sms.sendOtp(booking.customer.phoneNumber, tripOtp);
+        }
+      } catch (err) {
+        // Operational alert only — no secret, no fake success.
+        console.error(
+          `[trip-otp] SMS delivery failed for group booking ${group.id}:`,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+    return result;
   }
 
   /**
@@ -297,10 +839,12 @@ export class GroupBookingsService {
       );
     }
     return this.prisma.$transaction(async (tx) => {
+      // The id is an explicit ::uuid cast because Prisma binds the parameter
+      // as text, and Postgres has no uuid = text operator (error 42883).
       const locked = await tx.$queryRaw<
         { id: string; assignment_status: string; group_booking_id: string | null }[]
       >`SELECT "id", "assignment_status", "group_booking_id" FROM "vehicle_assignments"
-        WHERE "id" = ${assignmentId} FOR UPDATE`;
+        WHERE "id" = ${assignmentId}::uuid FOR UPDATE`;
       if (!locked?.length) {
         throw new NotFoundAppException(ErrorCode.NOT_FOUND, 'Assignment not found.');
       }
@@ -368,7 +912,15 @@ export class GroupBookingsService {
             a.assignmentStatus === AssignmentStatus.CHAUFFEUR_ACCEPTED ||
             a.assignmentStatus === AssignmentStatus.VEHICLE_CONFIRMED,
         );
-        if (everyAssigned) {
+        // Advance ONLY from a pre-options state. Staffing a car is an internal
+        // step and must never move a booking BACKWARDS: once operations has
+        // asked the customer to confirm, adding or swapping a chauffeur cannot
+        // silently un-ask them (that also used to wipe the customer's pending
+        // confirmation out from under them).
+        const isPreOptions =
+          group?.status === BookingStatus.REQUESTED ||
+          group?.status === BookingStatus.UNDER_REVIEW;
+        if (everyAssigned && isPreOptions) {
           await tx.groupBooking.update({
             where: { id: groupId },
             data: {
@@ -511,7 +1063,7 @@ export class GroupBookingsService {
         group_booking_id: string | null;
       }[]
     >`SELECT "id", "assignment_status", "driver_id", "group_booking_id"
-      FROM "vehicle_assignments" WHERE "id" = ${assignmentId} FOR UPDATE`;
+      FROM "vehicle_assignments" WHERE "id" = ${assignmentId}::uuid FOR UPDATE`;
     if (!rows?.length) {
       throw new NotFoundAppException(ErrorCode.NOT_FOUND, 'Assignment not found.');
     }
@@ -530,8 +1082,9 @@ interface CustomerGroupBookingSource {
   serviceEndTime: Date;
   passengerCount: number;
   status: string;
-  estimatedTotalPaise: bigint;
-  advanceTokenPaise: bigint;
+  version?: number;
+  estimatedTotalPaise: bigint | null;
+  advanceTokenPaise: bigint | null;
   requirements?: unknown;
   communicationPreference?: string;
   requestedFleetItems?: unknown;
@@ -540,8 +1093,8 @@ interface CustomerGroupBookingSource {
     sequenceNumber: number;
     assignmentStatus: string;
     requestedModel: string | null;
-    estimatedTotalPaise: bigint;
-    advanceTokenPaise: bigint;
+    estimatedTotalPaise: bigint | null;
+    advanceTokenPaise: bigint | null;
     vehicle: { id: string; fleetCode: string; vehicleType: { displayName: string } };
   }>;
 }
@@ -565,6 +1118,10 @@ export const CUSTOMER_FORBIDDEN_ASSIGNMENT_KEYS = [
   'decline_reason',
   'assigned_by_user_id',
   'internal_notes',
+  'pricing_snapshot',
+  'billable_hours',
+  'tariff_id',
+  'tariff_version',
 ] as const;
 
 /**
@@ -585,8 +1142,12 @@ export function serializeCustomerGroupBooking(group: CustomerGroupBookingSource)
     service_end_time: group.serviceEndTime,
     passenger_count: group.passengerCount,
     status: group.status,
-    estimated_total_paise: group.estimatedTotalPaise.toString(),
-    advance_token_paise: group.advanceTokenPaise.toString(),
+    version: group.version,
+    // null means "operations has not quoted yet" — a REAL state, rendered as
+    // "on request". Never coerced to 0 (which would read as a free booking).
+    estimated_total_paise: group.estimatedTotalPaise?.toString() ?? null,
+    advance_token_paise: group.advanceTokenPaise?.toString() ?? null,
+    quote_pending: group.estimatedTotalPaise == null,
     requirements: group.requirements ?? [],
     communication_preference: group.communicationPreference ?? 'PHONE',
     requested_fleet: group.requestedFleetItems ?? [],
@@ -607,8 +1168,8 @@ export function serializeCustomerGroupBooking(group: CustomerGroupBookingSource)
         a.assignmentStatus === AssignmentStatus.ARRIVED ||
         a.assignmentStatus === AssignmentStatus.IN_PROGRESS,
       service_state: customerVisibleServiceState(a.assignmentStatus),
-      estimated_total_paise: a.estimatedTotalPaise.toString(),
-      advance_token_paise: a.advanceTokenPaise.toString(),
+      estimated_total_paise: a.estimatedTotalPaise?.toString() ?? null,
+      advance_token_paise: a.advanceTokenPaise?.toString() ?? null,
     })),
   };
 }

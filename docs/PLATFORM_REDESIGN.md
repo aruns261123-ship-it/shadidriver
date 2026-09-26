@@ -41,6 +41,13 @@ Each entry is a concrete, evidenced defect — not a style preference.
 | O14 | `frontend/lib/features/{trips,messages,urgent_dispatch,support}/data/mock_*.dart` | Long-lived mock repositories in the production feature tree | `Mock*Repository` classes | Keep only behind `useMockData`; production default is `false` |
 | O15 | `EnvironmentConfig.development` | A dev build without `--dart-define=SHADI_API_BASE_URL` yields an **empty** base URL | `apiBaseUrl: apiBaseUrlOverride ?? const String.fromEnvironment('SHADI_API_BASE_URL')` (default `''`) | Fail fast with a clear message, or supply a documented default |
 
+| O16 | `backend/src/bookings/group-bookings.controller.ts` | A customer's booking is readable by any authenticated caller | `@Get(':id')` had no ownership check — any logged-in user could read another host's addresses, requirements and pricing by guessing/observing an id | Ownership-or-admin enforced in the service; non-owners get the same 404 as a nonexistent id |
+| O17 | `backend/src/bookings/group-bookings.controller.ts` (submit DTO) | Each `fleet` line was validated as a whole availability DTO | `@ValidateNested({each: true}) @Type(() => CheckFleetAvailabilityDto)` where that DTO itself contains `fleet` ⇒ **every** real submission 400'd (`vehicleTypeId should not exist`) | A dedicated `FleetRequestLineDto`; regression-tested over HTTP |
+| O18 | `GroupBookingsService.assignChauffeur` | Staffing a car rewound the parent booking | Unconditionally set `VEHICLE_OPTIONS_PREPARED` when all cars were staffed — silently un-asking a customer whose confirmation was pending | Advance only from `REQUESTED`/`UNDER_REVIEW`; never move backwards |
+| O19 | `GroupBookingsService` raw assignment lock | `$queryRaw` compared `uuid = text` | Postgres error 42883 → **500** on `assign-chauffeur`; verified live | Explicit `::uuid` cast |
+| O20 | `frontend/lib/features/bookings/data/booking_api_repository.dart` | Group-booking mapper written against mocks | Read `referenceCode`/`estimatedTotalPaise`/`primaryContactName` (camelCase, never sent), `chauffeur.full_name` and `registration_number` (must never be sent to a customer), and coerced an absent price to 0 | Mapper rewritten to the real snake_case customer contract, nullable prices (`On request`), neutral `chauffeur_assigned` boolean |
+| O21 | `frontend/test/features/drivers/driver_customer_booking_flow_test.dart` | A test asserted the RETIRED marketplace flow (customer sees “Driver Accepted” and “Confirmed (ID: d1)”) | Whole-file assertions on offer→accept→identity | Replaced with a managed-model test that asserts the customer is shown a *request* and never chauffeur identity |
+
 `StandbyPoolEntry`, `urgent_dispatch` and `support` are retained: they are
 operations/dispatch tooling, not the driver-marketplace flow.
 
@@ -259,13 +266,13 @@ Delivered in vertical slices; each slice must end with a working, verifiable pat
 | 5 | Partner pricing submission + admin approval | done — `backend/src/partner/pricing.service.ts` (versioned submission, always PENDING_REVIEW) + `backend/src/admin/` verification center (partner/vehicle/pricing queues, approve/reject/request-changes, audit-logged, atomic tariff supersession); verified live over HTTP end-to-end. Admin dashboard UI and partner pricing UI still pending (API-first) |
 | 6 | Search/availability on real data (incl. fleet quantities) | pending |
 | 7 | Guest selection → auth handoff → booking draft persistence | pending |
-| 8 | Server quote + immutable snapshot | pending |
-| 9 | Group booking + operations allocation + chauffeur assignment | pending |
-| 10 | Admin booking workspace, notes, audit | partially — admin module + audit logging now exist (`backend/src/admin/`); booking workspace and operations notes UI pending |
-| 11 | Customer confirmation workflow | pending |
-| 12 | Trip lifecycle + dynamic OTP | pending |
-| 13 | Reviews + moderation | pending |
-| 14 | Payments end-to-end | pending |
+| 8 | Server quote + immutable snapshot | done — group bookings are priced from each allocated vehicle's newest APPROVED tariff (overnight → full-day → hourly → local package) with an immutable `pricing_snapshot` (tariff id + version + basis); unpriced ⇒ `null` + `quote_pending`, never ₹0. Ops re-quote via `/operations/booking-requests/:id/requote` retains the superseded snapshot |
+| 9 | Group booking + operations allocation + chauffeur assignment | done — `backend/src/operations/` (queue, workspace, allocation, chauffeur picker, unassign) + `group_booking_events` history; verified live over HTTP |
+| 10 | Admin booking workspace, notes, audit | done (API) — `/api/v1/operations/*` queue + full internal workspace, internal notes, audit-logged mutations; admin/ops Flutter UI still pending |
+| 11 | Customer confirmation workflow | done (API) — `POST /group-bookings/:id/transition` (`CONFIRM_BOOKING`/`REVISE_OPTIONS`/`CANCEL`) bound by the same fleet-readiness guard as operations; customer views updated for the managed states |
+| 12 | Trip lifecycle + dynamic OTP | done (API) — confirmation mints a hashed trip OTP texted to the customer; chauffeur milestone ladder `EN_ROUTE → ARRIVED → START_SERVICE (OTP) → COMPLETE` per assignment; parent auto-advances to IN_PROGRESS/COMPLETED; verified live over HTTP with two chauffeurs |
+| 13 | Reviews + moderation | done (API) — `backend/src/reviews/`: per-vehicle reviews of COMPLETED bookings (server-derived chauffeur attribution, duplicate-proof), moderation queue with PUBLISH/HIDE/REOPEN (audited), public per-vehicle reviews feeding the catalog aggregates; verified live end-to-end |
+| 14 | Payments end-to-end | done (API, managed path) — `/api/v1/payments/group/*`: server-derived 25% advance token confirms the booking, balance settlement gates completion (`409 PAYMENT_REQUIRED` on the last chauffeur COMPLETE while unpaid), mandatory gateway-signature capture, webhook routing for group payments, owner/admin settlement history; contract e2e + verified live over HTTP (two chauffeurs, full advance→trip→balance→COMPLETED arc); single-booking legacy path unchanged; Razorpay-style hosted checkout still pending a real gateway |
 | 15 | Full Flutter↔API integration cleanup (remove dead mocks from production paths) | pending |
 
 ---

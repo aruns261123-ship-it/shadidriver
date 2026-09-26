@@ -71,6 +71,18 @@ class _GroupBookingDetailBody extends StatelessWidget {
     return '₹${rupees.toStringAsFixed(rupees.truncateToDouble() == rupees ? 0 : 2)}';
   }
 
+  /// The only four things a customer needs to know about one vehicle's
+  /// progress. Chauffeur churn, re-assignment and partner sourcing all stay
+  /// invisible (the backend collapses them the same way).
+  String _serviceStateLabel(String state) => switch (state.toUpperCase()) {
+        'ON_THE_WAY' => 'On the way',
+        'ARRIVED' => 'Arrived',
+        'IN_SERVICE' => 'In service',
+        'COMPLETED' => 'Completed',
+        'CANCELLED' => 'Cancelled',
+        _ => 'Being prepared',
+      };
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -176,9 +188,10 @@ class _GroupBookingDetailBody extends StatelessWidget {
                             style: AppTypography.titleSmall),
                         const SizedBox(height: 2),
                         Text(
-                          assignment.chauffeurName != null &&
-                                  assignment.chauffeurName!.isNotEmpty
-                              ? 'Chauffeur: ${assignment.chauffeurName}'
+                          // Neutral by design: the customer is told a chauffeur is
+                          // arranged, never who it is (§26).
+                          assignment.chauffeurAssigned
+                              ? 'Chauffeur arranged by ShadiDriver'
                               : 'Chauffeur allocation in progress',
                           style: AppTypography.bodySmall.copyWith(
                             color: AppColors.textSecondaryLight,
@@ -191,7 +204,9 @@ class _GroupBookingDetailBody extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        _formatPaise(assignment.pricePaise),
+                        assignment.pricePaise == null
+                            ? 'On request'
+                            : _formatPaise(assignment.pricePaise!),
                         style: AppTypography.titleSmall
                             .copyWith(fontWeight: FontWeight.w700),
                       ),
@@ -200,15 +215,15 @@ class _GroupBookingDetailBody extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: assignment.status == 'DRIVER_ACCEPTED'
+                          color: assignment.status == 'COMPLETED'
                               ? AppColors.verifiedEmerald
                               : AppColors.softChampagne,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          assignment.status,
+                          _serviceStateLabel(assignment.status),
                           style: AppTypography.labelSmall.copyWith(
-                            color: assignment.status == 'DRIVER_ACCEPTED'
+                            color: assignment.status == 'COMPLETED'
                                 ? Colors.white
                                 : AppColors.primaryBurgundy,
                           ),
@@ -229,11 +244,17 @@ class _GroupBookingDetailBody extends StatelessWidget {
               Text('Pricing Summary', style: AppTypography.titleMedium),
               const SizedBox(height: 8),
               _PriceRow(
-                  label: 'Estimated total',
-                  amount: _formatPaise(group.estimatedTotalPaise)),
+                  label: group.quotePending
+                      ? 'Price'
+                      : 'Estimated total',
+                  amount: group.estimatedTotalPaise == null
+                      ? 'On request'
+                      : _formatPaise(group.estimatedTotalPaise!)),
               _PriceRow(
                   label: 'Advance token',
-                  amount: _formatPaise(group.advanceTokenPaise),
+                  amount: group.advanceTokenPaise == null
+                      ? 'To be advised'
+                      : _formatPaise(group.advanceTokenPaise!),
                   emphasized: true),
             ],
           ),

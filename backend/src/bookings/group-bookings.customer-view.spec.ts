@@ -68,6 +68,49 @@ describe('customer-facing group booking payload', () => {
     expect(payload).not.toContain('DL01AB1234');
   });
 
+  it('never exposes the internal tariff derivation behind the price', () => {
+    const withSnapshot = source({
+      assignments: [
+        {
+          ...source().assignments[0],
+          // The service does not load this, but the serializer must be safe even
+          // if a future include accidentally brings it along.
+          pricingSnapshot: {
+            tariff_id: 'pricing-9',
+            tariff_version: 4,
+            billable_hours: 12,
+            basis: 'OVERNIGHT',
+          },
+        } as never,
+      ],
+    });
+    const view = serializeCustomerGroupBooking(withSnapshot);
+    const keys = collectKeys(view);
+
+    for (const key of ['pricing_snapshot', 'tariff_id', 'tariff_version', 'billable_hours']) {
+      expect(keys).not.toContain(key);
+    }
+  });
+
+  it('reports an unquoted booking honestly as quote_pending, never ₹0', () => {
+    const view = serializeCustomerGroupBooking(
+      source({ estimatedTotalPaise: null, advanceTokenPaise: null }),
+    );
+    expect(view.estimated_total_paise).toBeNull();
+    expect(view.advance_token_paise).toBeNull();
+    expect(view.quote_pending).toBe(true);
+  });
+
+  it('reports a priced booking as not pending', () => {
+    const view = serializeCustomerGroupBooking(source());
+    expect(view.quote_pending).toBe(false);
+  });
+
+  it('carries the version so the customer can be told their view is stale', () => {
+    const view = serializeCustomerGroupBooking(source({ version: 7 }));
+    expect(view.version).toBe(7);
+  });
+
   it('reduces internal assignment progress to a neutral service state', () => {
     const states = [
       ['PROPOSED', 'BEING_PREPARED'],

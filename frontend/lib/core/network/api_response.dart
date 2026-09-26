@@ -186,6 +186,17 @@ String parseBookingStatusWire(String? wire) =>
     (wire ?? 'REQUESTED').toUpperCase();
 
 /// Amounts arrive as JSON strings (BigInt serialization) — parse leniently.
+/// Parses a monetary amount that may legitimately be ABSENT.
+///
+/// The ShadiDriver backend returns null (not 0) for anything it has not priced,
+/// so null must stay null all the way to the UI — coercing it to 0 would put
+/// "₹0" in front of a customer for a booking that has simply not been quoted.
+int? parseIntAmountOrNull(dynamic value) {
+  if (value == null) return null;
+  final parsed = parseIntAmount(value);
+  return parsed;
+}
+
 int parseIntAmount(dynamic value) {
   if (value is int) return value;
   if (value is num) return value.round();

@@ -17,7 +17,7 @@ import { Type } from 'class-transformer';
 import { Public } from '../auth/guards/jwt-auth.guard';
 import { AvailabilityService, FleetRequestLine } from './availability.service';
 
-class FleetRequestLineDto {
+export class FleetRequestLineDto {
   @IsString()
   @Length(2, 50)
   vehicleTypeId!: string;

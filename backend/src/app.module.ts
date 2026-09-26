@@ -11,6 +11,8 @@ import { VehiclesModule } from './vehicles/vehicles.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { PartnerModule } from './partner/partner.module';
 import { AdminModule } from './admin/admin.module';
+import { OperationsModule } from './operations/operations.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { QuotesModule } from './quotes/quotes.module';
 import { AvailabilityModule } from './availability/availability.module';
 import { BookingsModule } from './bookings/bookings.module';
@@ -34,6 +36,8 @@ import { PaymentsModule } from './payments/payments.module';
     FavoritesModule,
     PartnerModule,
     AdminModule,
+    OperationsModule,
+    ReviewsModule,
     QuotesModule,
     AvailabilityModule,
     BookingsModule,

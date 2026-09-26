@@ -15,6 +15,12 @@ class GroupBookingSubmissionRequest {
   final String primaryContactPhone;
   final String idempotencyKey;
 
+  /// Optional customer requirements (decoration, child seat, early arrival …).
+  final List<String> requirements;
+
+  /// Preferred confirmation channel: PHONE | WHATSAPP | EMAIL | PHONE_WHATSAPP.
+  final String communicationPreference;
+
   const GroupBookingSubmissionRequest({
     required this.fleetIntent,
     required this.ceremonyType,
@@ -26,5 +32,7 @@ class GroupBookingSubmissionRequest {
     required this.primaryContactName,
     required this.primaryContactPhone,
     required this.idempotencyKey,
+    this.requirements = const [],
+    this.communicationPreference = 'PHONE',
   });
 }
