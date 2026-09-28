@@ -1002,11 +1002,12 @@ model Payment {
   paidAt           DateTime?     @map("paid_at") @db.Timestamptz(6)
   createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  booking      Booking?      @relation(fields: [bookingId], references: [id])
-  groupBooking GroupBooking? @relation(fields: [groupBookingId], references: [id])
+  booking      Booking?      @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  groupBooking GroupBooking? @relation(fields: [groupBookingId], references: [id], onDelete: Cascade)
   customer     User          @relation("PaymentsAsCustomer", fields: [customerFk], references: [id])
 
   @@index([bookingId])
+  @@index([groupBookingId])
   @@index([gatewayOrderId])
   @@map("payments")
 }
@@ -1079,7 +1080,7 @@ model Review {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  booking      Booking?           @relation(fields: [bookingId], references: [id])
+  booking      Booking?           @relation(fields: [bookingId], references: [id], onDelete: Restrict)
   groupBooking GroupBooking?      @relation(fields: [groupBookingId], references: [id], onDelete: SetNull)
   assignment   VehicleAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
   customer     User               @relation("ReviewsAsCustomer", fields: [customerFk], references: [id])
@@ -1090,6 +1091,10 @@ model Review {
   @@index([vehicleFk, status])
   @@index([status])
   @@index([groupBookingId])
+  /// DB-enforced duplicate guard for the managed path: one review per vehicle
+  /// per group booking. Declared here to match the index created by migration
+  /// 20260925220000 so `prisma migrate diff` stays clean.
+  @@unique([groupBookingId, vehicleFk], map: "reviews_group_booking_vehicle_unique")
   @@map("reviews")
 }
 

@@ -62,6 +62,10 @@ class GroupBookingState {
     this.submittedGroup,
   });
 
+  /// The lines the customer actually selected (quantity > 0). The state's
+  /// [lines] also carry the unselected catalog types at quantity 0.
+  List<FleetLineState> get selectedLines => lines.selected;
+
   int get totalVehicles =>
       lines.fold(0, (sum, l) => sum + l.quantity);
 
@@ -113,7 +117,17 @@ class GroupBookingController extends StateNotifier<GroupBookingState> {
 
   BookingRepository get _repo => _ref.read(bookingRepositoryProvider);
 
+  /// Sets a line's quantity. A quantity of 0 or less REMOVES the line.
+  ///
+  /// Keeping a zero-quantity line was a real defect: the "Add Vehicles"
+  /// picker marks a type with a ✓ whenever a line exists, so a vehicle the
+  /// customer had just zeroed still rendered as selected, and the customer
+  /// could not tell whether the removal had taken effect.
   void setQuantity(String vehicleTypeId, int quantity) {
+    if (quantity <= 0) {
+      removeLine(vehicleTypeId);
+      return;
+    }
     final updated = state.lines
         .map((l) =>
             l.vehicleTypeId == vehicleTypeId ? l.copyWith(quantity: quantity) : l)
@@ -141,14 +155,33 @@ class GroupBookingController extends StateNotifier<GroupBookingState> {
     );
   }
 
+  /// Adds [line]'s quantity to the composition, creating the line if this
+  /// vehicle type is new.
+  ///
+  /// This used to be a no-op whenever a line already existed — and because the
+  /// controller is seeded with the WHOLE catalog, that was always the case:
+  /// tapping a vehicle in the review screen's "Add Vehicles" picker did
+  /// nothing at all.
   void addLine(FleetLineState line) {
-    if (state.lines.any((l) => l.vehicleTypeId == line.vehicleTypeId)) return;
-    state = state.copyWith(
-      lines: [...state.lines, line],
-      clearAvailability: true,
-      shortfallApproved: false,
-      stage: GroupBookingStage.build,
-      clearError: true,
+    final existing = state.lines
+        .where((l) => l.vehicleTypeId == line.vehicleTypeId)
+        .toList(growable: false);
+    if (existing.isEmpty) {
+      state = state.copyWith(
+        lines: [
+          ...state.lines,
+          line.copyWith(quantity: line.quantity > 0 ? line.quantity : 1),
+        ],
+        clearAvailability: true,
+        shortfallApproved: false,
+        stage: GroupBookingStage.build,
+        clearError: true,
+      );
+      return;
+    }
+    setQuantity(
+      line.vehicleTypeId,
+      existing.first.quantity + (line.quantity > 0 ? line.quantity : 1),
     );
   }
 
@@ -166,13 +199,15 @@ class GroupBookingController extends StateNotifier<GroupBookingState> {
 
   /// Checks REAL availability through the backend for the current composition.
   Future<bool> checkAvailability(GroupBookingIntent intent) async {
-    if (state.lines.isEmpty) {
+    if (state.selectedLines.isEmpty) {
       state = state.copyWith(errorMessage: 'Add at least one vehicle to the fleet.');
       return false;
     }
     state = state.copyWith(isChecking: true, clearError: true);
+    // Only SELECTED types go to the backend — a zero-quantity catalog entry
+    // is an unselected type, not a requested unit.
     final units = <String, int>{
-      for (final l in state.lines) l.vehicleTypeId: l.quantity,
+      for (final l in state.selectedLines) l.vehicleTypeId: l.quantity,
     };
     final result = await _repo.checkFleetAvailability(
       CustomerFleetIntent.mixed(
@@ -215,7 +250,7 @@ class GroupBookingController extends StateNotifier<GroupBookingState> {
     }
     state = state.copyWith(isSubmitting: true, clearError: true);
     final units = <String, int>{
-      for (final l in state.lines) l.vehicleTypeId: l.quantity,
+      for (final l in state.selectedLines) l.vehicleTypeId: l.quantity,
     };
     final request = GroupBookingSubmissionRequest(
       fleetIntent: CustomerFleetIntent.mixed(

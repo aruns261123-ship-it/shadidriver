@@ -74,6 +74,7 @@ class MockVehicleRepository implements VehicleRepository {
   static final Map<String, VehicleDetails> _mockDetails = {
     'v1': const VehicleDetails(
       id: 'v1',
+      vehicleTypeId: 'VT_BMW5',
       make: 'BMW',
       model: '5 Series',
       year: 2025,
@@ -132,6 +133,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     'v2': const VehicleDetails(
       id: 'v2',
+      vehicleTypeId: 'VT_AUDI_A6',
       make: 'Audi',
       model: 'A6',
       year: 2024,
@@ -173,6 +175,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     'v3': const VehicleDetails(
       id: 'v3',
+      vehicleTypeId: 'VT_FORTUNER',
       make: 'Toyota',
       model: 'Fortuner',
       year: 2025,
@@ -201,6 +204,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     'v4': const VehicleDetails(
       id: 'v4',
+      vehicleTypeId: 'VT_MERCEDES_E',
       make: 'Mercedes-Benz',
       model: 'S-Class',
       year: 2026,
@@ -235,6 +239,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     'v5': const VehicleDetails(
       id: 'v5',
+      vehicleTypeId: 'VT_ROLLS_1960',
       make: 'Vintage',
       model: 'Rolls Royce Silver Cloud',
       year: 1960,
@@ -259,6 +264,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     'v6': const VehicleDetails(
       id: 'v6',
+      vehicleTypeId: 'VT_URBANIA',
       make: 'Force',
       model: 'Urbania',
       year: 2025,
@@ -284,6 +290,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     'v7': const VehicleDetails(
       id: 'v7',
+      vehicleTypeId: 'VT_ERTIGA',
       make: 'Maruti',
       model: 'Ertiga',
       year: 2023,
@@ -307,6 +314,7 @@ class MockVehicleRepository implements VehicleRepository {
   final List<VehicleSummary> _mockVehicles = [
     VehicleSummary(
       id: 'v1',
+      vehicleTypeId: 'VT_BMW5',
       make: 'BMW',
       model: '5 Series',
       year: 2025,
@@ -329,6 +337,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     VehicleSummary(
       id: 'v2',
+      vehicleTypeId: 'VT_AUDI_A6',
       make: 'Audi',
       model: 'A6',
       year: 2024,
@@ -351,6 +360,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     VehicleSummary(
       id: 'v3',
+      vehicleTypeId: 'VT_FORTUNER',
       make: 'Toyota',
       model: 'Fortuner',
       year: 2025,
@@ -373,6 +383,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     VehicleSummary(
       id: 'v4',
+      vehicleTypeId: 'VT_MERCEDES_E',
       make: 'Mercedes-Benz',
       model: 'S-Class',
       year: 2026,
@@ -401,6 +412,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     VehicleSummary(
       id: 'v5',
+      vehicleTypeId: 'VT_ROLLS_1960',
       make: 'Vintage',
       model: 'Rolls Royce Silver Cloud',
       year: 1960,
@@ -428,6 +440,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     VehicleSummary(
       id: 'v6',
+      vehicleTypeId: 'VT_URBANIA',
       make: 'Force',
       model: 'Urbania',
       year: 2025,
@@ -450,6 +463,7 @@ class MockVehicleRepository implements VehicleRepository {
     ),
     VehicleSummary(
       id: 'v7',
+      vehicleTypeId: 'VT_ERTIGA',
       make: 'Maruti',
       model: 'Ertiga',
       year: 2023,

@@ -63,6 +63,7 @@ abstract final class PublicVehicleDto {
 
     return VehicleSummary(
       id: (json['id'] as String?) ?? '',
+      vehicleTypeId: (json['vehicle_type_id'] as String?) ?? '',
       make: (json['make'] as String?) ?? '',
       model: (json['model'] as String?) ?? '',
       year: (json['year'] as num?)?.toInt() ?? 2024,

@@ -4,6 +4,10 @@ import '../../../../features/services/domain/entities/service_addon.dart';
 /// Comprehensive vehicle details domain entity for deep discovery.
 class VehicleDetails {
   final String id;
+
+  /// Backend vehicle-TYPE id (the bookable "an Innova Crysta" reference).
+  /// Empty when the payload did not carry it.
+  final String vehicleTypeId;
   final String make;
   final String model;
   final int year;
@@ -29,6 +33,7 @@ class VehicleDetails {
 
   const VehicleDetails({
     required this.id,
+    this.vehicleTypeId = '',
     required this.make,
     required this.model,
     required this.year,

@@ -8,6 +8,7 @@ import '../../features/drivers/presentation/driver_booking_request_screen.dart';
 import '../../features/drivers/presentation/driver_dashboard_screen.dart';
 import '../../features/favorites/presentation/favorites_screen.dart';
 import '../../features/home/presentation/customer_home_screen.dart';
+import '../../features/partner/presentation/partner_onboarding_screen.dart';
 import '../../features/home/presentation/customer_home_shell.dart';
 import '../../features/messages/presentation/customer_messages_screen.dart';
 import '../../features/support/presentation/support_ticket_screen.dart';
@@ -223,6 +224,11 @@ GoRouter createShadiRouter({
             ),
           ),
         ],
+      ),
+      GoRoute(
+        path: RoutePaths.partnerOnboarding,
+        name: 'partnerOnboarding',
+        builder: (context, state) => const PartnerOnboardingScreen(),
       ),
       GoRoute(
         path: RoutePaths.driver,

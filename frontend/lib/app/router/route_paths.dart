@@ -60,6 +60,9 @@ abstract final class RoutePaths {
   static const String customerProfileEdit = '/customer/profile/edit';
   static const String customerAddresses = '/customer/addresses';
 
+  // Partner (fleet owner) portal
+  static const String partnerOnboarding = '/partner/onboarding';
+
   // Driver Portal
   static const String driver = '/driver';
   static const String driverProfile = '/driver/profile';

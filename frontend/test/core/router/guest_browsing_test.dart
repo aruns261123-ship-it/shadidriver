@@ -45,19 +45,34 @@ void main() {
   });
 
   group('transactional surfaces require a session', () {
-    test('booking, favourites, profile and history bounce to sign-in', () async {
+    test('booking, favourites-persistence and history bounce to sign-in', () async {
       for (final location in <String>[
         '/customer/bookings',
         '/customer/bookings/create/v1',
-        '/customer/group-booking',
         '/customer/profile',
         '/customer/profile/edit',
         '/customer/addresses',
-        '/customer/favorites',
       ]) {
         final redirect = await decide(location);
         expect(redirect, isNotNull, reason: '$location must require auth');
         expect(redirect, startsWith('/auth'));
+      }
+    });
+
+    test('fleet composition and the favourites shortlist are GUEST surfaces',
+        () async {
+      // A guest builds and reviews a multi-vehicle selection and sees their
+      // session-local hearts; the SUBMIT action / account persistence is what
+      // authenticates (in the controller), not the route.
+      for (final location in <String>[
+        RoutePaths.customerGroupBooking,
+        RoutePaths.customerFavorites,
+      ]) {
+        expect(
+          await decide(location),
+          isNull,
+          reason: '$location must be reachable without authenticating',
+        );
       }
     });
 

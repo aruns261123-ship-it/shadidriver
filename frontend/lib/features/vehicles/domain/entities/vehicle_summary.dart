@@ -3,6 +3,11 @@ import 'pricing_summary.dart';
 /// Vehicle summary domain entity representing a fleet asset in the marketplace.
 class VehicleSummary {
   final String id;
+
+  /// Backend vehicle-TYPE id (e.g. `VT_INNOVA_CRYSTA`). The customer books
+  /// "an Innova Crysta", not a specific plate — this is what a booking line
+  /// references. Empty when the payload did not carry it (never in real mode).
+  final String vehicleTypeId;
   final String make;
   final String model;
   final int year;
@@ -26,6 +31,7 @@ class VehicleSummary {
 
   const VehicleSummary({
     required this.id,
+    this.vehicleTypeId = '',
     required this.make,
     required this.model,
     required this.year,

@@ -126,6 +126,13 @@ class DriverAccountCenterScreen extends ConsumerWidget {
                 const SizedBox(height: 10),
                 _buildMenuCard([
                   _MenuItem(
+                    icon: Icons.garage_rounded,
+                    title: 'My Fleet · Partner Portal',
+                    subtitle:
+                        'Add vehicles, photos, documents and per-vehicle pricing',
+                    onTap: () => context.push(RoutePaths.partnerOnboarding),
+                  ),
+                  _MenuItem(
                     icon: Icons.directions_car_rounded,
                     title: 'Assigned Vehicle',
                     subtitle:

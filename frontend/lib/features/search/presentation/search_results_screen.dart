@@ -9,6 +9,7 @@ import 'package:shadidriver/core/widgets/shadi_error_view.dart';
 import 'package:shadidriver/core/widgets/shadi_empty_state.dart';
 import 'package:shadidriver/features/home/presentation/view_models/vehicle_card_view_model.dart';
 import 'package:shadidriver/features/vehicles/presentation/widgets/shadi_vehicle_card.dart';
+import '../../bookings/presentation/controllers/guest_fleet_selection_controller.dart';
 import 'controllers/search_controller.dart';
 import '../domain/entities/search_session.dart';
 import '../domain/entities/search_sort.dart';
@@ -205,6 +206,17 @@ class SearchResultsScreen extends ConsumerWidget {
               );
             }
             final vehicle = session.results[index - 1];
+            // Watch so that returning from the review screen (or removing a
+            // car from the selection bar) repaints every card's state.
+            ref.watch(guestFleetSelectionProvider);
+            final selection = ref
+                .read(guestFleetSelectionProvider.notifier)
+                .affordanceFor(
+                  vehicleTypeId: vehicle.vehicleTypeId,
+                  displayName: '${vehicle.make} ${vehicle.model}'.trim(),
+                  vehicleClass: vehicle.vehicleClass,
+                  seatingCapacity: vehicle.seatingCapacity,
+                );
             return Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: ShadiVehicleCard(
@@ -214,6 +226,14 @@ class SearchResultsScreen extends ConsumerWidget {
                     RoutePaths.customerVehicleDetailsPath(vehicle.id),
                   );
                 },
+                // GUEST-FIRST: composing — and un-composing — a multi-vehicle
+                // selection never requires an account. The selection lives in
+                // the app-level guest model and survives the login detour.
+                isSelected: selection.isSelected,
+                selectedQuantity: selection.quantity,
+                onAddToSelection: selection.onAdd,
+                onQuantityChanged: selection.onQuantityChanged,
+                onRemoveSelection: selection.onRemove,
               ),
             );
           },

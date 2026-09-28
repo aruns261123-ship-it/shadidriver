@@ -125,10 +125,15 @@ void main() {
       // Wait for search results
       await tester.pumpAndSettle();
 
-      // Find 'View Details' button for first vehicle or tap the card
+      // Find 'View Details' button for first vehicle or tap the card.
       final viewDetailsButton = find.text('View Details').first;
       expect(viewDetailsButton, findsOneWidget);
 
+      // The card now carries the trust caption and the guest Add-to-Selection
+      // action, so the button can sit below the fold — scroll it into view
+      // before tapping.
+      await tester.ensureVisible(viewDetailsButton);
+      await tester.pumpAndSettle();
       await tester.tap(viewDetailsButton);
       await tester.pumpAndSettle();
 

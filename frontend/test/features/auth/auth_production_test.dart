@@ -13,6 +13,7 @@ import 'package:shadidriver/features/auth/domain/entities/user_role.dart';
 import 'package:shadidriver/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:shadidriver/features/auth/presentation/dev_auth_harness.dart';
 import 'package:shadidriver/features/auth/presentation/login_screen.dart';
+import 'package:shadidriver/features/home/presentation/customer_home_screen.dart';
 import 'package:shadidriver/features/home/presentation/splash_screen.dart';
 
 import '../../helpers/mock_env.dart';
@@ -47,9 +48,12 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    // TEST 1: Fresh app with no session → Splash → Login
+    // TEST 1: Fresh app with no session → Splash → Customer Home.
+    // GUEST-FIRST ENTRY: a signed-out visitor is a guest browser, not an
+    // error state — browsing is open, authentication is requested only when a
+    // protected action needs an account.
     // -------------------------------------------------------------------------
-    testWidgets('1. Fresh app with no session routes from Splash to Login', (
+    testWidgets('1. Fresh app with no session routes from Splash to Customer Home', (
       tester,
     ) async {
       final container = ProviderContainer(
@@ -83,9 +87,9 @@ void main() {
 
       expect(
         router.routeInformationProvider.value.uri.path,
-        equals(RoutePaths.auth),
+        equals(RoutePaths.customerHome),
       );
-      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.byType(CustomerHomeScreen), findsOneWidget);
     });
 
     // -------------------------------------------------------------------------

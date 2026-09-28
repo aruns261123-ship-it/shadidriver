@@ -76,9 +76,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     final session = ref.read(activeSessionProvider);
 
-    // 1. Signed out users must go to LoginScreen (never bypass to Customer Home)
+    // GUEST-FIRST ENTRY: a signed-out visitor is NOT an error state. No
+    // session simply means "continue as guest" — browsing the catalog is
+    // open, and authentication is requested only when a protected action
+    // (booking, favourites, profile…) needs a real account.
     if (!session.isAuthenticated) {
-      context.go(RoutePaths.auth);
+      context.go(RoutePaths.customer);
       return;
     }
 

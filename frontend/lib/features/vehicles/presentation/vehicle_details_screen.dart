@@ -8,8 +8,10 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/shadi_card.dart';
 import '../../../core/widgets/shadi_error_view.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
+import '../../../core/widgets/shadi_quantity_stepper.dart';
 import '../../../core/widgets/shadi_primary_button.dart';
 import '../../../core/widgets/shadi_section_header.dart';
+import '../../bookings/presentation/controllers/guest_fleet_selection_controller.dart';
 import '../../favorites/presentation/controllers/favorites_controller.dart';
 import 'controllers/recently_viewed_controller.dart';
 import 'controllers/vehicle_details_controller.dart';
@@ -27,6 +29,11 @@ class VehicleDetailsScreen extends ConsumerWidget {
     final vehicleAsync = ref.watch(vehicleDetailsProvider(vehicleId));
     final favorites = ref.watch(favoritesProvider);
     final isFavourite = favorites.contains(vehicleId);
+    // Rebuilds this screen whenever the SHARED selection changes, so the
+    // sticky bar can never show a stale state (e.g. after the car was removed
+    // from the review screen or the selection bar). The value itself is read
+    // through the controller below, which is the single source of truth.
+    ref.watch(guestFleetSelectionProvider);
 
     // Record this vehicle as recently viewed once its details resolve.
     ref.listen(vehicleDetailsProvider(vehicleId), (previous, next) {
@@ -83,7 +90,17 @@ class VehicleDetailsScreen extends ConsumerWidget {
         ],
       ),
       body: vehicleAsync.when(
-        data: (vehicle) => Column(
+        data: (vehicle) {
+          // Derived, never remembered: this screen has no `bool isSelected`.
+          final selection = ref
+              .read(guestFleetSelectionProvider.notifier)
+              .affordanceFor(
+                vehicleTypeId: vehicle.vehicleTypeId,
+                displayName: '${vehicle.make} ${vehicle.model}'.trim(),
+                vehicleClass: vehicle.vehicleClass,
+                seatingCapacity: vehicle.seatingCapacity,
+              );
+          return Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
@@ -397,13 +414,70 @@ class VehicleDetailsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(width: 20),
                     Expanded(
-                      child: ShadiPrimaryButton(
-                        text: 'Book Now',
-                        onPressed: () {
-                          context.push(
-                            RoutePaths.customerBookingCreatePath(vehicle.id),
-                          );
-                        },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ShadiPrimaryButton(
+                            text: 'Book Now',
+                            onPressed: () {
+                              context.push(
+                                RoutePaths.customerBookingCreatePath(vehicle.id),
+                              );
+                            },
+                          ),
+                          if (selection.isSelected) ...[
+                            const SizedBox(height: 4),
+                            // SELECTED: the same shared line, with a stepper
+                            // and an explicit removal — a car is deselectable
+                            // from the screen it was selected on.
+                            ShadiQuantityStepper(
+                              quantity: selection.quantity,
+                              onDecrement: () => selection.onQuantityChanged
+                                  ?.call(selection.quantity - 1),
+                              onIncrement: () => selection.onQuantityChanged
+                                  ?.call(selection.quantity + 1),
+                            ),
+                            TextButton(
+                              onPressed: selection.onRemove,
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(0, 28),
+                                padding: EdgeInsets.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'Remove from Selection',
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: AppColors.primaryBurgundy,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ] else if (selection.onAdd != null) ...[
+                            const SizedBox(height: 8),
+                            // GUEST-FIRST: compose without an account. The
+                            // selection is app-level and survives login.
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: selection.onAdd,
+                                icon: const Icon(
+                                  Icons.add_circle_outline_rounded,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  'Add to Selection',
+                                  style: AppTypography.labelSmall.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
@@ -411,7 +485,8 @@ class VehicleDetailsScreen extends ConsumerWidget {
               ),
             ),
           ],
-        ),
+          );
+        },
         loading: () => const ShadiLoadingIndicator(
           message: 'Loading royal specs & chauffeur info...',
         ),

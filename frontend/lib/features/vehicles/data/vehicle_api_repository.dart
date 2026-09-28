@@ -169,6 +169,7 @@ class VehicleApiRepository implements VehicleRepository {
 
     return VehicleDetails(
       id: (json['id'] as String?) ?? '',
+      vehicleTypeId: (json['vehicle_type_id'] as String?) ?? '',
       make: make,
       model: model,
       year: (json['year'] as num?)?.toInt() ?? 2024,

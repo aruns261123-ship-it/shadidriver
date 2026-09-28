@@ -36,6 +36,15 @@ class ShadiRouteGuard implements RouteGuard {
     // Customer browsing surface.
     '/customer',
     '/customer/home',
+    // Fleet composition: a guest may build and review a multi-vehicle
+    // selection — the SUBMIT action inside it is what requires an account
+    // (the controller bounces to /auth with a redirect back, and the
+    // keep-alive guest selection restores the composition after sign-in).
+    '/customer/group-booking',
+    // Favourites: a guest sees their session-local shortlist with working
+    // hearts; PERSISTING to an account happens only after authentication
+    // (FavoritesController merges the shortlist at sign-in).
+    '/customer/favorites',
   };
 
   /// Prefix-matched public surfaces (vehicle details, search + its results).
@@ -137,13 +146,16 @@ class ShadiRouteGuard implements RouteGuard {
       final isAdmin = _isAdminRole(userRole);
 
       if (isCustomer) {
-        // Customer cannot access driver or admin consoles
+        // Customer cannot access driver or admin consoles. /partner is the
+        // fleet-owner onboarding portal: a customer MAY open it ("Become a
+        // Partner") — the backend enforces the partner role on its APIs.
         if (targetLocation.startsWith('/driver') ||
             targetLocation.startsWith('/admin')) {
           return '/customer';
         }
       } else if (isDriver) {
-        // Driver cannot access customer home or admin consoles
+        // Driver/fleetOwner cannot access the customer app or admin console,
+        // but /partner IS their surface.
         if (targetLocation.startsWith('/customer') ||
             targetLocation.startsWith('/admin')) {
           return '/driver';

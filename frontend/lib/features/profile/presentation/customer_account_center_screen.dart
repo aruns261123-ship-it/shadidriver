@@ -135,6 +135,12 @@ class CustomerAccountCenterScreen extends ConsumerWidget {
                     onTap: () => context.push(RoutePaths.customerProfileEdit),
                   ),
                   _MenuItem(
+                    icon: Icons.add_business_rounded,
+                    title: 'Become a ShadiDriver Partner',
+                    subtitle: 'List your fleet — vehicles, documents & pricing',
+                    onTap: () => context.push(RoutePaths.partnerOnboarding),
+                  ),
+                  _MenuItem(
                     icon: Icons.logout_rounded,
                     title: 'Sign Out',
                     subtitle: 'End your current ceremonial session securely',

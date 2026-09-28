@@ -19,6 +19,7 @@ import 'widgets/shadi_urgent_dispatch_card.dart';
 import 'widgets/shadi_package_card.dart';
 import 'widgets/shadi_trust_section.dart';
 import '../../vehicles/presentation/widgets/shadi_vehicle_card.dart';
+import '../../bookings/presentation/controllers/guest_fleet_selection_controller.dart';
 import 'view_models/vehicle_card_view_model.dart';
 
 class CustomerHomeScreen extends ConsumerWidget {
@@ -161,15 +162,38 @@ class CustomerHomeScreen extends ConsumerWidget {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                      child: ShadiVehicleCard(
-                        viewModel: VehicleCardViewModel.fromEntity(
-                          vehicles[index],
-                        ),
-                        onTap: () {
-                          context.push(
-                            RoutePaths.customerVehicleDetailsPath(
-                              vehicles[index].id,
-                            ),
+                      child: Builder(
+                        builder: (cardContext) {
+                          // Rebuilds with the SHARED selection: the card's
+                          // selected state and quantity are derived, never
+                          // remembered locally.
+                          ref.watch(guestFleetSelectionProvider);
+                          final vehicle = vehicles[index];
+                          final selection = ref
+                              .read(guestFleetSelectionProvider.notifier)
+                              .affordanceFor(
+                                vehicleTypeId: vehicle.vehicleTypeId,
+                                displayName:
+                                    '${vehicle.make} ${vehicle.model}'.trim(),
+                                vehicleClass: vehicle.vehicleClass,
+                                seatingCapacity: vehicle.seatingCapacity,
+                              );
+                          return ShadiVehicleCard(
+                            viewModel: VehicleCardViewModel.fromEntity(vehicle),
+                            onTap: () {
+                              context.push(
+                                RoutePaths.customerVehicleDetailsPath(
+                                  vehicle.id,
+                                ),
+                              );
+                            },
+                            // Guest-first: compose AND remove a selection from
+                            // the home feed without an account.
+                            isSelected: selection.isSelected,
+                            selectedQuantity: selection.quantity,
+                            onAddToSelection: selection.onAdd,
+                            onQuantityChanged: selection.onQuantityChanged,
+                            onRemoveSelection: selection.onRemove,
                           );
                         },
                       ),

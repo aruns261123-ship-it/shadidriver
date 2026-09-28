@@ -1,20 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../bookings/presentation/controllers/guest_fleet_selection_controller.dart';
+import '../../bookings/presentation/widgets/guest_selection_bar.dart';
 
-class CustomerHomeShell extends StatelessWidget {
+/// Customer shell with the bottom navigation. Guest-first: the shell is fully
+/// usable signed-out; a non-empty guest selection shows a persistent summary
+/// bar ("2 Cars Selected" · `Thar × 2 · Scorpio × 1` → Review Selection) that
+/// the composing visitor can always reach, on EVERY tab.
+///
+/// The bar lives in the Scaffold's `bottomNavigationBar` slot — see
+/// [GuestSelectionBar] for why the previous body-`Column` placement made it
+/// invisible behind each screen's own footer.
+class CustomerHomeShell extends ConsumerWidget {
   final Widget child;
 
   const CustomerHomeShell({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
+    final selection = ref.watch(guestFleetSelectionProvider);
+
+    // Suppressed while the review screen itself is open: there the selection
+    // IS the page, and the bar would only push a copy of it.
+    final showSelectionBar = selection.isNotEmpty &&
+        !ref.watch(selectionBarSuppressedProvider);
 
     return Scaffold(
       body: child,
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Appears/disappears with a small size transition rather than
+          // popping the layout.
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            alignment: Alignment.bottomCenter,
+            child: showSelectionBar
+                ? GuestSelectionBar(selection: selection)
+                : const SizedBox.shrink(),
+          ),
+          _buildNavigationBar(location, context),
+        ],
+      ),
+    );
+  }
+
+  BottomNavigationBar _buildNavigationBar(
+    String location,
+    BuildContext context,
+  ) {
+    return BottomNavigationBar(
         currentIndex: _getSelectedIndex(location),
         onTap: (index) => _onItemTapped(index, context),
         selectedLabelStyle: AppTypography.labelSmall.copyWith(
@@ -48,7 +88,6 @@ class CustomerHomeShell extends StatelessWidget {
             label: 'Profile',
           ),
         ],
-      ),
     );
   }
 

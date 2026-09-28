@@ -57,6 +57,7 @@ describe('PaymentsService — managed (group) bookings', () => {
       currency: 'INR',
     })),
     verifyPayment: jest.fn(async (_input: any) => ({ verified: true, amountPaise: 0 })),
+    verifyWebhook: jest.fn(),
     devSignPayment: (orderId: string, paymentId: string) => `sig(${orderId},${paymentId})`,
   };
   const groupBookings: any = {};
@@ -81,6 +82,11 @@ describe('PaymentsService — managed (group) bookings', () => {
       verified: true,
       amountPaise: Number(ADVANCE_PAISE),
     }));
+    gateway.verifyWebhook.mockReturnValue({
+      verified: true,
+      event_type: 'payment.captured',
+      order_id: 'order_mock_1',
+    });
     service = new PaymentsService(
       prisma,
       new BookingStateMachineService(),
@@ -316,6 +322,97 @@ describe('PaymentsService — managed (group) bookings', () => {
       await expect(
         service.listGroupPayments(GROUP_ID, { userId: 'intruder', isAdmin: false }),
       ).rejects.toMatchObject({ code: 'GROUP_BOOKING_NOT_FOUND' });
+    });
+  });
+
+  // ----------------------------------------------------------------- webhook
+
+  describe('ingestWebhook — managed-booking routing', () => {
+    const rowPayment = (over: Record<string, unknown> = {}) => ({
+      id: 'pay-1',
+      groupBookingId: GROUP_ID,
+      bookingId: null,
+      customerFk: CUSTOMER_ID,
+      paymentType: 'ADVANCE_TOKEN',
+      amountPaise: ADVANCE_PAISE,
+      status: 'INITIATED',
+      gatewayOrderId: 'order_mock_1',
+      ...over,
+    });
+
+    it('a group payment webhook flows through the group capture (advance confirms the booking)', async () => {
+      payment.findFirst.mockResolvedValue(rowPayment());
+      const result = await service.ingestWebhook({ rawBody: '{}', signature: 'valid' });
+      expect(result).toMatchObject({
+        processed: true,
+        captured: true,
+        booking_status: 'CONFIRMED',
+      });
+      expect(group.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'CONFIRMED', advancePaidAt: expect.any(Date) }),
+        }),
+      );
+      expect(groupBookingEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ action: 'ADVANCE_PAID' }),
+        }),
+      );
+      // The synthetic webhook payment id (wh_*) is what lands on the payment row.
+      expect(payment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'SUCCESS',
+            gatewayPaymentId: expect.stringMatching(/^wh_/),
+          }),
+        }),
+      );
+    });
+
+    it('a group payment webhook settles the balance without touching status', async () => {
+      payment.findFirst.mockResolvedValue(
+        rowPayment({ paymentType: 'BALANCE_SETTLEMENT', amountPaise: BALANCE_PAISE }),
+      );
+      group.findUnique.mockResolvedValue(
+        groupRow({ status: 'IN_PROGRESS', advancePaidAt: new Date() }),
+      );
+      const result = await service.ingestWebhook({ rawBody: '{}', signature: 'valid' });
+      // No transition: the service echoes the unchanged status back.
+      expect(result.booking_status).toBe('IN_PROGRESS');
+      const data = group.update.mock.calls[0][0].data;
+      expect(data.balancePaidAt).toBeTruthy();
+      expect(data.status).toBeUndefined();
+    });
+
+    it('a replayed webhook is a duplicate no-op', async () => {
+      payment.findFirst.mockResolvedValue(rowPayment({ status: 'SUCCESS' }));
+      const result = await service.ingestWebhook({ rawBody: '{}', signature: 'valid' });
+      expect(result).toEqual({ processed: true, duplicate: true });
+      expect(group.update).not.toHaveBeenCalled();
+      expect(payment.update).not.toHaveBeenCalled();
+    });
+
+    it('an order the gateway never saw is rejected before any lookup', async () => {
+      gateway.verifyWebhook.mockReturnValue({ verified: true });
+      await expect(
+        service.ingestWebhook({ rawBody: '{}', signature: 'valid' }),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    });
+
+    it('an unknown order id is a 404, never a guess', async () => {
+      payment.findFirst.mockResolvedValue(null);
+      await expect(
+        service.ingestWebhook({ rawBody: '{}', signature: 'valid' }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('a forged webhook signature is rejected and captures nothing', async () => {
+      gateway.verifyWebhook.mockReturnValue({ verified: false });
+      await expect(
+        service.ingestWebhook({ rawBody: '{}', signature: 'forged' }),
+      ).rejects.toMatchObject({ code: 'PAYMENT_SIGNATURE_MISMATCH' });
+      expect(payment.findFirst).not.toHaveBeenCalled();
+      expect(group.update).not.toHaveBeenCalled();
     });
   });
 });
