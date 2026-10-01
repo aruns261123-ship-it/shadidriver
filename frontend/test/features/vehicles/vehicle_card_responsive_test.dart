@@ -6,18 +6,17 @@ import 'package:shadidriver/features/vehicles/domain/entities/vehicle_summary.da
 import 'package:shadidriver/features/vehicles/presentation/widgets/shadi_vehicle_card.dart';
 
 /// A deliberately hostile view model: the widest plausible strings a real
-/// backend row can produce (UUID primary key, long chauffeur-derived copy,
-/// un-rounded distances) so the card layout is exercised, not just the happy
-/// path with short demo data.
+/// backend row can produce (UUID primary key, long model names, wide fares)
+/// so the card layout is exercised, not just the happy path with short demo
+/// data.
 VehicleCardViewModel hostileViewModel() => VehicleCardViewModel(
       id: '661bfb4b-4ac7-44b2-9b8b-76e7a29dd66e',
       title: 'Mercedes-Benz S-Class 580 4MATIC Launch Edition',
-      subtitle: '2024 • Ultra Luxury Chauffeur Sedan (Extended Wheelbase)',
-      ratingText: '5.0',
-      reviewCountText: '(1284)',
-      distanceText: '128.5 km away from pickup',
+      subtitle: 'Ultra Luxury Chauffeur Sedan (Extended Wheelbase) · 5 seats',
       priceText: '₹1,25,000',
-      priceUnit: 'PER CEREMONY DAY (12 HOURS)',
+      priceUnit: '/ ceremony day',
+      fareEstimateText: '₹1,25,000+',
+      isPremium: true,
       hasVerifiedChauffeur: true,
       isVerifiedVehicle: true,
       isAvailable: true,
@@ -51,6 +50,7 @@ Future<List<FlutterErrorDetails>> pumpCard(
   required double width,
   double textScale = 1.0,
   VoidCallback? onTap,
+  VoidCallback? onAdd,
 }) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = Size(width, 900);
@@ -72,6 +72,7 @@ Future<List<FlutterErrorDetails>> pumpCard(
             child: ShadiVehicleCard(
               viewModel: viewModel,
               onTap: onTap ?? () {},
+              onAddToSelection: onAdd,
             ),
           ),
         ),
@@ -109,9 +110,9 @@ void main() {
         find.byWidgetPredicate(
           (w) => w is RichText && w.text.toPlainText().contains('₹1,25,000'),
         ),
-        findsOneWidget,
+        findsWidgets,
       );
-      expect(find.text('View Details'), findsOneWidget);
+      expect(find.text('PREMIUM'), findsOneWidget);
     });
 
     testWidgets('no RenderFlex overflow on a small phone (320dp)', (
@@ -146,13 +147,14 @@ void main() {
       expectNoOverflow(errors, width: 320);
     });
 
-    testWidgets('no overflow with long chauffeur / verification copy', (
-      tester,
-    ) async {
+    testWidgets('no overflow with long verification copy', (tester) async {
       final errors = await pumpCard(tester, hostileViewModel(), width: 320);
 
       expectNoOverflow(errors, width: 320);
-      expect(find.text('VERIFIED'), findsOneWidget);
+      expect(
+        find.text('Vehicle and chauffeur verified by ShadiDriver'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('no overflow at increased system text scale', (tester) async {
@@ -166,16 +168,16 @@ void main() {
       expectNoOverflow(errors, width: 320);
     });
 
-    testWidgets('action button stays visible and tappable', (tester) async {
+    testWidgets('Add action is visible and tappable', (tester) async {
       var taps = 0;
       await pumpCard(
         tester,
         hostileViewModel(),
         width: 320,
-        onTap: () => taps++,
+        onAdd: () => taps++,
       );
 
-      final button = find.text('View Details');
+      final button = find.text('Add');
       expect(button, findsOneWidget);
       await tester.ensureVisible(button);
       await tester.tap(button);

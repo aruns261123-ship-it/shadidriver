@@ -53,6 +53,11 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-only-access-secret-change-me-min-32-chars}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-only-refresh-secret-change-me-min-32-chars}
       OTP_DEBUG_LOG: ${OTP_DEBUG_LOG:-true}
+      # Dev-only: echo `debug_code` in the OTP request response so the
+      # live-backend Dart suite (test/live_backend_connection_test.dart) can
+      # complete a real auth cycle. The API itself refuses this flag when
+      # NODE_ENV=production; leave it OFF by default.
+      OTP_DEBUG_EMIT: ${OTP_DEBUG_EMIT:-false}
       ENABLE_SWAGGER: "true"
     ports:
       - "${BACKEND_PORT:-3000}:3000"

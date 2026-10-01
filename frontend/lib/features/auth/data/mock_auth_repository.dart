@@ -394,6 +394,24 @@ class MockAuthRepository implements AuthRepository {
     return Result.success(refreshed);
   }
 
+  /// Mock-mode Google sign-in (offline UI development / tests ONLY): builds
+  /// the same customer session the real flow produces. The real path is
+  /// [AuthApiRepository.signInWithGoogle] with a server-verified ID token.
+  @override
+  Future<Result<AuthSession>> signInWithGoogle() async {
+    await _simulateDelay(400);
+    final session = AuthSession(
+      userId: 'dev_user_google',
+      phone: '+91 ••••• 0000',
+      role: UserRole.customer,
+      displayName: 'Google Customer (Dev)',
+      accountStatus: AccountStatus.active,
+      issuedAt: DateTime.now(),
+    );
+    _currentSession = session;
+    return Result.success(session);
+  }
+
   // ---------------------------------------------------------------------------
   // Dev & Test helpers
   // ---------------------------------------------------------------------------

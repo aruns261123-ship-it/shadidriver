@@ -40,7 +40,10 @@ class BookingDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detailAsync = ref.watch(bookingDetailProvider(bookingId));
-    final reviewed = ref.watch(bookingReviewedProvider(bookingId));
+    // REAL mode resolves "already reviewed" against the backend; a pending
+    // lookup simply renders the CTA until the answer arrives.
+    final reviewedAsync = ref.watch(bookingReviewedProvider(bookingId));
+    final reviewed = reviewedAsync.value ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
@@ -149,42 +152,28 @@ class BookingDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   _infoRow('Destination', booking.destinationAddress),
                 ],
-                if (booking.chauffeurName.isNotEmpty) ...[
+                // Privacy model: the customer NEVER sees the chauffeur's name
+                // or phone — there is deliberately no direct-call affordance.
+                // ShadiDriver operations owns the customer relationship and
+                // guarantees the vehicle + chauffeur instead.
+                if (booking.chauffeurVerification.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: _infoRow('Chauffeur', booking.chauffeurName),
+                      const Icon(
+                        Icons.verified_user_rounded,
+                        size: 14,
+                        color: AppColors.champagneGold,
                       ),
-                      OutlinedButton.icon(
-                        key: const Key('detail_call_chauffeur_cta'),
-                        icon: const Icon(Icons.phone_rounded, size: 14),
-                        label: const Text('Call'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primaryBurgundy,
-                          side: const BorderSide(
-                            color: AppColors.champagneGold,
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          visualDensity: VisualDensity.compact,
-                          textStyle: AppTypography.labelSmall.copyWith(
-                            fontWeight: FontWeight.w600,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          booking.chauffeurVerification,
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.textSecondaryLight,
                           ),
                         ),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Connecting to Chauffeur ${booking.chauffeurName}…',
-                              ),
-                              backgroundColor: AppColors.primaryBurgundy,
-                            ),
-                          );
-                        },
                       ),
                     ],
                   ),

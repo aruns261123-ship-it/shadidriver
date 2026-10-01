@@ -168,10 +168,19 @@ class VehicleDocumentDraft {
 
 /// Tariff submission — mirrors `SubmitVehiclePricingDto` exactly. Amounts are
 /// PAISE integers; the UI converts rupees at the edge only.
+///
+/// The customer per-km rate is NOT a partner input: the server DERIVES it
+/// from `fuelPricePerLitre ÷ mileageKmPerLitre + ₹10` (any perKmPaise on the
+/// wire is ignored), so the draft carries the two formula inputs instead.
 class VehicleTariffDraft {
   final int localIncludedKm;
   final int localAmountPaise;
-  final int perKmPaise;
+
+  /// Current fuel price in ₹ per litre (30–500, up to 2 decimals).
+  final double fuelPricePerLitre;
+
+  /// Vehicle mileage in km per litre (2–60, up to 1 decimal).
+  final double mileageKmPerLitre;
   final int? hourlyPaise;
   final int? extraHourPaise;
   final int? fullDayPaise;
@@ -183,7 +192,8 @@ class VehicleTariffDraft {
   const VehicleTariffDraft({
     required this.localIncludedKm,
     required this.localAmountPaise,
-    required this.perKmPaise,
+    required this.fuelPricePerLitre,
+    required this.mileageKmPerLitre,
     this.hourlyPaise,
     this.extraHourPaise,
     this.fullDayPaise,
@@ -196,7 +206,8 @@ class VehicleTariffDraft {
   Map<String, dynamic> toWire() => {
         'localIncludedKm': localIncludedKm,
         'localAmountPaise': localAmountPaise,
-        'perKmPaise': perKmPaise,
+        'fuelPricePerLitre': fuelPricePerLitre,
+        'mileageKmPerLitre': mileageKmPerLitre,
         if (hourlyPaise != null) 'hourlyPaise': hourlyPaise,
         if (extraHourPaise != null) 'extraHourPaise': extraHourPaise,
         if (fullDayPaise != null) 'fullDayPaise': fullDayPaise,

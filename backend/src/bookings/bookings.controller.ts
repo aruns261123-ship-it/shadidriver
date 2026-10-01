@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import {
@@ -9,6 +9,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Max,
   Min,
@@ -20,6 +21,7 @@ import { Role } from '../auth/domain/roles';
 import { BadRequestAppException } from '../auth/errors/auth.exceptions';
 import { ErrorCode } from '../common/errors/error-codes';
 import { BookingsService, SubmitBookingInput } from './bookings.service';
+import { TRIP_TYPE_VALUES } from '../common/domain/trip-type';
 
 export class SubmitBookingDto {
   @IsString() @Length(2, 50) serviceCategoryId!: string;
@@ -34,10 +36,16 @@ export class SubmitBookingDto {
   @IsString() @Length(5, 500) destinationAddress!: string;
   @IsOptional() @IsString() venueName?: string;
   @IsOptional() @IsNumber() @Min(0) routeDistanceKm?: number;
+  /** ONE_WAY or ROUND_TRIP; submission re-quotes with the server-side ×2 rule. */
+  @IsOptional() @IsIn(TRIP_TYPE_VALUES) tripType?: string;
   @IsString() @Length(2, 120) primaryContactName!: string;
   @IsString() @Length(8, 20) primaryContactPhone!: string;
   @IsInt() @Min(1) @Max(60) passengerCount!: number;
   @IsOptional() @IsArray() @IsString({ each: true }) selectedAddonIds?: string[];
+}
+
+export class AssignChauffeurDto {
+  @IsUUID() driverId!: string;
 }
 
 export class TransitionDto {
@@ -89,6 +97,7 @@ export class BookingsController {
       destinationAddress: dto.destinationAddress,
       venueName: dto.venueName,
       routeDistanceKm: dto.routeDistanceKm,
+      tripType: dto.tripType as SubmitBookingInput['tripType'],
       primaryContactName: dto.primaryContactName,
       primaryContactPhone: dto.primaryContactPhone,
       passengerCount: dto.passengerCount,
@@ -114,16 +123,21 @@ export class BookingsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Booking detail with status history' })
-  getById(@Param('id') id: string) {
-    return this.bookingsService.getBookingById(id);
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Booking detail — role-scoped private view (customer/driver/admin)' })
+  getById(
+    @CurrentUser() user: AuthenticatedUser,
+    // Malformed ids are a 400, never a Prisma P2023 → 500.
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.bookingsService.getBookingById(id, { userId: user.userId, role: user.role });
   }
 
   @Post(':id/transition')
   @ApiOperation({ summary: 'Server-validated lifecycle transition (OTP required to start trip)' })
   transition(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: TransitionDto,
   ) {
     return this.bookingsService.transition(
@@ -137,31 +151,44 @@ export class BookingsController {
   // ------------------------------------------------------------ driver
   @Get('driver/offers')
   @Roles(Role.Driver)
-  @ApiOperation({ summary: 'Driver: open offers, active assignments, completed history' })
+  @ApiOperation({
+    summary: 'Chauffeur: OWN assigned duties only (no marketplace — operations allocates all work)',
+  })
   driverBookings(@CurrentUser() user: AuthenticatedUser) {
     return this.bookingsService.listDriverBookings(user.userId);
   }
 
-  @Post(':id/accept')
-  @Roles(Role.Driver)
-  @ApiOperation({ summary: 'Driver accepts a requested booking (transactional, generates trip OTP)' })
-  accept(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.bookingsService.acceptBooking(id, user.userId);
+  @Post(':id/assign-chauffeur')
+  @Roles(Role.OperationsAdmin, Role.SuperAdmin)
+  @ApiOperation({
+    summary: 'Operations allocates a chauffeur to a booking (customers never pick drivers; drivers never claim bookings)',
+  })
+  allocateChauffeur(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignChauffeurDto,
+  ) {
+    return this.bookingsService.assignChauffeur(id, dto.driverId, {
+      userId: user.userId,
+      role: user.role,
+    });
   }
 
-  @Post(':id/decline')
+  @Post(':id/assignment-conflict')
   @Roles(Role.Driver)
-  @ApiOperation({ summary: 'Driver declines with mandatory reason' })
-  decline(
+  @ApiOperation({
+    summary: 'Assigned chauffeur reports a conflict; the duty returns to the operations queue (no marketplace decline)',
+  })
+  reportConflict(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: { reason: string; notes?: string },
   ) {
-    return this.bookingsService.declineBooking(id, user.userId, dto.reason, dto.notes);
+    return this.bookingsService.reportAssignmentConflict(id, user.userId, dto.reason, dto.notes);
   }
 
   @Post(':id/trip-otp/resend')
   @ApiOperation({ summary: 'Customer: resend the trip start OTP to the host phone' })
-  resendOtp(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  resendOtp(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.bookingsService.resendTripOtp(id, { userId: user.userId, role: user.role });
   } }

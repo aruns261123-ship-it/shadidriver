@@ -6,7 +6,7 @@ import 'package:shadidriver/app/router/route_paths.dart';
 import 'package:shadidriver/features/home/presentation/customer_home_shell.dart';
 
 void main() {
-  testWidgets('CustomerHomeShell renders bottom navigation correctly', (
+  testWidgets('CustomerHomeShell renders the reference bottom navigation', (
     tester,
   ) async {
     final router = GoRouter(
@@ -36,12 +36,17 @@ void main() {
       ProviderScope(child: MaterialApp.router(routerConfig: router)),
     );
 
-    expect(find.byType(BottomNavigationBar), findsOneWidget);
-    expect(find.text('Home'), findsWidgets); // One in nav bar
-    expect(find.text('Search'), findsWidgets);
+    // The reference nav: Home · Cars · Bookings · Profile — four items, the
+    // active one in burgundy with a top-edge indicator.
+    expect(find.text('Home'), findsWidgets);
+    expect(find.text('Cars'), findsOneWidget);
+    expect(find.text('Bookings'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('Messages'), findsNothing);
+    expect(find.text('Search'), findsNothing);
 
-    // Navigate to Search
-    await tester.tap(find.text('Search'));
+    // Navigate to Cars (the search tab).
+    await tester.tap(find.text('Cars'));
     await tester.pumpAndSettle();
 
     expect(find.text('Search Content'), findsOneWidget);

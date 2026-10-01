@@ -24,6 +24,9 @@ function groupRow(overrides: Record<string, unknown> = {}) {
     estimatedTotalPaise: TOTAL_PAISE,
     advancePaidAt: null as Date | null,
     balancePaidAt: null as Date | null,
+    serviceStartTime: new Date('2026-11-20T10:00:00Z'),
+    // Confirmation communications go to the account phone on the managed path.
+    customer: { phoneNumber: '+919810000001' },
     ...overrides,
   };
 }
@@ -61,9 +64,11 @@ describe('PaymentsService — managed (group) bookings', () => {
     devSignPayment: (orderId: string, paymentId: string) => `sig(${orderId},${paymentId})`,
   };
   const groupBookings: any = {};
+  const sms: any = { name: 'test-sms', sendOtp: jest.fn(), sendTransactional: jest.fn() };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    sms.sendTransactional.mockResolvedValue({ accepted: true });
     group.findUnique.mockResolvedValue(groupRow());
     group.update.mockResolvedValue({});
     groupBookingEvent.create.mockResolvedValue({});
@@ -92,6 +97,7 @@ describe('PaymentsService — managed (group) bookings', () => {
       new BookingStateMachineService(),
       groupBookings,
       gateway,
+      sms as never,
     );
   });
 
@@ -176,6 +182,38 @@ describe('PaymentsService — managed (group) bookings', () => {
       );
     });
 
+    it('sends the CUSTOMER a confirmation message when the advance CONFIRMS the booking', async () => {
+      await service.captureGroupPayment({
+        paymentDbId: 'pay-1',
+        customerId: CUSTOMER_ID,
+        gatewayOrderId: 'order_mock_1',
+        gatewayPaymentId: 'pay_gw_1',
+        signature: 'sig',
+      });
+
+      expect(sms.sendTransactional).toHaveBeenCalledTimes(1);
+      const [phone, message] = sms.sendTransactional.mock.calls[0];
+      expect(phone).toBe('+919810000001');
+      expect(message).toContain('SD-GRP-2026-000555');
+      expect(message).toContain('CONFIRMED');
+      // Never a chauffeur or partner detail — the platform's operations team
+      // is what the customer is promised.
+      expect(message).toMatch(/operations team/i);
+    });
+
+    it('a messaging outage never fails a captured payment', async () => {
+      sms.sendTransactional.mockRejectedValue(new Error('DLT template missing'));
+      const result = await service.captureGroupPayment({
+        paymentDbId: 'pay-1',
+        customerId: CUSTOMER_ID,
+        gatewayOrderId: 'order_mock_1',
+        gatewayPaymentId: 'pay_gw_1',
+        signature: 'sig',
+      });
+      expect(result.captured).toBe(true);
+      expect(result.booking_status).toBe('CONFIRMED');
+    });
+
     it('capturing the advance on an already-CONFIRMED booking does not rewind status', async () => {
       group.findUnique.mockResolvedValue(groupRow({ status: 'CONFIRMED' }));
       const result = await service.captureGroupPayment({
@@ -189,6 +227,8 @@ describe('PaymentsService — managed (group) bookings', () => {
       const data = group.update.mock.calls[0][0].data;
       expect(data.status).toBeUndefined();
       expect(data.advancePaidAt).toBeTruthy();
+      // The booking was already confirmed — no duplicate confirmation message.
+      expect(sms.sendTransactional).not.toHaveBeenCalled();
     });
 
     it('settling the balance only stamps balancePaidAt', async () => {
@@ -224,6 +264,9 @@ describe('PaymentsService — managed (group) bookings', () => {
           data: expect.objectContaining({ action: 'BALANCE_PAID' }),
         }),
       );
+      // A settlement is not a confirmation — the customer must not receive a
+      // second "your booking is confirmed" message.
+      expect(sms.sendTransactional).not.toHaveBeenCalled();
     });
 
     it('refuses capture when the quote moved after the order was created', async () => {

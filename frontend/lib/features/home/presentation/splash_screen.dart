@@ -7,6 +7,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
+import '../../../core/widgets/shadi_logo_mark.dart';
 import '../../auth/domain/entities/account_status.dart';
 import '../../auth/domain/entities/user_role.dart';
 import '../../auth/presentation/controllers/auth_controller.dart';
@@ -173,11 +174,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       ],
                     ),
                     child: const Center(
-                      child: Icon(
-                        Icons.directions_car_filled_rounded,
-                        size: 48,
-                        color: AppColors.champagneGold,
-                      ),
+                      child: ShadiLogoMark(size: 56, light: true),
                     ),
                   ),
                 ),
@@ -190,9 +187,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     children: [
                       Text(
                         AppConstants.appName,
-                        style: AppTypography.displayMedium.copyWith(
+                        style: TextStyle(
+                          fontFamily: AppTypography.ceremonialFontFamily,
+                          fontFamilyFallback: AppTypography.ceremonialFontFallbacks,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.champagneGold,
-                          fontWeight: FontWeight.w800,
                           letterSpacing: 1.2,
                         ),
                       ),

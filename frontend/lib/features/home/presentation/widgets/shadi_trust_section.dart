@@ -13,6 +13,9 @@ class ShadiTrustSection extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
+          // The heading `Text` used to sit unbounded beside the shield, so a
+          // compact phone (or any larger text scale) pushed the row 140px past
+          // the card. Flexible + centred wrapping keeps it inside the card.
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -22,10 +25,13 @@ class ShadiTrustSection extends StatelessWidget {
                 size: 28,
               ),
               const SizedBox(width: 12),
-              Text(
-                'Royal Assurance',
-                style: AppTypography.displaySmall.copyWith(
-                  color: AppColors.ivory,
+              Flexible(
+                child: Text(
+                  'Royal Assurance',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.displaySmall.copyWith(
+                    color: AppColors.ivory,
+                  ),
                 ),
               ),
             ],

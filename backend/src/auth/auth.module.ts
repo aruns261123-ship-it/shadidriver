@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { OtpService } from './services/otp.service';
 import { TokenService } from './services/token.service';
+import { GoogleAuthService } from './services/google-auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -30,11 +31,12 @@ import { CONFIG_TOKEN, AppConfig } from '../config/configuration';
     AuthService,
     OtpService,
     TokenService,
+    GoogleAuthService,
     // Global guards: every route requires a valid token unless @Public(),
     // and every route is role-checked via @Roles().
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  exports: [AuthService, TokenService, JwtModule],
+  exports: [AuthService, TokenService, GoogleAuthService, JwtModule],
 })
 export class AuthModule {}

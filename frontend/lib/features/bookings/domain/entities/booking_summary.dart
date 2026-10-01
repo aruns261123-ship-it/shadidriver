@@ -10,7 +10,18 @@ class BookingSummary {
   final String destinationAddress;
   final double? routeDistanceKm;
   final String vehicleName;
+
+  /// Admin-only / legacy rows. The CUSTOMER view never carries a chauffeur
+  /// identity — ShadiDriver operations stands behind the service instead —
+  /// so this stays empty on customer-facing API responses.
   final String chauffeurName;
+
+  /// Platform assurance copy from the customer-safe DTO
+  /// ("Vehicle and chauffeur verified by ShadiDriver", or the allocation
+  /// pending variant). The customer learns THAT a chauffeur is arranged,
+  /// never WHO it is.
+  final String chauffeurVerification;
+
   final int totalAmountCents;
   final int advanceTokenCents;
   final int version;
@@ -32,6 +43,7 @@ class BookingSummary {
     this.routeDistanceKm,
     this.vehicleName = '',
     this.chauffeurName = '',
+    this.chauffeurVerification = '',
     required this.totalAmountCents,
     required this.advanceTokenCents,
     required this.version,

@@ -23,8 +23,10 @@ void main() {
     final viewModel = VehicleCardViewModel.fromEntity(vehicle);
 
     expect(viewModel.title, equals('Mercedes S-Class'));
-    expect(viewModel.ratingText, equals('5.0'));
+    expect(viewModel.subtitle, equals('Ultra Luxury · 4 seats'));
     expect(viewModel.priceUnit, equals('/ day'));
+    expect(viewModel.fareEstimateText, equals('₹50,000+'));
+    expect(viewModel.isPremium, isTrue);
     expect(viewModel.isVerifiedVehicle, isTrue);
   });
 }

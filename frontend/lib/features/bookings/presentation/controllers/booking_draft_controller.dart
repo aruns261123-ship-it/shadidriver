@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
+import '../../../search/domain/entities/trip_type.dart';
 import '../../../vehicles/domain/entities/vehicle_details.dart';
 import '../../domain/entities/booking_draft.dart';
 import '../../domain/entities/search_handoff.dart';
@@ -127,6 +128,9 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
     if (handoff.passengerCount != null && handoff.passengerCount! > 0) {
       draft = draft.copyWith(passengerCount: handoff.passengerCount!);
     }
+    // Trip direction chosen at Home persists into the draft and is echoed in
+    // the submission; the SERVER decides the billed distance from it.
+    draft = draft.copyWith(tripType: handoff.tripType);
 
     state = state.copyWith(draft: draft, clearError: true);
   }
@@ -295,6 +299,7 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
     required String destinationAddress,
     String venueName = '',
     String landmark = '',
+    TripType? tripType,
   }) async {
     double? distance = state.draft.routeDistanceKm;
     final pickupChanged =
@@ -324,6 +329,7 @@ class BookingDraftController extends StateNotifier<BookingDraftState> {
         venueName: venueName,
         landmark: landmark,
         routeDistanceKm: distance,
+        tripType: tripType,
       ),
       clearError: true,
     );

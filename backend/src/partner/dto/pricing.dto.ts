@@ -2,10 +2,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
   IsInt,
+  IsNumber,
   IsOptional,
   Max,
   Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 /**
  * One submitted tariff version for a vehicle.
@@ -34,11 +36,41 @@ export class SubmitVehiclePricingDto {
   @Max(100000000)
   localAmountPaise!: number;
 
-  @ApiProperty({ example: 2200, description: 'Each additional km beyond the package, in paise' })
+  /**
+   * DERIVED — do not send. The customer per-km rate is a server computation
+   * from the ShadiDriver distance formula (fuel price ÷ mileage + ₹10) using
+   * the `fuelPricePerLitre` and `mileageKmPerLitre` inputs below. A partner
+   * never sets the customer rate; any value supplied here is ignored.
+   */
+  @IsOptional()
   @IsInt()
-  @Min(500)
-  @Max(100000)
-  perKmPaise!: number;
+  perKmPaise?: number;
+
+  @ApiProperty({
+    example: 95,
+    description: 'Current fuel price in ₹ per litre (drives the distance-rate formula)',
+  })
+  @Type(() => Number)
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'fuelPricePerLitre must be a number (₹/litre, up to 2 decimals)' },
+  )
+  @Min(30)
+  @Max(500)
+  fuelPricePerLitre!: number;
+
+  @ApiProperty({
+    example: 8,
+    description: 'Vehicle mileage in km per litre (drives the distance-rate formula)',
+  })
+  @Type(() => Number)
+  @IsNumber(
+    { maxDecimalPlaces: 1 },
+    { message: 'mileageKmPerLitre must be a number (km/litre, up to 1 decimal)' },
+  )
+  @Min(2)
+  @Max(60)
+  mileageKmPerLitre!: number;
 
   @ApiPropertyOptional({ example: 125000, description: 'Hourly rate in paise' })
   @IsOptional()

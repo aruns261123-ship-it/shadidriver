@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../search/domain/entities/trip_type.dart';
 import '../policies/booking_location_rules.dart';
 
 /// Status of a customer booking draft during Milestone 4A.
@@ -43,7 +44,14 @@ class BookingDraft {
   // 2. Service Timing & Duration
   final DateTime serviceStartDateTime;
   final DateTime serviceEndDateTime;
+
+  /// ONE-WAY route distance (pickup → destination) as estimated by the route
+  /// service. The server decides the billed distance from [tripType].
   final double? routeDistanceKm;
+
+  /// Customer-chosen direction (ONE_WAY | ROUND_TRIP). The server prices it:
+  /// ROUND_TRIP ("Both Way") bills the route twice. Echoed in the submission.
+  final TripType tripType;
 
   // 3. Pickup & Destination
   final String city;
@@ -79,6 +87,7 @@ class BookingDraft {
     required this.serviceStartDateTime,
     required this.serviceEndDateTime,
     this.routeDistanceKm,
+    this.tripType = TripType.oneWay,
     required this.city,
     required this.pickupAddress,
     required this.destinationAddress,
@@ -115,6 +124,7 @@ class BookingDraft {
     TimeOfDay? startTime,
     int durationHours = 8,
     double? routeDistanceKm,
+    TripType tripType = TripType.oneWay,
     String city = 'Delhi NCR',
     int passengerCount = 2,
   }) {
@@ -146,6 +156,7 @@ class BookingDraft {
       serviceStartDateTime: effectiveStart,
       serviceEndDateTime: effectiveEnd,
       routeDistanceKm: routeDistanceKm,
+      tripType: tripType,
       city: city,
       pickupAddress: '',
       destinationAddress: '',
@@ -281,6 +292,7 @@ class BookingDraft {
     TimeOfDay? startTime,
     int? durationHours,
     double? routeDistanceKm,
+    TripType? tripType,
     String? city,
     String? pickupAddress,
     String? destinationAddress,
@@ -329,6 +341,7 @@ class BookingDraft {
       serviceStartDateTime: effectiveStart,
       serviceEndDateTime: effectiveEnd,
       routeDistanceKm: routeDistanceKm ?? this.routeDistanceKm,
+      tripType: tripType ?? this.tripType,
       city: city ?? this.city,
       pickupAddress: pickupAddress ?? this.pickupAddress,
       destinationAddress: destinationAddress ?? this.destinationAddress,
@@ -364,6 +377,7 @@ class BookingDraft {
           other.serviceStartDateTime == serviceStartDateTime &&
           other.serviceEndDateTime == serviceEndDateTime &&
           other.routeDistanceKm == routeDistanceKm &&
+          other.tripType == tripType &&
           other.city == city &&
           other.pickupAddress == pickupAddress &&
           other.destinationAddress == destinationAddress &&
@@ -392,6 +406,7 @@ class BookingDraft {
     serviceStartDateTime,
     serviceEndDateTime,
     routeDistanceKm,
+    tripType,
     city,
     pickupAddress,
     destinationAddress,

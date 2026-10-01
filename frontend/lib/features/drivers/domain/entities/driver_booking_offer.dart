@@ -36,6 +36,11 @@ class DriverBookingOffer {
   final String maskedContactName;
   final String maskedContactPhone;
 
+  /// True once operations has ASSIGNED the duty: the host's full name and
+  /// phone are then released for execution (the backend ships them in the
+  /// driver duty view). False for a REQUESTED row: PII stays masked.
+  final bool identityReleased;
+
   // Financials
   final int estimatedTotalPaise;
   final int estimatedDriverEarningsPaise;
@@ -56,6 +61,7 @@ class DriverBookingOffer {
     this.specialInstructions,
     required this.maskedContactName,
     required this.maskedContactPhone,
+    this.identityReleased = false,
     required this.estimatedTotalPaise,
     required this.estimatedDriverEarningsPaise,
   });
@@ -73,6 +79,22 @@ class DriverBookingOffer {
   String get formattedDriverEarningsPaise =>
       CurrencyFormatter.formatPaise(estimatedDriverEarningsPaise);
 
+  /// Duty badge copy. REQUESTED is the only "awaiting allocation" state;
+  /// everything else is already an operations-allocated duty.
+  String get statusLabel => switch (status) {
+    BookingStatus.requested => 'AWAITING CHAUFFEUR',
+    BookingStatus.driverAccepted => 'ASSIGNED',
+    BookingStatus.confirmed => 'CONFIRMED',
+    BookingStatus.driverArriving => 'EN ROUTE',
+    BookingStatus.arrived => 'ARRIVED',
+    BookingStatus.tripStarted => 'IN PROGRESS',
+    BookingStatus.completed => 'COMPLETED',
+    BookingStatus.underReview => 'UNDER OPERATIONS REVIEW',
+    BookingStatus.vehicleOptionsPrepared => 'OPTIONS PREPARED',
+    BookingStatus.customerConfirmationPending => 'AWAITING CONFIRMATION',
+    _ => status.name.toUpperCase(),
+  };
+
   /// Factory constructing privacy-safe chauffeur offer from the shared [BookingSubmissionResult].
   factory DriverBookingOffer.fromBookingSubmissionResult(
     BookingSubmissionResult result,
@@ -82,6 +104,7 @@ class DriverBookingOffer {
     final earnings = pricingPolicy.calculateDriverEarningsPaise(
       result.estimatedTotalPaise,
     );
+    final released = result.status != BookingStatus.requested;
 
     return DriverBookingOffer(
       bookingId: result.bookingId,
@@ -96,8 +119,11 @@ class DriverBookingOffer {
       vehicleName: result.vehicleName,
       vehicleClass: result.vehicleClass,
       passengerCount: passengerCount,
-      maskedContactName: _maskName(result.primaryContactName),
-      maskedContactPhone: _maskPhone(result.primaryContactPhone),
+      maskedContactName:
+          released ? result.primaryContactName : _maskName(result.primaryContactName),
+      maskedContactPhone:
+          released ? result.primaryContactPhone : _maskPhone(result.primaryContactPhone),
+      identityReleased: released,
       estimatedTotalPaise: result.estimatedTotalPaise,
       estimatedDriverEarningsPaise: earnings,
     );

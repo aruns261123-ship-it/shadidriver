@@ -29,6 +29,22 @@ import { ReviewDecisionDto } from './dto/admin.dto';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
+  // -------------------------------------------------------------- customer stats
+
+  @Get('customers/stats')
+  @ApiOperation({ summary: 'REAL customer counts (total / new-30d / active) — no sample data' })
+  customerStats() {
+    return this.adminService.customerStats();
+  }
+
+  @Get('dashboard/stats')
+  @ApiOperation({
+    summary: 'FULL dashboard KPI set from live counts (customers, drivers, cars, verification, bookings, payments)',
+  })
+  dashboardStats() {
+    return this.adminService.dashboardStats();
+  }
+
   // ------------------------------------------------------------------ queues
 
   @Get('verification/partners')

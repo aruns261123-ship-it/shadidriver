@@ -16,6 +16,12 @@ class VehicleDetails {
   final String? transmission;
   final String verificationStatus;
   final List<String> galleryUrls;
+
+  /// Fuel type from the public detail payload (e.g. "Petrol").
+  final String fuelType;
+
+  /// City/areas the vehicle serves, from the public detail payload.
+  final List<String> serviceAreas;
   final String suitabilityInfo;
   final List<String> suitableCeremonies;
   final List<String> amenities;
@@ -42,6 +48,8 @@ class VehicleDetails {
     this.transmission,
     required this.verificationStatus,
     required this.galleryUrls,
+    this.fuelType = '',
+    this.serviceAreas = const [],
     required this.suitabilityInfo,
     this.suitableCeremonies = const [],
     required this.amenities,

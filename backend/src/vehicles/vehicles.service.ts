@@ -17,6 +17,8 @@ export interface VehicleSearchInput {
   vehicleTypeIds?: string[];
   vehicleClass?: string;
   minSeatingCapacity?: number;
+  /** Echoed for observability; does NOT change eligibility (fleet serves both directions). */
+  tripType?: string;
   page: number;
   limit: number;
 }

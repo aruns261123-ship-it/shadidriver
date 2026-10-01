@@ -212,7 +212,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 400));
 
         // Real vehicle cards render with the add affordance.
-        expect(find.textContaining('Add to Selection'), findsWidgets);
+        expect(find.text('Add'), findsWidgets);
         // No login redirect happened — we are still on the results route.
         expect(find.byType(SearchResultsScreen), findsOneWidget);
         expect(find.byType(LoginScreen), findsNothing);
@@ -327,12 +327,11 @@ void main() {
                 viewModel: const VehicleCardViewModel(
                   id: 'v1',
                   title: 'Toyota Innova Crysta',
-                  subtitle: '2025 • Executive MPV',
-                  ratingText: '4.9',
-                  reviewCountText: '(128)',
-                  distanceText: '',
+                  subtitle: 'Executive MPV · 7 seats',
                   priceText: '₹25,000',
                   priceUnit: '/ day',
+                  fareEstimateText: '₹25,000+',
+                  isPremium: false,
                   hasVerifiedChauffeur: true,
                   isVerifiedVehicle: true,
                   isAvailable: true,
@@ -344,11 +343,11 @@ void main() {
           ),
         );
         expect(
-          find.text('Vehicle & chauffeur verified by ShadiDriver'),
+          find.text('Vehicle and chauffeur verified by ShadiDriver'),
           findsOneWidget,
         );
         // NOT SELECTED: the card offers the add action.
-        expect(find.text('Add to Selection'), findsOneWidget);
+        expect(find.text('Add'), findsOneWidget);
         expect(find.text('Selected'), findsNothing);
 
         // SELECTED: the add action is gone (tapping it again would only
@@ -361,12 +360,11 @@ void main() {
                 viewModel: const VehicleCardViewModel(
                   id: 'v1',
                   title: 'Toyota Innova Crysta',
-                  subtitle: '2025 • Executive MPV',
-                  ratingText: '4.9',
-                  reviewCountText: '(128)',
-                  distanceText: '',
+                  subtitle: 'Executive MPV · 7 seats',
                   priceText: '₹25,000',
                   priceUnit: '/ day',
+                  fareEstimateText: '₹25,000+',
+                  isPremium: false,
                   hasVerifiedChauffeur: true,
                   isVerifiedVehicle: true,
                   isAvailable: true,

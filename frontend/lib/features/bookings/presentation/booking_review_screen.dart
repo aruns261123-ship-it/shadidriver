@@ -206,30 +206,25 @@ class BookingReviewScreen extends ConsumerWidget {
                           ],
                         ),
                         const Divider(height: 24),
+                        // The customer books a CAR, never a person: the
+                        // chauffeur is allocated by ShadiDriver operations
+                        // after the request and is never shown to the customer.
                         Row(
                           children: [
                             const Icon(
-                              Icons.person_pin_rounded,
+                              Icons.verified_user_rounded,
                               size: 18,
                               color: AppColors.warmGold,
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              'Assigned Chauffeur:',
-                              style: AppTypography.labelSmall.copyWith(
-                                color: AppColors.textSecondaryLight,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                'Verified Professional '
-                                '(${VehicleReference.shorten(draft.chauffeurId)})',
+                                'Chauffeur: assigned & verified by ShadiDriver',
                                 style: AppTypography.labelSmall.copyWith(
                                   color: AppColors.textPrimaryLight,
                                   fontWeight: FontWeight.w600,
                                 ),
-                                maxLines: 1,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),

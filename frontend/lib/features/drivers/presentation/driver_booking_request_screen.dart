@@ -12,6 +12,7 @@ import '../../../core/widgets/shadi_primary_button.dart';
 import '../../../core/widgets/shadi_secondary_button.dart';
 import '../domain/entities/driver_booking_offer.dart';
 import '../domain/entities/driver_decline_reason.dart';
+import '../../bookings/domain/entities/booking_status.dart';
 import 'controllers/driver_booking_action_controller.dart';
 import 'controllers/driver_dashboard_controller.dart';
 
@@ -55,11 +56,13 @@ class _DriverBookingRequestScreenState
           );
           _navigateToDashboard(context);
         } else if (current.isDeclined) {
-          // Invalidate dashboard so declined offer is removed
+          // Invalidate dashboard so the duty leaves the active list
           ref.invalidate(driverDashboardControllerProvider);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Offer declined.'),
+              content: Text(
+                'Reported to operations — the duty returned to the reassignment queue.',
+              ),
               duration: Duration(seconds: 2),
             ),
           );
@@ -68,7 +71,7 @@ class _DriverBookingRequestScreenState
           _showConflictDialog(
             context,
             current.errorMessage ??
-                'This booking has already been accepted by another chauffeur.',
+                'This duty has changed — operations has been notified.',
           );
         } else if (current.errorMessage != null && !current.isConflict) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -94,7 +97,10 @@ class _DriverBookingRequestScreenState
           onPressed: () => _navigateToDashboard(context),
         ),
         title: Text(
-          'Ceremonial Offer',
+          offerAsync.valueOrNull == null ||
+                  offerAsync.valueOrNull!.status == BookingStatus.requested
+              ? 'Ceremonial Offer'
+              : 'Assigned Duty',
           style: AppTypography.displaySmall.copyWith(
             color: AppColors.primaryBurgundy,
             fontWeight: FontWeight.w700,
@@ -192,7 +198,7 @@ class _DriverBookingRequestScreenState
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  'REQUESTED',
+                  offer.statusLabel,
                   style: AppTypography.labelSmall.copyWith(
                     color: AppColors.primaryBurgundy,
                     fontWeight: FontWeight.bold,
@@ -202,41 +208,66 @@ class _DriverBookingRequestScreenState
             ],
           ),
           const SizedBox(height: 16),
-          Text(
-            'Estimated Chauffeur Payout',
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.textSecondaryLight,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                offer.formattedDriverEarningsPaise,
-                style: AppTypography.displayMedium.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.primaryBurgundy,
-                ),
+          if (offer.estimatedTotalPaise > 0) ...[
+            Text(
+              'Estimated Chauffeur Payout',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textSecondaryLight,
               ),
-              const SizedBox(width: 8),
-              Text(
-                'net ceremonial payout',
-                style: AppTypography.labelSmall.copyWith(
-                  color: AppColors.textSecondaryLight,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Includes 80% ceremonial base compensation. Tolls and ceremonial decor allowance accounted for at completion.',
-            style: AppTypography.labelSmall.copyWith(
-              color: AppColors.textSecondaryLight,
-              fontStyle: FontStyle.italic,
             ),
-          ),
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  offer.formattedDriverEarningsPaise,
+                  style: AppTypography.displayMedium.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primaryBurgundy,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'net ceremonial payout',
+                  style: AppTypography.labelSmall.copyWith(
+                    color: AppColors.textSecondaryLight,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Includes 80% ceremonial base compensation. Tolls and ceremonial decor allowance accounted for at completion.',
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textSecondaryLight,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ] else ...[
+            Text(
+              'Duty allocation',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textSecondaryLight,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Assigned by ShadiDriver operations',
+              style: AppTypography.titleMedium.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppColors.primaryBurgundy,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your payout for this duty is calculated and reported by operations after the service concludes.',
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textSecondaryLight,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -318,7 +349,9 @@ class _DriverBookingRequestScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'DPDP Act 2023 Compliance: Host phone number and venue security passcodes are released immediately after offer acceptance.',
+                    offer.identityReleased
+                        ? 'DPDP Act 2023 Compliance: host contact was released because ShadiDriver operations ASSIGNED you this duty. Use it only for this ceremony.'
+                        : 'DPDP Act 2023 Compliance: Host phone number and venue security passcodes are released immediately after offer acceptance.',
                     style: AppTypography.labelSmall.copyWith(
                       color: AppColors.textPrimaryLight,
                       fontSize: 11,
@@ -404,6 +437,34 @@ class _DriverBookingRequestScreenState
     DriverBookingOffer offer,
     DriverBookingActionState actionState,
   ) {
+    // ASSIGNED DUTY (real workflow): there is nothing to accept — operations
+    // already allocated this work. The only driver-side action is reporting a
+    // conflict so operations can reassign. Accept/Decline exists only for the
+    // REQUESTED state (mock-mode demo payloads).
+    if (offer.status != BookingStatus.requested) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: ShadiSecondaryButton(
+            key: const Key('driver_report_conflict_button'),
+            text: 'Report Conflict',
+            onPressed: actionState.isActing
+                ? null
+                : () => _showDeclineBottomSheet(context),
+          ),
+        ),
+      );
+    }
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

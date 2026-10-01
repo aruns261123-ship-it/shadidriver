@@ -7,17 +7,21 @@ describe('PaymentsService (gateway-verified capture)', () => {
   let service: PaymentsService;
   let gateway: MockPaymentGateway;
   let prisma: any;
+  let sms: { name: string; sendOtp: jest.Mock; sendTransactional: jest.Mock };
 
   const customer = { id: 'cust-1' };
 
   function bookingRow(overrides: Record<string, unknown> = {}) {
     return {
       id: 'bk-1',
+      referenceCode: 'SD-2026-0145',
       customerFk: customer.id,
       status: 'PAYMENT_PENDING',
       isAdvancePaid: false,
       advanceTokenPaise: 750_000n,
       estimatedTotalPaise: 3_000_000n,
+      primaryContactPhone: '+919810000001',
+      serviceStartTime: new Date('2026-10-03T10:30:00.000Z'),
       version: 1,
       ...overrides,
     };
@@ -66,11 +70,18 @@ describe('PaymentsService (gateway-verified capture)', () => {
       __payments: payments,
     };
 
+    sms = {
+      name: 'test-sms',
+      sendOtp: jest.fn().mockResolvedValue({ accepted: true }),
+      sendTransactional: jest.fn().mockResolvedValue({ accepted: true }),
+    };
+
     service = new PaymentsService(
       prisma,
       new BookingStateMachineService(),
       { assertConfirmable: jest.fn() } as never, // GroupBookingsService (unused on the legacy path)
       gateway as never,
+      sms as never,
     );
   });
 
@@ -187,6 +198,70 @@ describe('PaymentsService (gateway-verified capture)', () => {
     await expect(
       service.ingestWebhook({ rawBody, signature: 'forged' }),
     ).rejects.toThrow(/signature/i);
+  });
+
+  it('ops-allocated booking (DRIVER_ACCEPTED) can pay the advance and becomes CONFIRMED', async () => {
+    // Operations allocated a chauffeur straight from REQUESTED. The advance
+    // payment is the customer's half of the contract — capture must move
+    // DRIVER_ACCEPTED → CONFIRMED so the chauffeur can start execution.
+    prisma.__booking.status = 'DRIVER_ACCEPTED';
+    const order = await service.createAdvanceTokenOrder('bk-1', customer.id, 'idem-ops');
+    const payment = prisma.__payments[0];
+    const sig = gateway.devSignPayment(order.gateway_order_id, 'pay_ops');
+
+    const result = await service.verifyAndCapture({
+      paymentDbId: payment.id,
+      customerId: customer.id,
+      gatewayOrderId: order.gateway_order_id,
+      gatewayPaymentId: 'pay_ops',
+      signature: sig,
+    });
+    expect(result.captured).toBe(true);
+    expect(result.booking_status).toBe('CONFIRMED');
+    expect(prisma.__booking.status).toBe('CONFIRMED');
+    expect(prisma.__booking.isAdvancePaid).toBe(true);
+  });
+
+  it('sends the customer a confirmation message when the booking is CONFIRMED', async () => {
+    prisma.__booking.status = 'DRIVER_ACCEPTED';
+    const order = await service.createAdvanceTokenOrder('bk-1', customer.id, 'idem-confirm');
+    const payment = prisma.__payments[0];
+    const sig = gateway.devSignPayment(order.gateway_order_id, 'pay_confirm');
+
+    await service.verifyAndCapture({
+      paymentDbId: payment.id,
+      customerId: customer.id,
+      gatewayOrderId: order.gateway_order_id,
+      gatewayPaymentId: 'pay_confirm',
+      signature: sig,
+    });
+
+    expect(sms.sendTransactional).toHaveBeenCalledTimes(1);
+    const [phone, message] = sms.sendTransactional.mock.calls[0];
+    expect(phone).toBe(prisma.__booking.primaryContactPhone);
+    expect(String(message)).toMatch(/CONFIRMED/);
+    // The chauffeur's identity and phone never travel back to the customer —
+    // the message assures the arrangement without naming a person.
+    expect(String(message)).not.toMatch(/\+91|Rajesh/);
+  });
+
+  it('a confirmation-message outage never fails a captured payment', async () => {
+    prisma.__booking.status = 'PAYMENT_PENDING';
+    sms.sendTransactional.mockRejectedValue(new Error('DLT template missing'));
+    const order = await service.createAdvanceTokenOrder('bk-1', customer.id, 'idem-outage');
+    const payment = prisma.__payments[0];
+    const sig = gateway.devSignPayment(order.gateway_order_id, 'pay_outage');
+
+    const result = await service.verifyAndCapture({
+      paymentDbId: payment.id,
+      customerId: customer.id,
+      gatewayOrderId: order.gateway_order_id,
+      gatewayPaymentId: 'pay_outage',
+      signature: sig,
+    });
+    expect(result.captured).toBe(true);
+    expect(result.booking_status).toBe('CONFIRMED');
+    expect(prisma.__payments[0].status).toBe('SUCCESS');
   });
 
   it('double capture is refused after success', async () => {

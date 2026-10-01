@@ -139,7 +139,9 @@ void main() {
 
       // The catalog renders for a guest; no sign-in wall appears.
       expect(find.text('Audi A6'), findsWidgets);
-      expect(find.text('Book Now'), findsOneWidget);
+      // The reference detail surface offers Add-to-Cart; the booking entry
+      // stays reachable via the text action.
+      expect(find.text('Add to Cart'), findsOneWidget);
       expect(find.text('Assigned Chauffeur'), findsNothing);
     });
 

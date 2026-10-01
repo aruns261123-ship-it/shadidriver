@@ -1,15 +1,63 @@
 import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
+import { CurrentUser } from './decorators/current-user.decorator';
 import { JwtAuthGuard, Public, REQUEST_USER_KEY } from './guards/jwt-auth.guard';
 import { AuthService } from './auth.service';
+import { GoogleAuthService } from './services/google-auth.service';
 import { RequestOtpDto, RefreshTokenDto, SignUpDto, VerifyOtpDto } from './dto/auth.dto';
 import { AuthenticatedUser } from './domain/auth.types';
+import { IsOptional, IsString, Length } from 'class-validator';
+
+export class GoogleSignInDto {
+  /** Google ID token from the client SDK (google_sign_in). Verified here. */
+  @IsString() @Length(20, 4096) idToken!: string;
+  @IsOptional() @IsString() @Length(4, 128) deviceId?: string;
+}
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly googleAuthService: GoogleAuthService,
+  ) {}
+
+  @Public()
+  @Post('google')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Customer sign-in with a Google ID token (verified server-side; same session architecture as OTP)',
+  })
+  async googleSignIn(@Body() dto: GoogleSignInDto) {
+    const result = await this.googleAuthService.signInWithIdToken(dto.idToken, dto.deviceId);
+    return {
+      access_token: result.accessToken,
+      refresh_token: result.refreshToken,
+      expires_in: result.accessTokenExpiresIn,
+      user: {
+        id: result.user.id,
+        phone_number: result.user.phoneNumber,
+        full_name: result.user.fullName,
+        role: result.user.role,
+        account_status: result.user.accountStatus,
+        is_new_user: result.user.isNewUser,
+      },
+    };
+  }
+
+  @Post('google/link')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Link a verified Google identity to the signed-in account' })
+  async googleLink(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: GoogleSignInDto,
+  ) {
+    return this.googleAuthService.linkToUser(user.userId, dto.idToken);
+  }
 
   @Public()
   @Post('otp/request')

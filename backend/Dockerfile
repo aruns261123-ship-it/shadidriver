@@ -17,6 +17,8 @@ COPY package*.json ./
 COPY prisma ./prisma
 RUN npm ci --omit=dev --no-audit --no-fund && npx prisma generate
 COPY --from=build /app/dist ./dist
+# Seed vehicle photography served under /media (see main.ts useStaticAssets)
+COPY public ./public
 EXPOSE 3000
 # Run migrations then start (deploy applies committed migrations only)
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]

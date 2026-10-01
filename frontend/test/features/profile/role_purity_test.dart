@@ -109,7 +109,11 @@ void main() {
           ),
         );
 
-        await tester.pumpAndSettle();
+        // Fixed pumps flush the mock repositories' delayed futures (the
+        // FutureBuilder + mock delays do not settle under pumpAndSettle).
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pump(const Duration(milliseconds: 400));
 
         // Verify NO cross-role navigation or swap icons in dashboard
         expect(find.byIcon(Icons.swap_horiz_rounded), findsNothing);

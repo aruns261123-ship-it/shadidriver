@@ -15,6 +15,7 @@ import 'package:shadidriver/features/bookings/domain/entities/fleet_availability
 import 'package:shadidriver/features/bookings/domain/entities/group_booking.dart';
 import 'package:shadidriver/features/bookings/domain/entities/group_booking_submission_request.dart';
 import 'package:shadidriver/features/drivers/domain/entities/driver_decline_reason.dart';
+import 'package:shadidriver/features/search/domain/entities/trip_type.dart';
 import 'package:shadidriver/core/errors/failures.dart';
 
 class FakeAuthRepository implements AuthRepository {
@@ -73,6 +74,19 @@ class FakeAuthRepository implements AuthRepository {
       AuthSession(
         userId: 'usr_1',
         phone: '+91 99999 XXXXX',
+        role: UserRole.customer,
+        accountStatus: AccountStatus.active,
+        issuedAt: DateTime.now(),
+      ),
+    );
+  }
+
+  @override
+  Future<Result<AuthSession>> signInWithGoogle() async {
+    return Result.success(
+      AuthSession(
+        userId: 'usr_google_1',
+        phone: '+91 00000 XXXXX',
         role: UserRole.customer,
         accountStatus: AccountStatus.active,
         issuedAt: DateTime.now(),
@@ -291,6 +305,7 @@ class FakeBookingRepository implements BookingRepository {
     DateTime? serviceStartTime,
     DateTime? serviceEndTime,
     String? city,
+    TripType tripType = TripType.oneWay,
   }) async {
     return Result.success(
       FleetAvailabilityResult.available(

@@ -99,7 +99,22 @@ class DriverDashboardState {
   }
 }
 
-/// Controller managing driver duty status and available booking offers.
+/// One pass over the chauffeur's OPERATIONS-ALLOCATED duties.
+///
+/// Drivers never receive marketplace offers — the backend hands back the
+/// work operations allocated to them. The first live assignment is surfaced
+/// as the active-trip card; every other allocated duty renders as its own
+/// duty card. Never gated by duty status: an assignment stands even when the
+/// chauffeur is offline.
+class _DutyLoad {
+  final DriverActiveTrip? activeAssignment;
+  final List<DriverBookingOffer> duties;
+  final String? error;
+
+  const _DutyLoad({this.activeAssignment, this.duties = const [], this.error});
+}
+
+/// Controller managing driver duty status and assigned duties.
 class DriverDashboardController extends StateNotifier<DriverDashboardState> {
   final DriverRepository driverRepository;
   final BookingRepository bookingRepository;
@@ -130,26 +145,15 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
 
     String? fetchError;
 
-    // 2. Fetch the chauffeur's live assignment (accepted, not completed).
-    //    Kept separate from offers so the Active Assignment card reflects real
-    //    booking-store state and disappears on completion.
-    final activeResult = await bookingRepository.getDriverActiveAssignments(
-      driverId: driverId,
-    );
-    DriverActiveTrip? activeAssignment;
-    activeResult.fold(
-      (failure) => fetchError = failure.message,
-      (list) => activeAssignment = list.isEmpty
-          ? null
-          : DriverActiveTrip.fromBookingResult(
-              list.first,
-              stage: DriverTripStage.enRouteToPickup,
-            ),
-    );
+    // 2. Operations-allocated duties: the first live assignment becomes the
+    //    Active Trip card; the rest become duty cards below.
+    final dutyLoad = await _loadDuties();
+    fetchError = dutyLoad.error;
 
     if (!mounted) return; // disposed mid-flight (e.g. cross-screen refresh)
 
-    // 3. If available, fetch offers
+    // 3. If available, fetch any pending queue entries (mock-mode only — the
+    //    real backend always answers `offers: []`).
     List<DriverBookingOffer> loadedOffers = [];
 
     if (status.canReceiveOffers) {
@@ -173,14 +177,45 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
 
     state = state.copyWith(
       dutyStatus: status,
-      offers: loadedOffers,
-      activeAssignment: activeAssignment,
+      offers: [...loadedOffers, ...dutyLoad.duties],
+      activeAssignment: dutyLoad.activeAssignment,
       // A reload must be authoritative: when the store reports no live
       // assignment (service concluded), the stale card is dropped instead of
       // being preserved by copyWith's `??` fallback.
-      clearActiveAssignment: activeAssignment == null,
+      clearActiveAssignment: dutyLoad.activeAssignment == null,
       isLoading: false,
       errorMessage: fetchError,
+    );
+  }
+
+  /// Single fetch of allocated duties → active-trip view + duty cards.
+  Future<_DutyLoad> _loadDuties() async {
+    final result = await bookingRepository.getDriverActiveAssignments(
+      driverId: driverId,
+    );
+    return result.fold(
+      (failure) => _DutyLoad(error: failure.message),
+      (list) {
+        DriverActiveTrip? active;
+        if (list.isNotEmpty) {
+          active = DriverActiveTrip.fromBookingResult(
+            list.first,
+            stage: DriverTripStage.enRouteToPickup,
+          );
+        }
+        return _DutyLoad(
+          activeAssignment: active,
+          duties: list
+              .where((r) => r.bookingId != active?.bookingId)
+              .map(
+                (res) => DriverBookingOffer.fromBookingSubmissionResult(
+                  res,
+                  pricingPolicy,
+                ),
+              )
+              .toList(),
+        );
+      },
     );
   }
 
@@ -218,6 +253,14 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
           );
         }
 
+        // Allocated duties survive every duty toggle — they are committed
+        // operational work, not a dispatch queue entry.
+        final dutyLoad = await _loadDuties();
+        fetchError ??= dutyLoad.error;
+        newOffers = [...newOffers, ...dutyLoad.duties];
+
+        if (!mounted) return false;
+
         state = state.copyWith(
           dutyStatus: newStatus,
           offers: newOffers,
@@ -231,28 +274,37 @@ class DriverDashboardController extends StateNotifier<DriverDashboardState> {
     );
   }
 
-  /// Refreshes incoming booking offers from the dispatch queue.
+  /// Refreshes the duty list (allocated duties + any pending queue entries).
   Future<void> refreshOffers() async {
-    if (!state.canReceiveOffers) return;
+    String? fetchError;
 
-    final offersResult = await bookingRepository.getDriverBookingRequests(
-      driverId: driverId,
-    );
-    offersResult.fold(
-      (failure) {
-        state = state.copyWith(errorMessage: failure.message);
-      },
-      (list) {
-        final newOffers = list
+    List<DriverBookingOffer> newOffers = [];
+    if (state.canReceiveOffers) {
+      final offersResult = await bookingRepository.getDriverBookingRequests(
+        driverId: driverId,
+      );
+      offersResult.fold(
+        (failure) => fetchError = failure.message,
+        (list) => newOffers = list
             .map(
               (res) => DriverBookingOffer.fromBookingSubmissionResult(
                 res,
                 pricingPolicy,
               ),
             )
-            .toList();
-        state = state.copyWith(offers: newOffers, clearError: true);
-      },
+            .toList(),
+      );
+    }
+
+    final dutyLoad = await _loadDuties();
+    fetchError ??= dutyLoad.error;
+    newOffers = [...newOffers, ...dutyLoad.duties];
+
+    if (!mounted) return;
+    state = state.copyWith(
+      offers: newOffers,
+      clearError: fetchError == null,
+      errorMessage: fetchError,
     );
   }
 }

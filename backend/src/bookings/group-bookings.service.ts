@@ -21,7 +21,24 @@ import {
   crossesMidnight,
   deriveLineQuote,
   serviceHours,
+  LineQuote,
 } from './group-booking-pricing';
+import { TripType } from '../common/domain/trip-type';
+
+/**
+ * Applies the server-side trip-direction rule to a tariff-derived line quote.
+ * The one-way route distance is what tariff km-inclusions are sized against,
+ * so a round trip halves the included km — the return leg then bills as extra
+ * distance instead of being silently free. Amount is unchanged (the car is
+ * engaged for the same service hours either way).
+ */
+function applyTripTypeToLineQuote(quote: LineQuote, tripType: TripType): LineQuote {
+  if (tripType !== TripType.ROUND_TRIP) return quote;
+  if (quote.basis === 'LOCAL_PACKAGE' && quote.includedKm != null) {
+    return { ...quote, includedKm: quote.includedKm / 2 };
+  }
+  return quote;
+}
 
 export interface SubmitGroupBookingInput {
   customerId: string;
@@ -37,6 +54,8 @@ export interface SubmitGroupBookingInput {
   passengerCount: number;
   /** Confirmed fleet composition — must match an availability check the customer saw. */
   fleet: FleetRequestLine[];
+  /** ONE_WAY | ROUND_TRIP — persisted and baked into the pricing snapshot. */
+  tripType?: TripType;
   idempotencyKey: string;
   /** Optional customer requirements (decoration, child seat, early arrival …). */
   requirements?: string[];
@@ -88,7 +107,18 @@ export class GroupBookingsService {
       where: { idempotencyKey: idemKey },
       include: { assignments: true },
     });
-    if (existing) return { groupBooking: existing, idempotentReplay: true };
+    if (existing) {
+      // The replay response goes through the SAME customer serializer as the
+      // read endpoints: never the raw row (idempotency key, pricing snapshot,
+      // internal FK ids).
+      return {
+        groupBooking: await this.getGroupBooking(existing.id, {
+          userId: input.customerId,
+          role: Role.Customer,
+        }),
+        idempotentReplay: true,
+      };
+    }
 
     // Re-validate availability for the EXACT confirmed composition.
     const availability = await this.availabilityService.checkFleetAvailability(
@@ -134,6 +164,7 @@ export class GroupBookingsService {
 
       const hours = serviceHours(input.serviceStartTime, input.serviceEndTime);
       const overnight = crossesMidnight(input.serviceStartTime, input.serviceEndTime);
+      const tripType = input.tripType ?? TripType.ONE_WAY;
       let quotedTotalPaise = 0n;
       const unpricedVehicleIds: string[] = [];
       const quotedLines: Array<Record<string, unknown>> = [];
@@ -189,7 +220,10 @@ export class GroupBookingsService {
             where: { vehicleId: vehicle.id, status: 'APPROVED' },
             orderBy: { version: 'desc' },
           });
-          const quote = deriveLineQuote(tariff, hours, overnight);
+          const quote = applyTripTypeToLineQuote(
+            deriveLineQuote(tariff, hours, overnight),
+            tripType,
+          );
           if (quote.amountPaise == null) {
             unpricedVehicleIds.push(vehicle.id);
           } else {
@@ -213,6 +247,7 @@ export class GroupBookingsService {
             pricingSnapshot: {
               source: 'TARIFF_AUTO',
               quoted_at: new Date().toISOString(),
+              trip_type: tripType,
               service_hours: hours,
               crosses_midnight: overnight,
               basis: quote.basis,
@@ -250,6 +285,7 @@ export class GroupBookingsService {
           requestedFleet: input.fleet as never,
           requestedFleetItems: input.fleet as never,
           passengerCount: input.passengerCount,
+          tripType,
           requirements: (input.requirements ?? []) as never,
           communicationPreference: input.communicationPreference ?? 'PHONE',
           estimatedTotalPaise: totalPaise,
@@ -258,6 +294,7 @@ export class GroupBookingsService {
             source: 'TARIFF_AUTO',
             quoted_at: new Date().toISOString(),
             complete: quoteComplete,
+            trip_type: tripType,
             service_hours: hours,
             crosses_midnight: overnight,
             total_paise: totalPaise?.toString() ?? null,
@@ -305,7 +342,16 @@ export class GroupBookingsService {
       return group;
     });
 
-    return { groupBooking, idempotentReplay: false };
+    // The submission response is the CUSTOMER view of the booking just made
+    // (same serializer as GET /group-bookings/:id): assignments, prices and
+    // fleet intent as the customer owns them — and nothing internal.
+    return {
+      groupBooking: await this.getGroupBooking(groupBooking.id, {
+        userId: input.customerId,
+        role: Role.Customer,
+      }),
+      idempotentReplay: false,
+    };
   }
 
   /**
@@ -316,7 +362,7 @@ export class GroupBookingsService {
    * A non-owner gets 404, the same response as a nonexistent id, so the
    * endpoint cannot be used to probe which booking ids exist.
    */
-  async getGroupBooking(id: string, viewer: AuthenticatedUser) {
+  async getGroupBooking(id: string, viewer: { userId: string; role: Role }) {
     const group = await this.prisma.groupBooking.findUnique({
       where: { id },
       include: {
@@ -1083,11 +1129,13 @@ interface CustomerGroupBookingSource {
   passengerCount: number;
   status: string;
   version?: number;
+  tripType?: string | null;
   estimatedTotalPaise: bigint | null;
   advanceTokenPaise: bigint | null;
   requirements?: unknown;
   communicationPreference?: string;
   requestedFleetItems?: unknown;
+  createdAt?: Date;
   assignments: Array<{
     id: string;
     sequenceNumber: number;
@@ -1143,6 +1191,8 @@ export function serializeCustomerGroupBooking(group: CustomerGroupBookingSource)
     passenger_count: group.passengerCount,
     status: group.status,
     version: group.version,
+    created_at: group.createdAt ?? null,
+    trip_type: group.tripType ?? 'ONE_WAY',
     // null means "operations has not quoted yet" — a REAL state, rendered as
     // "on request". Never coerced to 0 (which would read as a free booking).
     estimated_total_paise: group.estimatedTotalPaise?.toString() ?? null,

@@ -23,10 +23,14 @@ class ShadiPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // `height` is a MINIMUM, not a fixed box: at a large text scale the label
+    // grew past a hardcoded 50dp and was clipped. The button now grows when it
+    // must and the touch target is never smaller than [height].
     return SizedBox(
       width: width ?? double.infinity,
-      height: height,
-      child: ElevatedButton(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: height),
+        child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primaryBurgundy,
@@ -70,6 +74,7 @@ class ShadiPrimaryButton extends StatelessWidget {
                   ),
                 ],
               ),
+        ),
       ),
     );
   }

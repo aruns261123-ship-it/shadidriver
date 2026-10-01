@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_response.dart';
@@ -18,6 +19,12 @@ class VehicleApiRepository implements VehicleRepository {
   final ApiClient _client;
 
   VehicleApiRepository(this._client);
+
+  /// The `trip_type` query parameter of the most recent [searchVehicles] call.
+  /// Regression tests assert this — proof the trip selection is persisted into
+  /// the ACTUAL API request, not just UI state.
+  @visibleForTesting
+  String? lastSearchTripTypeParam;
 
   static const _basePath = '${AppConstants.apiV1Prefix}/vehicles';
 
@@ -116,7 +123,11 @@ class VehicleApiRepository implements VehicleRepository {
         if (query.vehicleCategories != null &&
             query.vehicleCategories!.isNotEmpty)
           'vehicleClass': query.vehicleCategories!.first,
+        // Persisted into the request — the backend echoes it and the quote
+        // engine prices it (ROUND_TRIP bills the route twice).
+        'tripType': query.tripType.wire,
       };
+      lastSearchTripTypeParam = query.tripType.wire;
 
       final response = await _client.get<Map<String, dynamic>>(
         _basePath,
@@ -179,6 +190,9 @@ class VehicleApiRepository implements VehicleRepository {
       verificationStatus:
           (json['verification_status'] as String?) ?? 'APPROVED',
       galleryUrls: rawPhotos,
+      fuelType: (json['fuel_type'] as String?) ?? '',
+      serviceAreas:
+          (json['service_areas'] as List?)?.cast<String>() ?? const [],
       // Editorial copy is a backend concern; no client-side invention.
       suitabilityInfo: (json['suitability_info'] as String?) ?? '',
       suitableCeremonies: ceremonies,

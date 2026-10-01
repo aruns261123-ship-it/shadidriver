@@ -80,10 +80,13 @@ class PaymentCheckoutScreen extends ConsumerWidget {
                 ),
               _buildPayButton(context, state, controller),
               const SizedBox(height: 12),
+              // Server-authoritative payment state: success/failure is decided
+              // by the backend's gateway verification (server-signed order →
+              // capture → verify), never by this screen.
               const Center(
                 child: Text(
-                  'Demo gateway: any payer reference succeeds • one starting '
-                  'with "fail_" simulates a decline.',
+                  'Payment status is verified by ShadiDriver before your '
+                  'booking is confirmed.',
                   style: TextStyle(fontSize: 11, color: Colors.grey),
                   textAlign: TextAlign.center,
                 ),

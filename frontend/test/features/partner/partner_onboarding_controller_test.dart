@@ -168,7 +168,9 @@ class _FakePartnerRepository implements PartnerRepository {
         currency: 'INR',
         localIncludedKm: draft.localIncludedKm,
         localAmountPaise: '${draft.localAmountPaise}',
-        perKmPaise: '${draft.perKmPaise}',
+        // Derived exactly like the server: round((fuel ÷ mileage + 10) × 100).
+        perKmPaise:
+            '${(((draft.fuelPricePerLitre / draft.mileageKmPerLitre) + 10) * 100).round()}',
         hourlyPaise: null,
         extraHourPaise: null,
         fullDayPaise: null,
@@ -303,7 +305,8 @@ const _scorpio = PartnerVehicleDraft(
 const _tariff = VehicleTariffDraft(
   localIncludedKm: 45,
   localAmountPaise: 300000,
-  perKmPaise: 1400,
+  fuelPricePerLitre: 95,
+  mileageKmPerLitre: 8,
 );
 
 void main() {
@@ -505,7 +508,9 @@ void main() {
       expect(wire, {
         'localIncludedKm': 45,
         'localAmountPaise': 300000,
-        'perKmPaise': 1400,
+        // The per-km rate is server-derived from these two inputs.
+        'fuelPricePerLitre': 95.0,
+        'mileageKmPerLitre': 8.0,
       });
       expect(snap().editingVehicleTariffs, hasLength(1));
       expect(

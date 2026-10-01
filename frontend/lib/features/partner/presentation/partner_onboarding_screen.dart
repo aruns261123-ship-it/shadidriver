@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/shadi_error_view.dart';
 import '../../../../core/widgets/shadi_loading_indicator.dart';
+import '../../../../core/widgets/shadi_onboarding_steps.dart';
 import '../../../../core/widgets/shadi_primary_button.dart';
 import '../../../../core/widgets/shadi_status_badge.dart';
 import 'controllers/partner_onboarding_controller.dart';
@@ -83,27 +84,60 @@ class PartnerOnboardingScreen extends ConsumerWidget {
             ? const ShadiLoadingIndicator(message: 'Loading your partner desk…')
             : state.roleBlocked
                 ? const _PartnerRoleGate()
-                : switch (state.stage) {
-                OnboardingStage.profile => PartnerProfileFormScreen(
-                    initial: state.profile,
+                : Column(
+                    children: [
+                      // REFERENCE STEP SYSTEM: progress with completed
+                      // checks, the champagne active step, pending steps.
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                        child: ShadiOnboardingSteps(
+                          steps: const [
+                            ShadiOnboardingStep('Account & personal'),
+                            ShadiOnboardingStep('Professional details'),
+                            ShadiOnboardingStep('Add each car'),
+                            ShadiOnboardingStep('Photos & documents'),
+                            ShadiOnboardingStep('Service area'),
+                            ShadiOnboardingStep('Pricing inputs'),
+                            ShadiOnboardingStep('Review & verification'),
+                          ],
+                          currentStep: _stepIndex(state.stage),
+                        ),
+                      ),
+                      Expanded(
+                        child: switch (state.stage) {
+                          OnboardingStage.profile => PartnerProfileFormScreen(
+                              initial: state.profile,
+                            ),
+                          OnboardingStage.fleet => _FleetStage(state: state),
+                          OnboardingStage.vehicleForm =>
+                            PartnerVehicleFormScreen(
+                              editing: state.editingVehicle,
+                            ),
+                          OnboardingStage.pricing =>
+                            PartnerVehiclePricingScreen(
+                              vehicle: state.editingVehicle,
+                              existing: state.editingVehicleTariffs,
+                            ),
+                          OnboardingStage.review => PartnerReviewScreen(
+                              profile: state.profile,
+                              vehicle: state.editingVehicle,
+                            ),
+                        },
+                      ),
+                    ],
                   ),
-                OnboardingStage.fleet => _FleetStage(state: state),
-                OnboardingStage.vehicleForm => PartnerVehicleFormScreen(
-                    editing: state.editingVehicle,
-                  ),
-                OnboardingStage.pricing => PartnerVehiclePricingScreen(
-                    vehicle: state.editingVehicle,
-                    existing: state.editingVehicleTariffs,
-                  ),
-                OnboardingStage.review => PartnerReviewScreen(
-                    profile: state.profile,
-                    vehicle: state.editingVehicle,
-                  ),
-              },
-
       ),
     );
   }
+
+  /// Maps the flow's stage onto the reference's 7-step ladder.
+  static int _stepIndex(OnboardingStage stage) => switch (stage) {
+        OnboardingStage.profile => 0,
+        OnboardingStage.fleet => 2,
+        OnboardingStage.vehicleForm => 2,
+        OnboardingStage.pricing => 5,
+        OnboardingStage.review => 6,
+      };
 
   static String _stageLabel(PartnerOnboardingState state) => switch (state.stage) {
         OnboardingStage.profile =>

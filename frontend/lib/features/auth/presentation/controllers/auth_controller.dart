@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
 import '../../../../core/config/flavor.dart';
@@ -138,13 +139,32 @@ class AuthController extends StateNotifier<AuthState> {
     return result;
   }
 
+  /// REAL Google sign-in: drives the repository through the same session
+  /// lifecycle as OTP (loading → authenticated/error). The guest's selection
+  /// and redirect survive because only [activeSessionProvider] changes.
+  Future<void> signInWithGoogle() async {
+    state = const AuthLoading(reason: AuthLoadingReason.requestingOtp);
+    final result = await _authRepository.signInWithGoogle();
+    if (result.isSuccess) {
+      final session = result.dataOrNull!;
+      _ref.read(activeSessionProvider.notifier).state = session;
+      state = Authenticated(session);
+    } else {
+      state = AuthError(
+        failure:
+            result.failureOrNull ??
+            const UnknownFailure('Google sign-in failed. Please try again.'),
+      );
+    }
+  }
+
   /// Developer 1-tap role login — available in mock mode or development environment.
   Future<void> devLoginAsRole(UserRole role) async {
     final useMock = _ref
             .read(environmentConfigProvider.select((c) => c.useMockData));
     final flavor = _ref
             .read(environmentConfigProvider.select((c) => c.flavor));
-    if (!useMock && flavor != AppFlavor.development) {
+    if (kReleaseMode || (!useMock && flavor != AppFlavor.development)) {
       state = const AuthError(
         failure: UnknownFailure(
           'Dev role login is only available in development environments.',

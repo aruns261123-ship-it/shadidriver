@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AuthController } from '../src/auth/auth.controller';
 import { AuthService } from '../src/auth/auth.service';
+import { GoogleAuthService } from '../src/auth/services/google-auth.service';
 import { JwtAuthGuard } from '../src/auth/guards/jwt-auth.guard';
 import { EnvelopeInterceptor } from '../src/common/interceptors/envelope.interceptor';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
@@ -34,6 +35,8 @@ describe('POST /api/v1/auth/signup (e2e contract)', () => {
       controllers: [AuthController],
       providers: [
         { provide: AuthService, useValue: authServiceStub },
+        // Google sign-in is not exercised by these OTP-contract specs.
+        { provide: GoogleAuthService, useValue: { signInWithIdToken: jest.fn(), linkToUser: jest.fn() } },
         { provide: APP_INTERCEPTOR, useClass: EnvelopeInterceptor },
       ],
     })

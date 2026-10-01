@@ -17,7 +17,7 @@ import '../../domain/entities/booking_submission_request.dart';
 /// ```
 /// serviceCategoryId, vehicleTypeId, ceremonyType, ceremonialAttire,
 /// specialInstructions?, serviceStartTime, serviceEndTime, city,
-/// pickupAddress, destinationAddress, venueName?, routeDistanceKm?,
+/// pickupAddress, destinationAddress, venueName?, routeDistanceKm?, tripType?,
 /// primaryContactName, primaryContactPhone, passengerCount, selectedAddonIds?
 /// ```
 ///
@@ -39,6 +39,7 @@ class SubmitBookingDto {
     'destinationAddress',
     'venueName',
     'routeDistanceKm',
+    'tripType',
     'primaryContactName',
     'primaryContactPhone',
     'passengerCount',
@@ -73,6 +74,7 @@ class SubmitBookingDto {
   final String destinationAddress;
   final String venueName;
   final double? routeDistanceKm;
+  final String tripType;
   final String primaryContactName;
   final String primaryContactPhone;
   final int passengerCount;
@@ -94,6 +96,7 @@ class SubmitBookingDto {
     this.specialInstructions = '',
     this.venueName = '',
     this.routeDistanceKm,
+    this.tripType = 'ONE_WAY',
     this.selectedAddonIds = const [],
   });
 
@@ -123,6 +126,7 @@ class SubmitBookingDto {
       destinationAddress: request.destinationAddress.trim(),
       venueName: request.venueName.trim(),
       routeDistanceKm: request.routeDistanceKm,
+      tripType: request.tripType.wire,
       primaryContactName: request.primaryContactName.trim(),
       primaryContactPhone: request.primaryContactPhone.trim(),
       passengerCount: request.passengerCount,
@@ -185,6 +189,7 @@ class SubmitBookingDto {
     'destinationAddress': destinationAddress,
     if (venueName.isNotEmpty) 'venueName': venueName,
     if (routeDistanceKm != null) 'routeDistanceKm': routeDistanceKm,
+    'tripType': tripType,
     'primaryContactName': primaryContactName,
     'primaryContactPhone': primaryContactPhone,
     'passengerCount': passengerCount,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shadidriver/features/home/presentation/widgets/customer_home_hero.dart';
+import 'package:shadidriver/features/home/presentation/widgets/route_booking_panel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadidriver/app/providers/app_providers.dart';
@@ -110,10 +112,9 @@ void main() {
         await tester.tap(homeBtn);
         await tester.pumpAndSettle();
 
-        expect(
-          find.text('Find the perfect ride for your celebration'),
-          findsOneWidget,
-        );
+        // The redesigned home opens on the reference hero + booking panel.
+        expect(find.byType(CustomerHomeHero), findsOneWidget);
+        expect(find.byType(RouteBookingPanel), findsOneWidget);
       },
     );
   });

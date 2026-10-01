@@ -67,4 +67,13 @@ abstract interface class AuthRepository {
   /// Called transparently by the auth interceptor on 401 responses.
   /// Returns the refreshed session or a failure (forcing re-login).
   Future<Result<AuthSession>> refreshSession();
+
+  /// REAL Google sign-in for customers.
+  ///
+  /// Obtains a Google ID token from the platform SDK and exchanges it at the
+  /// backend (`POST /auth/google`), which verifies it server-side and issues
+  /// the SAME application session as the OTP flow. Never fabricates success:
+  /// when the deployment lacks Google OAuth client IDs the backend's
+  /// not-configured failure is surfaced verbatim.
+  Future<Result<AuthSession>> signInWithGoogle();
 }

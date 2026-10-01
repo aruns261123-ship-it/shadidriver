@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
+import '../../../../core/network/api_response.dart';
 import '../../../../core/result/result.dart';
 import '../../../bookings/domain/entities/booking_status.dart';
 import '../../../bookings/domain/entities/booking_submission_result.dart';
@@ -85,6 +86,27 @@ class AdminFleetEntry {
   bool get isEngaged => activeAssignment != null;
 }
 
+/// REAL customer counts from `GET /admin/customers/stats` (PostgreSQL).
+@immutable
+class AdminCustomerStats {
+  final int totalCustomers;
+  final int newCustomers30d;
+  final int activeCustomers;
+
+  const AdminCustomerStats({
+    required this.totalCustomers,
+    required this.newCustomers30d,
+    required this.activeCustomers,
+  });
+
+  factory AdminCustomerStats.fromWire(Map<String, dynamic> json) =>
+      AdminCustomerStats(
+        totalCustomers: (json['total_customers'] as num?)?.toInt() ?? 0,
+        newCustomers30d: (json['new_customers_30d'] as num?)?.toInt() ?? 0,
+        activeCustomers: (json['active_customers'] as num?)?.toInt() ?? 0,
+      );
+}
+
 /// State for the admin Operations Command Room, sourced from the shared
 /// booking, chauffeur, and vehicle stores so it reflects real fleet activity.
 @immutable
@@ -93,6 +115,10 @@ class AdminDashboardState {
   final List<AdminFleetEntry> fleetEntries;
   final int liveCeremoniesCount;
   final int onDutyCount;
+
+  /// Real customer counts from the backend. Null while loading / on failure —
+  /// the UI shows a dash, never a sample value.
+  final AdminCustomerStats? customerStats;
   final bool isLoading;
   final String? errorMessage;
 
@@ -101,6 +127,7 @@ class AdminDashboardState {
     this.fleetEntries = const [],
     this.liveCeremoniesCount = 0,
     this.onDutyCount = 0,
+    this.customerStats,
     this.isLoading = false,
     this.errorMessage,
   });
@@ -110,6 +137,8 @@ class AdminDashboardState {
     List<AdminFleetEntry>? fleetEntries,
     int? liveCeremoniesCount,
     int? onDutyCount,
+    AdminCustomerStats? customerStats,
+    bool clearCustomerStats = false,
     bool? isLoading,
     String? errorMessage,
     bool clearError = false,
@@ -119,6 +148,8 @@ class AdminDashboardState {
       fleetEntries: fleetEntries ?? this.fleetEntries,
       liveCeremoniesCount: liveCeremoniesCount ?? this.liveCeremoniesCount,
       onDutyCount: onDutyCount ?? this.onDutyCount,
+      customerStats:
+          clearCustomerStats ? null : (customerStats ?? this.customerStats),
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
@@ -135,10 +166,17 @@ class AdminDashboardController extends StateNotifier<AdminDashboardState> {
   final DriverRepository driverRepository;
   final VehicleRepository vehicleRepository;
 
+  /// REAL customer counts fetcher (`GET /admin/customers/stats`). The provider
+  /// injects it in production mode and leaves it null in mock-data mode — so
+  /// offline UI development and widget tests never touch HTTP, and the UI
+  /// shows a dash instead of a fabricated number.
+  final Future<AdminCustomerStats?> Function()? fetchCustomerStats;
+
   AdminDashboardController({
     required this.bookingRepository,
     required this.driverRepository,
     required this.vehicleRepository,
+    this.fetchCustomerStats,
   }) : super(const AdminDashboardState(isLoading: true)) {
     loadDashboard();
   }
@@ -156,6 +194,19 @@ class AdminDashboardController extends StateNotifier<AdminDashboardState> {
     final bookingsResult = results[0] as Result<List<BookingSubmissionResult>>;
     final dutyResult = results[1] as Result<Map<String, DriverDutyStatus>>;
     final vehiclesResult = results[2] as Result<List<VehicleSummary>>;
+
+    // REAL customer counts (server-derived; never sample values). Null
+    // fetcher (mock-data mode) or a failed call renders a dash — never a
+    // fabricated number.
+    AdminCustomerStats? stats;
+    final fetchStats = fetchCustomerStats;
+    if (fetchStats != null) {
+      try {
+        stats = await fetchStats();
+      } catch (_) {
+        stats = null;
+      }
+    }
 
     if (!mounted) return; // disposed mid-flight
 
@@ -208,6 +259,7 @@ class AdminDashboardController extends StateNotifier<AdminDashboardState> {
       fleetEntries: fleetEntries,
       liveCeremoniesCount: entries.where((e) => e.isLiveCeremony).length,
       onDutyCount: onDutyCount,
+      customerStats: stats,
       isLoading: false,
       errorMessage: bookingsResult.fold((f) => f.message, (_) => null),
     );
@@ -285,9 +337,23 @@ final adminDashboardControllerProvider =
       AdminDashboardController,
       AdminDashboardState
     >((ref) {
+      final useMock = ref.watch(
+        environmentConfigProvider.select((c) => c.useMockData),
+      );
       return AdminDashboardController(
         bookingRepository: ref.watch(bookingRepositoryProvider),
         driverRepository: ref.watch(driverRepositoryProvider),
         vehicleRepository: ref.watch(vehicleRepositoryProvider),
+        // Real HTTP stats fetch ONLY in real mode; mock mode renders a dash.
+        fetchCustomerStats: useMock
+            ? null
+            : () async {
+                final response = await ref.watch(apiClientProvider).get<Map<String, dynamic>>(
+                      '${ApiPaths.v1}/admin/customers/stats',
+                    );
+                final envelope = ApiEnvelope.fromJson(response.data);
+                final data = (envelope.data as Map<String, dynamic>?) ?? const {};
+                return AdminCustomerStats.fromWire(data);
+              },
       );
     });

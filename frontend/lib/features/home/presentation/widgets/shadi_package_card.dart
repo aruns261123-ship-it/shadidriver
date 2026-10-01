@@ -81,6 +81,10 @@ class ShadiPackageCard extends StatelessWidget {
     );
   }
 
+  /// `Flexible`, not a bare `Text`: a feature name longer than the card's width
+  /// (easy with real backend copy) used to push the tag straight out of the
+  /// card — a `Wrap` cannot shrink an over-wide child. The label now wraps
+  /// inside the tag.
   Widget _buildFeatureTag(String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -98,10 +102,12 @@ class ShadiPackageCard extends StatelessWidget {
             color: AppColors.verifiedEmerald,
           ),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: AppTypography.labelSmall.copyWith(
-              color: AppColors.textSecondaryLight,
+          Flexible(
+            child: Text(
+              label,
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textSecondaryLight,
+              ),
             ),
           ),
         ],

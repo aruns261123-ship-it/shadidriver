@@ -28,6 +28,7 @@ import '../../features/bookings/presentation/group_booking_screen.dart';
 import '../../features/home/presentation/splash_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/admin_dashboard_screen.dart';
+import '../../features/profile/presentation/admin_console_screen.dart';
 import '../../features/profile/presentation/customer_account_center_screen.dart';
 import '../../features/profile/presentation/customer_edit_profile_screen.dart';
 import '../../features/profile/presentation/saved_addresses_screen.dart';
@@ -266,7 +267,13 @@ GoRouter createShadiRouter({
       GoRoute(
         path: RoutePaths.admin,
         name: 'admin',
-        builder: (context, state) => const AdminDashboardScreen(),
+        // The reference desktop operations console on wide screens; the
+        // mobile command-room tabs stay the narrow-width fallback.
+        builder: (context, state) => LayoutBuilder(
+          builder: (context, constraints) => constraints.maxWidth >= 1024
+              ? const AdminConsoleScreen()
+              : const AdminDashboardScreen(),
+        ),
         routes: [
           GoRoute(
             path: 'profile',

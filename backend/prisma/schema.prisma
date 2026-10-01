@@ -45,6 +45,13 @@ enum AccountStatus {
   PROFILE_INCOMPLETE
 }
 
+/// How an account authenticates. PHONE is the default; GOOGLE marks accounts
+/// created (or later linked) through verified Google sign-in.
+enum AuthProvider {
+  PHONE
+  GOOGLE
+}
+
 enum DutyStatus {
   AVAILABLE
   BUSY
@@ -203,6 +210,12 @@ model User {
   fullName        String?       @map("full_name") @db.VarChar(150)
   avatarUrl       String?       @map("avatar_url")
   primaryRole     UserRole      @map("primary_role")
+  /// Google identity (sub claim), present only for Google-signed accounts.
+  /// Unique so one Google account can never map to two users.
+  googleId        String?       @unique @map("google_id") @db.VarChar(64)
+  /// How this account authenticates: PHONE (default) or GOOGLE. Accounts can
+  /// converge later (link by verified email) — creation path records intent.
+  authProvider    AuthProvider  @default(PHONE) @map("auth_provider")
   accountStatus   AccountStatus @default(ACTIVE) @map("account_status")
   isActive        Boolean       @default(true) @map("is_active")
   isPhoneVerified Boolean       @default(false) @map("is_phone_verified")
@@ -639,6 +652,9 @@ model Booking {
   venueName            String?  @map("venue_name") @db.VarChar(150)
   landmarkInstructions String?  @map("landmark_instructions")
   routeDistanceKm      Decimal? @map("route_distance_km") @db.Decimal(6, 2)
+  /// Customer-chosen direction. Billable distance is derived server-side:
+  /// ONE_WAY bills the route once, ROUND_TRIP ("Both Way") bills it twice.
+  tripType            String   @default("ONE_WAY") @map("trip_type") @db.VarChar(20)
 
   primaryContactName  String @map("primary_contact_name") @db.VarChar(120)
   primaryContactPhone String @map("primary_contact_phone") @db.VarChar(20)
@@ -790,6 +806,8 @@ model GroupBooking {
   /// display parity with historical rows.
   requestedFleetItems Json @default("[]") @map("requested_fleet_items")
   passengerCount      Int  @map("passenger_count")
+  /// Customer-chosen direction, baked into the pricing snapshot server-side.
+  tripType           String @default("ONE_WAY") @map("trip_type") @db.VarChar(20)
 
   /// Optional customer requirements / add-on requests (decoration, child seat,
   /// preferred colour, early arrival …).
@@ -919,6 +937,13 @@ model VehiclePricing {
   // --- outstation tariff ---
   outstationPerDayPaise BigInt? @map("outstation_per_day_paise") @db.BigInt
   outstationPerKmPaise  BigInt? @map("outstation_per_km_paise") @db.BigInt
+
+  // --- ShadiDriver distance-rate inputs (partner-provided, rate derived) ---
+  // ratePerKm = fuelPricePerLitre / mileageKmPerLitre + 10 — the partner
+  // supplies fuel price and mileage; the per-km rate is a SERVER computation,
+  // never a partner-entered customer price.
+  fuelPricePerLitre     Float?  @map("fuel_price_per_litre")
+  mileageKmPerLitre     Float?  @map("mileage_km_per_litre")
 
   status            PricingStatus @default(PENDING_REVIEW)
   /// Commercial-Rule admin decision trail.

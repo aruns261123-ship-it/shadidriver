@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/shadi_tokens.dart';
 import '../../../../core/widgets/shadi_card.dart';
+import '../../../../core/widgets/shadi_ref_typography.dart';
 import '../../../../core/widgets/shadi_primary_button.dart';
 import '../../../../core/widgets/shadi_status_badge.dart';
 import 'controllers/partner_onboarding_controller.dart';
@@ -36,7 +38,11 @@ class _PartnerVehiclePricingScreenState
   final _formKey = GlobalKey<FormState>();
   final _km = TextEditingController(text: '45');
   final _local = TextEditingController();
-  final _perKm = TextEditingController();
+
+  /// Formula inputs — the customer per-km rate is DERIVED server-side as
+  /// `fuel ÷ mileage + ₹10`; partners never type a rate directly.
+  final _fuel = TextEditingController();
+  final _mileage = TextEditingController();
   final _hourly = TextEditingController();
   final _extraHour = TextEditingController();
   final _fullDay = TextEditingController();
@@ -51,7 +57,8 @@ class _PartnerVehiclePricingScreenState
   void dispose() {
     _km.dispose();
     _local.dispose();
-    _perKm.dispose();
+    _fuel.dispose();
+    _mileage.dispose();
     _hourly.dispose();
     _extraHour.dispose();
     _fullDay.dispose();
@@ -68,6 +75,18 @@ class _PartnerVehiclePricingScreenState
     return n == null ? null : n * 100;
   }
 
+  /// Client mirror of the server distance-rate formula, in PAISE:
+  /// `round((fuel ÷ mileage + ₹10) × 100)` — identical rounding to the
+  /// backend's `derivePerKmPaise`.
+  int? _derivedPerKmPaise() {
+    final fuel = double.tryParse(_fuel.text.trim());
+    final mileage = double.tryParse(_mileage.text.trim());
+    if (fuel == null || mileage == null || fuel <= 0 || mileage <= 0) {
+      return null;
+    }
+    return (((fuel / mileage) + 10) * 100).round();
+  }
+
   /// Cross-field arithmetic the server enforces in `assertSaneTariff`.
   ///
   /// Per-field minimums cannot catch a tariff whose components contradict one
@@ -76,7 +95,7 @@ class _PartnerVehiclePricingScreenState
   /// immediate guidance — the wording matches the backend deliberately.
   String? _consistencyError() {
     final local = _rupeesToPaise(_local.text);
-    final perKm = _rupeesToPaise(_perKm.text);
+    final perKm = _derivedPerKmPaise();
     final hourly = _rupeesToPaise(_hourly.text);
     final fullDay = _rupeesToPaise(_fullDay.text);
     final overnight = _rupeesToPaise(_overnight.text);
@@ -96,7 +115,7 @@ class _PartnerVehiclePricingScreenState
     }
     if (outstationKm != null && perKm != null && outstationKm < perKm) {
       return 'Outstation per-km (₹${outstationKm ~/ 100}) cannot be lower than '
-          'the local per-km rate (₹${perKm ~/ 100}).';
+          'the local per-km rate (₹${(perKm / 100).toStringAsFixed(2)}).';
     }
     return null;
   }
@@ -115,7 +134,8 @@ class _PartnerVehiclePricingScreenState
     unawaited(controller.submitTariff(VehicleTariffDraft(
       localIncludedKm: int.parse(_km.text.trim()),
       localAmountPaise: _rupeesToPaise(_local.text)!,
-      perKmPaise: _rupeesToPaise(_perKm.text)!,
+      fuelPricePerLitre: double.parse(_fuel.text.trim()),
+      mileageKmPerLitre: double.parse(_mileage.text.trim()),
       hourlyPaise: _rupeesToPaise(_hourly.text),
       extraHourPaise: _rupeesToPaise(_extraHour.text),
       fullDayPaise: _rupeesToPaise(_fullDay.text),
@@ -132,11 +152,155 @@ class _PartnerVehiclePricingScreenState
     if (vehicle == null) {
       return const Center(child: Text('Save a vehicle first.'));
     }
+    // Live formula inputs driving the calculated rate block below.
+    final fuel = double.tryParse(_fuel.text.trim());
+    final mileage = double.tryParse(_mileage.text.trim());
+    final rate =
+        (fuel != null && mileage != null && fuel > 0 && mileage > 0)
+            ? ((fuel / mileage) + 10)
+            : null;
     return Form(
       key: _formKey,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // REFERENCE PRICING HEADER (PAGE 03 · Auto pricing): the eyebrow,
+          // editorial title, explainer, rate formula, and the burgundy
+          // calculated-rate block — then the real tariff fields.
+          Text(
+            'AUTOMATIC PRICING'.toUpperCase(),
+            style: ShadiRefType.eyebrow10.copyWith(
+              color: AppColors.warmGold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text.rich(
+            TextSpan(
+              text: 'Fair pricing,\n',
+              children: [
+                TextSpan(
+                  text: 'calculated for you.',
+                  style: const TextStyle(
+                    color: AppColors.warmGold,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+            style: ShadiRefType.display31.copyWith(
+              color: AppColors.darkBurgundy,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Enter the current fuel price and verified vehicle mileage. '
+            'ShadiDriver calculates the customer rate automatically.',
+            style: AppTypography.bodySmall.copyWith(
+              color: ShadiColors.muted,
+              height: 1.6,
+            ),
+          ),
+          const SizedBox(height: 18),
+          // RATE FORMULA — ₹95 ÷ 8 km/L + ₹10 (fuel ÷ mileage + fee).
+          Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1EDE7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'RATE FORMULA'.toUpperCase(),
+                  style: ShadiRefType.ui7.copyWith(
+                    color: ShadiColors.muted,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text.rich(
+                  TextSpan(
+                    text: '₹${fuel == null ? '95' : _numText(fuel)}',
+                    children: [
+                      _formulaSep(' ÷ '),
+                      TextSpan(
+                        text: '${mileage == null ? '8' : _numText(mileage)} km/L',
+                      ),
+                      _formulaSep(' + '),
+                      const TextSpan(text: '₹10'),
+                    ],
+                    style: ShadiRefType.ui12Bold.copyWith(
+                      color: AppColors.textPrimaryLight,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          // CALCULATED CUSTOMER RATE — burgundy, "cannot be edited manually".
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.primaryBurgundy,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Calculated customer rate',
+                  style: ShadiRefType.ui10.copyWith(
+                    color: AppColors.softChampagne,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text.rich(
+                  TextSpan(
+                    text: rate == null ? '₹—' : '₹${rate.toStringAsFixed(3)}',
+                    children: [
+                      TextSpan(
+                        text: ' /km',
+                        style: ShadiRefType.ui10.copyWith(
+                          color: AppColors.softChampagne,
+                        ),
+                      ),
+                    ],
+                  ),
+                  style: ShadiRefType.display31.copyWith(color: Colors.white),
+                ),
+                Container(
+                  margin: const EdgeInsets.only(top: 11),
+                  padding: const EdgeInsets.only(top: 10),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: ShadiColors.onDarkHairline),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.shield_outlined,
+                        size: 16,
+                        color: AppColors.softChampagne,
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Text(
+                          'This rate cannot be edited manually',
+                          style: ShadiRefType.ui8.copyWith(
+                            color: Colors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
           Text(
             vehicle.displayName ?? vehicle.fleetCode,
             style: AppTypography.titleLarge.copyWith(
@@ -231,18 +395,55 @@ class _PartnerVehiclePricingScreenState
             ),
           ]),
           const SizedBox(height: 12),
-          TextFormField(
-            controller: _perKm,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Additional km (₹/km) *',
-              border: OutlineInputBorder(),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _fuel,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Fuel price (₹/litre) *',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => _inputsChanged(),
+                  validator: (v) {
+                    final n = double.tryParse((v ?? '').trim());
+                    return (n == null || n < 30 || n > 500)
+                        ? '₹30–500/litre'
+                        : null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _mileage,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Mileage (km/litre) *',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (_) => _inputsChanged(),
+                  validator: (v) {
+                    final n = double.tryParse((v ?? '').trim());
+                    return (n == null || n < 2 || n > 60) ? '2–60 km/l' : null;
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'The customer rate is calculated server-side: fuel ÷ mileage + ₹10. '
+            'It cannot be edited manually.',
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.textSecondaryLight,
+              fontStyle: FontStyle.italic,
             ),
-            onChanged: (_) => _clearConsistency(),
-            validator: (v) {
-              final p = _rupeesToPaise(v ?? '');
-              return (p == null || p < 5) ? 'Min ₹5/km' : null;
-            },
           ),
           const SizedBox(height: 16),
           Text('Time & day (optional)', style: AppTypography.titleSmall),
@@ -284,12 +485,28 @@ class _PartnerVehiclePricingScreenState
     );
   }
 
+  /// Any edit invalidates a previous contradiction warning and refreshes
+  /// the calculated-rate display.
+  void _inputsChanged() {
+    setState(() => _consistencyMessage = null);
+  }
+
+  /// Compact number for the formula line (₹95 not ₹95.0).
+  static String _numText(num v) =>
+      v == v.roundToDouble() ? v.round().toString() : '$v';
+
   /// Any edit invalidates a previous contradiction warning.
   void _clearConsistency() {
     if (_consistencyMessage != null) {
       setState(() => _consistencyMessage = null);
     }
   }
+
+  /// The gold separator between formula operands.
+  static TextSpan _formulaSep(String text) => TextSpan(
+        text: text,
+        style: const TextStyle(color: AppColors.warmGold),
+      );
 
   Widget _rupeesField(String label, TextEditingController controller,
       {required int minRs}) {

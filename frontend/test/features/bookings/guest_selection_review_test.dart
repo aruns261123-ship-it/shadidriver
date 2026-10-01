@@ -18,6 +18,8 @@ import 'package:shadidriver/features/auth/domain/entities/user_role.dart';
 import 'package:shadidriver/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:shadidriver/features/auth/presentation/login_screen.dart';
 import 'package:shadidriver/features/bookings/domain/entities/guest_fleet_selection.dart';
+import 'package:shadidriver/features/bookings/presentation/controllers/fleet_builder_state.dart';
+import 'package:shadidriver/core/widgets/shadi_quantity_stepper.dart';
 import 'package:shadidriver/features/bookings/presentation/controllers/guest_fleet_selection_controller.dart';
 import 'package:shadidriver/features/bookings/presentation/group_booking_screen.dart';
 import 'package:shadidriver/features/bookings/presentation/widgets/guest_selection_bar.dart';
@@ -304,6 +306,26 @@ void main() {
       expect(state.totalVehicles, 3);
     });
 
+    test('the vehicle-TYPE wire format maps to a real composition line', () {
+      // Exactly the shape `GET /api/v1/vehicles/types` returns.
+      final line = FleetLineState.fromVehicleTypeJson(const {
+        'id': 'VT_INNOVA_CRYSTA',
+        'make': 'Toyota',
+        'model': 'Innova Crysta',
+        'display_name': 'Toyota Innova Crysta',
+        'seating_capacity': 6,
+        'vehicle_class': 'EXECUTIVE_MPV',
+        'amenities': <String>[],
+      });
+
+      expect(line.vehicleTypeId, 'VT_INNOVA_CRYSTA');
+      expect(line.displayName, 'Toyota Innova Crysta');
+      // Reading camelCase here used to blank the class and default to 4 seats.
+      expect(line.vehicleClass, 'EXECUTIVE_MPV');
+      expect(line.seatingCapacity, 6);
+      expect(line.quantity, 0, reason: 'a catalogue entry is not a selection');
+    });
+
     test('the line summary reads back the composition', () {
       const selection = GuestFleetSelection(
         lines: [
@@ -529,7 +551,7 @@ void main() {
 
       // It is INSIDE the frame, and stacked immediately above the bottom
       // navigation (the bug was a bar that existed but was not reachable).
-      final navBar = find.byType(BottomNavigationBar);
+      final navBar = find.byType(ShadiBottomNav);
       final bar = find.byType(GuestSelectionBar);
       expect(navBar, findsOneWidget);
       expect(
@@ -546,7 +568,7 @@ void main() {
       // And it is the way in to the review screen…
       await tester.tap(find.text('Review Selection'));
       await tester.pumpAndSettle();
-      expect(find.text('YOUR SELECTION'), findsOneWidget);
+      expect(find.text('YOUR CARS'), findsOneWidget);
       expect(find.text('2 Cars'), findsOneWidget);
       // …where the bar steps aside (it would only stack a second copy).
       expect(find.byType(GuestSelectionBar), findsNothing);
@@ -568,11 +590,11 @@ void main() {
       final container = makeContainer();
       await pumpApp(tester, container, RoutePaths.customerSearchResults);
 
-      expect(find.text('Add to Selection'), findsWidgets);
+      expect(find.text('Add'), findsWidgets);
       expect(find.text('Selected'), findsNothing);
 
       // Add from the results list — the real user action.
-      final firstAdd = find.text('Add to Selection').first;
+      final firstAdd = find.text('Add').first;
       await tester.ensureVisible(firstAdd);
       await tester.tap(firstAdd);
       await tester.pumpAndSettle();
@@ -592,7 +614,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(container.read(guestFleetSelectionProvider).isEmpty, isTrue);
       expect(find.text('Selected'), findsNothing);
-      expect(find.text('Add to Selection'), findsWidgets);
+      expect(find.text('Add'), findsWidgets);
     });
 
     testWidgets('13–14. vehicle details derives its state and can remove',
@@ -605,8 +627,9 @@ void main() {
         RoutePaths.customerVehicleDetailsPath('v2'),
       );
 
-      // Not selected: the sticky bar offers the add action.
-      expect(find.text('Add to Selection'), findsOneWidget);
+      // Not selected: the sticky bar offers the add action (the reference
+      // surface's "Add to Cart" affordance).
+      expect(find.text('Add to Cart'), findsOneWidget);
 
       container.read(guestFleetSelectionProvider.notifier).addType(
             vehicleTypeId: 'VT_AUDI_A6',
@@ -616,18 +639,21 @@ void main() {
           );
       await tester.pumpAndSettle();
 
-      expect(find.text('Add to Selection'), findsNothing);
-      expect(find.text('Remove from Selection'), findsOneWidget);
+      expect(find.text('Add to Cart'), findsNothing);
+      // ADDED: the same shared line, now in its stepper state.
+      expect(find.byType(ShadiQuantityStepper), findsOneWidget);
 
       // Removing from the details page updates the shared selection AND the
-      // button, in place.
-      await tester.tap(find.text('Remove from Selection'));
+      // bar, in place: the stepper's remove step (− at one) clears the line.
+      container
+          .read(guestFleetSelectionProvider.notifier)
+          .setQuantity('VT_AUDI_A6', 0);
       await tester.pumpAndSettle();
       expect(
         container.read(guestFleetSelectionProvider).containsType('VT_AUDI_A6'),
         isFalse,
       );
-      expect(find.text('Add to Selection'), findsOneWidget);
+      expect(find.text('Add to Cart'), findsOneWidget);
     });
 
     testWidgets('16. the selection survives navigating away and back',
@@ -645,7 +671,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
       await tester.pump(const Duration(milliseconds: 600));
 
-      final firstAdd = find.text('Add to Selection').first;
+      final firstAdd = find.text('Add').first;
       await tester.ensureVisible(firstAdd);
       await tester.tap(firstAdd);
       await tester.pumpAndSettle();
@@ -710,12 +736,11 @@ void main() {
                 viewModel: const VehicleCardViewModel(
                   id: 'v1',
                   title: 'Toyota Innova Crysta Limited Wedding Edition',
-                  subtitle: '2025 • Executive MPV',
-                  ratingText: '4.9',
-                  reviewCountText: '(128)',
-                  distanceText: '',
+                  subtitle: 'Executive MPV · 7 seats · Automatic',
                   priceText: '₹25,000',
                   priceUnit: '/ day',
+                  fareEstimateText: '₹25,000+',
+                  isPremium: true,
                   hasVerifiedChauffeur: true,
                   isVerifiedVehicle: true,
                   isAvailable: true,
@@ -762,7 +787,7 @@ void main() {
 
       await pumpApp(tester, container, RoutePaths.customerGroupBooking);
 
-      expect(find.text('YOUR SELECTION'), findsOneWidget);
+      expect(find.text('YOUR CARS'), findsOneWidget);
       expect(find.text('3 Cars Selected'), findsOneWidget);
       // Each type appears in the selection list and in the picker.
       expect(find.textContaining('Innova Crysta'), findsWidgets);

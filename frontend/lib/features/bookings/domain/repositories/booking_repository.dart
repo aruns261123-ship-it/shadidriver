@@ -1,4 +1,5 @@
 import '../../../../core/result/result.dart';
+import '../../../search/domain/entities/trip_type.dart';
 import '../../../drivers/domain/entities/driver_decline_reason.dart';
 import '../entities/booking_draft.dart';
 import '../entities/booking_submission_request.dart';
@@ -116,6 +117,7 @@ abstract interface class BookingRepository {
     DateTime? serviceStartTime,
     DateTime? serviceEndTime,
     String? city,
+    TripType tripType,
   });
 
   /// Submits a multi-vehicle / group booking with parent booking and individual vehicle assignments.

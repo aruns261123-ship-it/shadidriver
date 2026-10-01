@@ -78,7 +78,11 @@ describe('Sign-up flow', () => {
           .fn()
           .mockResolvedValue({ sessionId: 'sess-123', expiresInSeconds: 300 }),
       };
-      const controller = new AuthController(serviceStub as never);
+      const controller = new AuthController(
+        serviceStub as never,
+        // GoogleAuthService is not exercised by the OTP signup specs.
+        {} as never,
+      );
 
       const body = await controller.signUp({
         phoneNumber: '+919876543210',
@@ -102,7 +106,11 @@ describe('Sign-up flow', () => {
           resendAvailableInSeconds: 30,
         }),
       };
-      const controller = new AuthController(serviceStub as never);
+      const controller = new AuthController(
+        serviceStub as never,
+        // GoogleAuthService is not exercised by the OTP signup specs.
+        {} as never,
+      );
 
       const body = await controller.requestOtp({
         phoneNumber: '+919876543210',
@@ -121,7 +129,11 @@ describe('Sign-up flow', () => {
           debugCode: '849201',
         }),
       };
-      const controller = new AuthController(serviceStub as never);
+      const controller = new AuthController(
+        serviceStub as never,
+        // GoogleAuthService is not exercised by the OTP signup specs.
+        {} as never,
+      );
 
       const body = await controller.requestOtp({
         phoneNumber: '+919876543210',

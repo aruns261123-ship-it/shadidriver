@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { join } from 'path';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -25,6 +26,12 @@ async function bootstrap(): Promise<void> {
   });
   app.use(new RequestIdMiddleware().use.bind(new RequestIdMiddleware()));
   app.setGlobalPrefix(config.apiPrefix, { exclude: ['health'] });
+
+  // Managed vehicle media (seeded fleet photography). Served outside the API
+  // prefix at /media/** so image URLs are stable, same-origin, and never
+  // point at third-party hosts. Override the root via MEDIA_ROOT.
+  const mediaRoot = process.env.MEDIA_ROOT ?? join(process.cwd(), 'public', 'media');
+  app.useStaticAssets(mediaRoot, { prefix: '/media' });
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -13,6 +13,13 @@ import { SmsProvider, SmsSendResult, SmsProviderError } from './sms-provider.int
  * Optional:
  *   SMS_MSG91_BASE_URL (default https://control.msg91.com/api/v5/otp)
  *
+ * Non-OTP transactional messages (booking confirmations) use the MSG91 Flow
+ * API and need a SECOND DLT-approved template:
+ *   SMS_TRANSACTIONAL_TEMPLATE_ID=<DLT non-OTP template id>
+ *   SMS_MSG91_FLOW_URL (default https://control.msg91.com/api/v5/flow)
+ * The variable is mapped to MSG91's VAR1 slot. Until the template is
+ * configured, sendTransactional throws — it never pretends to have delivered.
+ *
  * Indian numbers: accepts +91XXXXXXXXXX / 91XXXXXXXXXX / XXXXXXXXXX and
  * normalizes to 91XXXXXXXXXX (no leading zero, 10 digits) which is what
  * MSG91 mobiles parameter expects.
@@ -77,6 +84,50 @@ export class Msg91SmsProvider implements SmsProvider {
       throw new SmsProviderError(this.name, `MSG91 error: ${body.message ?? 'unknown'}`, false);
     }
     return { accepted: true, messageId: body.request_id };
+  }
+
+  async sendTransactional(phoneNumber: string, message: string): Promise<SmsSendResult> {
+    const templateId = process.env.SMS_TRANSACTIONAL_TEMPLATE_ID ?? '';
+    if (!templateId) {
+      throw new SmsProviderError(
+        this.name,
+        'Missing SMS_TRANSACTIONAL_TEMPLATE_ID — DLT-approved NON-OTP template required for confirmation messages. ' +
+          'Register the template with your Indian DLT operator and set the env var.',
+      );
+    }
+    const mobile = Msg91SmsProvider.normalizeIndianMobile(phoneNumber);
+    const url = process.env.SMS_MSG91_FLOW_URL ?? 'https://control.msg91.com/api/v5/flow';
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { authkey: this.authKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          template_id: templateId,
+          sender: this.senderId,
+          recipients: [{ mobiles: mobile, VAR1: message }],
+        }),
+      });
+    } catch (err) {
+      throw new SmsProviderError(
+        this.name,
+        `Network failure contacting MSG91 flow API: ${err instanceof Error ? err.message : String(err)}`,
+        true,
+      );
+    }
+    if (!response.ok) {
+      throw new SmsProviderError(
+        this.name,
+        `MSG91 rejected the transactional send (HTTP ${response.status}). Check DLT template/sender approval.`,
+        response.status >= 500,
+      );
+    }
+    const body = (await response.json().catch(() => ({}))) as { type?: string; message?: string };
+    if (body.type && body.type !== 'success') {
+      throw new SmsProviderError(this.name, `MSG91 error: ${body.message ?? 'unknown'}`, false);
+    }
+    return { accepted: true, messageId: body.message };
   }
 
   /** Normalizes Indian mobile numbers to 91XXXXXXXXXX. */

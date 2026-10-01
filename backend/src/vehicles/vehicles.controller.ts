@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/guards/jwt-auth.guard';
 import { VehiclesService, VehicleSearchInput } from './vehicles.service';
@@ -16,6 +16,7 @@ export class VehiclesController {
     @Query('vehicleTypeId') vehicleTypeId?: string,
     @Query('vehicleClass') vehicleClass?: string,
     @Query('minSeatingCapacity') minSeatingCapacity?: string,
+    @Query('tripType') tripType?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
   ) {
@@ -24,6 +25,9 @@ export class VehiclesController {
       vehicleTypeIds: vehicleTypeId ? vehicleTypeId.split(',').filter(Boolean) : undefined,
       vehicleClass: vehicleClass || undefined,
       minSeatingCapacity: minSeatingCapacity ? Number(minSeatingCapacity) : undefined,
+      // Carried for observability and echo; fleet eligibility is not
+      // direction-specific (same fleet serves one-way and round trips).
+      tripType: tripType || undefined,
       page: Math.max(1, Number(page) || 1),
       limit: Math.min(50, Math.max(1, Number(limit) || 20)),
     };
@@ -47,7 +51,7 @@ export class VehiclesController {
   @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Vehicle details including chauffeur and document status' })
-  getById(@Param('id') id: string) {
+  getById(@Param('id', ParseUUIDPipe) id: string) {
     return this.vehiclesService.getVehicleById(id);
   }
 }

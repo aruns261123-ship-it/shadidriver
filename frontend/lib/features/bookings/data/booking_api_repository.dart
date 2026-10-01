@@ -5,6 +5,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_response.dart';
 import '../../../core/result/result.dart';
 import '../../drivers/domain/entities/driver_decline_reason.dart';
+import '../../search/domain/entities/trip_type.dart';
 import '../domain/entities/booking_draft.dart';
 import '../domain/entities/booking_status.dart';
 import '../domain/entities/booking_submission_request.dart';
@@ -99,8 +100,11 @@ class BookingApiRepository implements BookingRepository {
   Options _idempotencyHeader(String key) =>
       Options(headers: {'Idempotency-Key': key});
 
-  /// Server booking row → domain result. Vehicle display fields come from the
-  /// client request (server stores vehicleFk; display strings are presentation).
+  /// Server booking response → domain result. The server answers with the
+  /// CUSTOMER privacy view (snake_case: no idempotency key, no OTP hash), so
+  /// every field prefers the customer-view name and falls back to the legacy
+  /// raw-row camelCase spelling. Vehicle display fields come from the client
+  /// request (server stores vehicleFk; display strings are presentation).
   BookingSubmissionResult _submissionResultFromServer(
     Map<String, dynamic> booking,
     BookingSubmissionRequest request,
@@ -108,9 +112,16 @@ class BookingApiRepository implements BookingRepository {
   ) {
     return BookingSubmissionResult(
       bookingId: (booking['id'] as String?) ?? '',
-      bookingReference: (booking['referenceCode'] as String?) ?? '',
+      bookingReference:
+          (booking['reference_code'] as String?) ??
+              (booking['referenceCode'] as String?) ??
+              '',
       status: _statusFromWire(booking['status'] as String?),
-      submittedAt: parseDateTime(booking['submittedAt']),
+      submittedAt: parseDateTime(
+        booking['submitted_at'] ??
+            booking['submittedAt'] ??
+            booking['service_start_time'],
+      ),
       vehicleId: request.vehicleId,
       vehicleName: request.vehicleName,
       vehicleClass: request.vehicleClass,
@@ -125,9 +136,12 @@ class BookingApiRepository implements BookingRepository {
       primaryContactName: request.primaryContactName,
       primaryContactPhone: request.primaryContactPhone,
       // SERVER-AUTHORITATIVE amounts — never echo the client's numbers.
-      estimatedTotalPaise:
-          parseIntAmount(booking['estimatedTotalPaise']),
-      advanceTokenPaise: parseIntAmount(booking['advanceTokenPaise']),
+      estimatedTotalPaise: parseIntAmount(
+        booking['estimated_total_paise'] ?? booking['estimatedTotalPaise'],
+      ),
+      advanceTokenPaise: parseIntAmount(
+        booking['advance_token_paise'] ?? booking['advanceTokenPaise'],
+      ),
       advanceTokenLabel:
           (booking['advanceTokenLabel'] as String?) ?? request.advanceTokenLabel,
       nextStepMessage: replay
@@ -247,6 +261,9 @@ class BookingApiRepository implements BookingRepository {
   }) async {
     try {
       final data = await _driverOffers();
+      // No marketplace: the backend always returns `offers: []`. The wire key
+      // survives only for wire-compat — the duty list lives under
+      // `assignments` (operations-allocated work).
       return Result.success(
         (data['offers'] as List? ?? const [])
             .whereType<Map<String, dynamic>>()
@@ -281,11 +298,13 @@ class BookingApiRepository implements BookingRepository {
   }) async {
     try {
       final data = await _driverOffers();
+      // `assignments` = operations-allocated duties (the real wire);
+      // `active` kept as a legacy fallback key.
+      final rows = (data['assignments'] as List?) ??
+          (data['active'] as List?) ??
+          const [];
       return Result.success(
-        (data['active'] as List? ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .map(_resultFromRow)
-            .toList(),
+        rows.whereType<Map<String, dynamic>>().map(_resultFromRow).toList(),
       );
     } catch (e) {
       return Result.failure(mapDioError(e));
@@ -299,7 +318,10 @@ class BookingApiRepository implements BookingRepository {
       final data = await _driverOffers();
       final all = <Map<String, dynamic>>[
         ...(data['offers'] as List? ?? const []).whereType<Map<String, dynamic>>(),
-        ...(data['active'] as List? ?? const []).whereType<Map<String, dynamic>>(),
+        ...((data['assignments'] as List?) ??
+                (data['active'] as List?) ??
+                const [])
+            .whereType<Map<String, dynamic>>(),
       ];
       return Result.success(all.map(_resultFromRow).toList());
     } catch (e) {
@@ -330,23 +352,26 @@ class BookingApiRepository implements BookingRepository {
     }
   }
 
+  /// There is deliberately NO accept endpoint: ShadiDriver operations
+  /// allocates chauffeurs (`POST /bookings/:id/assign-chauffeur`, admin-only)
+  /// and the duty appears already assigned. A claim attempt is refused
+  /// locally rather than faked against a marketplace that does not exist.
   @override
   Future<Result<BookingSubmissionResult>> acceptBooking({
     required String bookingId,
     required String driverId,
   }) async {
-    try {
-      final response = await _client.post<Map<String, dynamic>>(
-        '${AppConstants.apiV1Prefix}/bookings/$bookingId/accept',
-      );
-      final envelope = ApiEnvelope.fromJson(response.data);
-      final booking = (envelope.data as Map<String, dynamic>?) ?? const {};
-      return Result.success(_resultFromRow(booking));
-    } catch (e) {
-      return Result.failure(mapDioError(e));
-    }
+    return Result.failure(
+      const ValidationFailure(
+        'Duties are allocated by ShadiDriver operations — there is no booking to claim.',
+        code: 'NOT_SUPPORTED',
+      ),
+    );
   }
 
+  /// Report a conflict on an ASSIGNED duty → the duty returns to the
+  /// operations queue (reassignment). This is the only driver-side "decline"
+  /// that exists — never a marketplace decline of a customer request.
   @override
   Future<Result<void>> declineBooking({
     required String bookingId,
@@ -355,9 +380,11 @@ class BookingApiRepository implements BookingRepository {
     String? notes,
   }) async {
     try {
+      final payload = <String, dynamic>{'reason': reason.code};
+      if (notes != null) payload['notes'] = notes;
       await _client.post<Map<String, dynamic>>(
-        '${AppConstants.apiV1Prefix}/bookings/$bookingId/decline',
-        data: {'reason': reason.code, 'notes': notes},
+        '${AppConstants.apiV1Prefix}/bookings/$bookingId/assignment-conflict',
+        data: payload,
       );
       return const Result.success(null);
     } catch (e) {
@@ -375,6 +402,7 @@ class BookingApiRepository implements BookingRepository {
     DateTime? serviceStartTime,
     DateTime? serviceEndTime,
     String? city,
+    TripType tripType = TripType.oneWay,
   }) async {
     try {
       final fleet = intent.requestedUnits.entries
@@ -390,6 +418,8 @@ class BookingApiRepository implements BookingRepository {
                   (serviceStartTime ?? DateTime.now()).add(const Duration(hours: 8)))
               .toIso8601String(),
           'city': city,
+          // Echoed by the server; overlap conflicts use the full window.
+          'tripType': tripType.wire,
         },
       );
       final envelope = ApiEnvelope.fromJson(response.data);
@@ -477,6 +507,9 @@ class BookingApiRepository implements BookingRepository {
           'primaryContactName': request.primaryContactName,
           'primaryContactPhone': request.primaryContactPhone,
           'passengerCount': request.fleetIntent.passengerCount,
+          // Persisted and baked into the pricing snapshot server-side
+          // (ROUND_TRIP halves per-vehicle included km on package tariffs).
+          'tripType': request.tripType.wire,
           'fleet': fleet,
           'idempotencyKey': request.idempotencyKey,
           if (request.requirements.isNotEmpty)
@@ -609,58 +642,108 @@ class BookingApiRepository implements BookingRepository {
     _ => BookingStatus.requested,
   };
 
+  /// Row → summary.
+  ///
+  /// `GET /bookings/:id` is role-scoped server-side and serializes as a
+  /// snake_case privacy DTO (customer/driver/admin views), while legacy rows
+  /// (mock mode, older endpoints) are camelCase — every field falls back
+  /// across both naming styles.
   BookingSummary _summaryFromRow(Map<String, dynamic> b) => BookingSummary(
         id: (b['id'] as String?) ?? '',
-        reference: (b['referenceCode'] as String?) ?? '',
+        reference:
+            (b['referenceCode'] as String?) ??
+                (b['reference_code'] as String?) ??
+                '',
         serviceCategory:
             ((b['serviceCategory'] as Map<String, dynamic>?)?['title'] as String?) ??
                 (b['serviceCategoryId'] as String?) ??
+                (b['ceremony_type'] as String?) ??
                 '',
         status: parseBookingStatusWire(b['status'] as String?),
-        eventStartTime: parseDateTime(b['serviceStartTime']),
-        eventEndTime: parseDateTime(b['serviceEndTime']),
-        pickupAddress: (b['pickupAddress'] as String?) ?? '',
-        destinationAddress: (b['destinationAddress'] as String?) ?? '',
-        routeDistanceKm: _doubleFromDecimal(b['routeDistanceKm']),
-        vehicleName: (b['vehicleId'] as String?) ?? '',
-        chauffeurName:
-            ((b['driver'] as Map<String, dynamic>?)?['user']
-                    as Map<String, dynamic>?)?['fullName'] as String? ??
+        eventStartTime:
+            parseDateTime(b['serviceStartTime'] ?? b['service_start_time']),
+        eventEndTime:
+            parseDateTime(b['serviceEndTime'] ?? b['service_end_time']),
+        pickupAddress:
+            (b['pickupAddress'] as String?) ??
+                (b['pickup_address'] as String?) ??
                 '',
-        totalAmountCents: parseIntAmount(b['estimatedTotalPaise']),
-        advanceTokenCents: parseIntAmount(b['advanceTokenPaise']),
+        destinationAddress:
+            (b['destinationAddress'] as String?) ??
+                (b['destination_address'] as String?) ??
+                '',
+        routeDistanceKm:
+            _doubleFromDecimal(b['routeDistanceKm'] ?? b['route_distance_km']),
+        vehicleName:
+            (b['vehicle_name'] as String?) ?? (b['vehicleId'] as String?) ?? '',
+        // The customer view NEVER decodes chauffeur identity. This mapper
+        // feeds every CUSTOMER booking surface, so even a payload that still
+        // carried a driver object (a server regression, a legacy row) cannot
+        // smuggle a name into the presentation layer. The chauffeur's own
+        // duty view is a separate mapper (_resultFromRow).
+        chauffeurName: '',
+        chauffeurVerification:
+            (b['chauffeur_verification'] as String?) ?? '',
+        totalAmountCents:
+            parseIntAmount(b['estimatedTotalPaise'] ?? b['estimated_total_paise']),
+        advanceTokenCents:
+            parseIntAmount(b['advanceTokenPaise'] ?? b['advance_token_paise']),
         version: (b['version'] as num?)?.toInt() ?? 1,
       );
 
+  /// Row → detailed result (driver duty view, admin view, legacy rows).
   BookingSubmissionResult _resultFromRow(Map<String, dynamic> b) {
     final driverUser =
         ((b['driver'] as Map<String, dynamic>?)?['user'] as Map<String, dynamic>?);
     return BookingSubmissionResult(
       bookingId: (b['id'] as String?) ?? '',
-      bookingReference: (b['referenceCode'] as String?) ?? '',
+      bookingReference:
+          (b['referenceCode'] as String?) ??
+              (b['reference_code'] as String?) ??
+              '',
       status: _statusFromWire(b['status'] as String?),
-      submittedAt: parseDateTime(b['submittedAt']),
+      submittedAt:
+          parseDateTime(
+              b['submittedAt'] ?? b['submitted_at'] ?? b['service_start_time']),
       vehicleId: (b['vehicleId'] as String?) ?? '',
-      vehicleName: (b['vehicleId'] as String?) ?? '',
+      vehicleName:
+          (b['vehicle_name'] as String?) ?? (b['vehicleId'] as String?) ?? '',
       vehicleClass: (b['vehicleTypeId'] as String?) ?? '',
       chauffeurId: (b['driverFk'] as String?) ?? '',
-      ceremonyType: (b['ceremonyType'] as String?) ?? '',
-      ceremonialAttire: (b['ceremonialAttire'] as String?) ?? '',
-      serviceStartDateTime: parseDateTime(b['serviceStartTime']),
-      serviceEndDateTime: parseDateTime(b['serviceEndTime']),
-      routeDistanceKm: _doubleFromDecimal(b['routeDistanceKm']),
-      pickupAddress: (b['pickupAddress'] as String?) ?? '',
-      destinationAddress: (b['destinationAddress'] as String?) ?? '',
+      ceremonyType:
+          (b['ceremonyType'] as String?) ?? (b['ceremony_type'] as String?) ?? '',
+      ceremonialAttire:
+          (b['ceremonialAttire'] as String?) ??
+              (b['ceremonial_attire'] as String?) ??
+              '',
+      serviceStartDateTime:
+          parseDateTime(b['serviceStartTime'] ?? b['service_start_time']),
+      serviceEndDateTime:
+          parseDateTime(b['serviceEndTime'] ?? b['service_end_time']),
+      routeDistanceKm:
+          _doubleFromDecimal(b['routeDistanceKm'] ?? b['route_distance_km']),
+      pickupAddress:
+          (b['pickupAddress'] as String?) ??
+              (b['pickup_address'] as String?) ??
+              '',
+      destinationAddress:
+          (b['destinationAddress'] as String?) ??
+              (b['destination_address'] as String?) ??
+              '',
       primaryContactName:
           ((b['customer'] as Map<String, dynamic>?)?['fullName'] as String?) ??
               (b['primaryContactName'] as String?) ??
+              (b['host_name'] as String?) ??
               '',
       primaryContactPhone:
           ((b['customer'] as Map<String, dynamic>?)?['phoneNumber'] as String?) ??
               (b['primaryContactPhone'] as String?) ??
+              (b['host_phone'] as String?) ??
               '',
-      estimatedTotalPaise: parseIntAmount(b['estimatedTotalPaise']),
-      advanceTokenPaise: parseIntAmount(b['advanceTokenPaise']),
+      estimatedTotalPaise:
+          parseIntAmount(b['estimatedTotalPaise'] ?? b['estimated_total_paise']),
+      advanceTokenPaise:
+          parseIntAmount(b['advanceTokenPaise'] ?? b['advance_token_paise']),
       nextStepMessage: driverUser != null
           ? 'Chauffeur ${driverUser['fullName']} assigned.'
           : '',

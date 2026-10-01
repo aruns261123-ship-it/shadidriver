@@ -32,6 +32,8 @@ import {
   UnauthorizedException,
 } from '../auth/errors/auth.exceptions';
 import { ErrorCode } from '../common/errors/error-codes';
+import { SMS_PROVIDER } from '../notifications/sms/sms.factory';
+import { SmsProvider } from '../notifications/sms/sms-provider.interface';
 
 export const PAYMENT_GATEWAY = 'PAYMENT_GATEWAY';
 
@@ -63,6 +65,7 @@ export class PaymentsService {
     private readonly stateMachine: BookingStateMachineService,
     private readonly groupBookings: GroupBookingsService,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
+    @Inject(SMS_PROVIDER) private readonly sms: SmsProvider,
   ) {}
 
   // ============================================================ managed path
@@ -312,8 +315,14 @@ export class PaymentsService {
     gatewayPaymentId: string,
     paymentAmountPaise: number,
   ): Promise<CaptureResult> {
+    // Collected inside the transaction, SENT after it commits: a messaging
+    // outage must never roll back money that has already been captured.
+    const confirmations: Array<{ phone: string; message: string }> = [];
     const { booking_status } = await this.prisma.$transaction(async (tx) => {
-      const group = await tx.groupBooking.findUnique({ where: { id: groupId } });
+      const group = await tx.groupBooking.findUnique({
+        where: { id: groupId },
+        include: { customer: { select: { phoneNumber: true } } },
+      });
       if (!group) {
         throw new NotFoundAppException(ErrorCode.GROUP_BOOKING_NOT_FOUND, 'Group booking not found.');
       }
@@ -388,8 +397,37 @@ export class PaymentsService {
         },
       });
 
+      // Capturing the advance is what CONFIRMS a managed booking — announce it
+      // to the CUSTOMER, exactly like the single-booking path. (A balance
+      // settlement on an already-confirmed booking must NOT re-send this.)
+      if (type === 'ADVANCE_TOKEN' && bookingStatus === 'CONFIRMED') {
+        confirmations.push({
+          phone: group.customer.phoneNumber,
+          message:
+            `ShadiDriver: booking ${group.referenceCode} is CONFIRMED for ` +
+            `${group.serviceStartTime.toISOString().slice(0, 10)}. ` +
+            `Our operations team is arranging your vehicles and chauffeurs. ` +
+            `Your trip start OTP will be sent to this number.`,
+        });
+      }
+
       return { booking_status: bookingStatus };
     });
+
+    const confirmation = confirmations[0];
+    if (confirmation) {
+      try {
+        await this.sms.sendTransactional(confirmation.phone, confirmation.message);
+      } catch (err) {
+        // Operational alert only: the payment is captured and the booking is
+        // CONFIRMED regardless of delivery. Never fake a delivery either.
+        console.error(
+          `[booking-confirmation] SMS delivery failed for ${confirmation.phone}:`,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+
     return { captured: true, booking_status };
   }
 
@@ -450,14 +488,17 @@ export class PaymentsService {
       );
     }
     // An advance token is payable on an operations-managed request (the
-    // customer paid ahead of ops), once ops has requested it, or on a booking
-    // that is already confirmed and still owes the advance.
+    // customer paid ahead of ops), once ops has requested it, on a booking
+    // that is already confirmed and still owes the advance, or on an
+    // operations-allocated booking (REQUESTED → DRIVER_ACCEPTED) where the
+    // customer's advance payment is what elevates it to CONFIRMED.
     if (
       ![
         BookingStatus.REQUESTED,
         BookingStatus.PAYMENT_PENDING,
         BookingStatus.PAYMENT_FAILED,
         BookingStatus.CONFIRMED,
+        BookingStatus.DRIVER_ACCEPTED,
       ].includes(booking.status as BookingStatus)
     ) {
       throw new ConflictAppException(
@@ -675,6 +716,9 @@ export class PaymentsService {
     gatewayPaymentId: string,
     paymentAmountPaise: number,
   ) {
+    // Collected inside the transaction, SENT after it commits: a messaging
+    // outage must never roll back money that has already been captured.
+    const confirmations: Array<{ phone: string; message: string }> = [];
     const result = await this.prisma.$transaction(async (tx) => {
       const booking = await tx.booking.findUnique({ where: { id: bookingId } });
       if (!booking) {
@@ -720,6 +764,20 @@ export class PaymentsService {
           where: { id: bookingId },
           data: { isAdvancePaid: true, version: { increment: 1 } },
         });
+      } else if (booking.status === BookingStatus.DRIVER_ACCEPTED) {
+        // Operations allocated a chauffeur and the customer has now settled
+        // the advance: the duty is contractually confirmed and the chauffeur
+        // may begin execution (CONFIRMED → EN_ROUTE → ARRIVED → IN_PROGRESS).
+        this.stateMachine.assertTransitionAllowed(
+          booking.status as BookingStatus,
+          'CONFIRM_PAYMENT',
+          'SYSTEM' as ActorRole,
+        );
+        const updated = await tx.booking.update({
+          where: { id: bookingId },
+          data: { status: BookingStatus.CONFIRMED, isAdvancePaid: true, version: { increment: 1 } },
+        });
+        bookingStatus = updated.status;
       } else if (booking.status === BookingStatus.REQUESTED) {
         // The customer paid before operations finished sourcing vehicles.
         // Record the money, leave the request in the operations queue.
@@ -741,8 +799,37 @@ export class PaymentsService {
         },
       });
 
+      if (bookingStatus === BookingStatus.CONFIRMED) {
+        // Confirmation communications go to the CUSTOMER (never the
+        // chauffeur's details back to them). Sent post-commit so a messaging
+        // outage can never roll back a captured payment.
+        confirmations.push({
+          phone: booking.primaryContactPhone,
+          message:
+            `ShadiDriver: booking ${booking.referenceCode} is CONFIRMED for ` +
+            `${booking.serviceStartTime.toISOString().slice(0, 10)}. ` +
+            `Our operations team is arranging your vehicle and chauffeur. ` +
+            `Trip start OTP will be shared with your host contact.`,
+        });
+      }
+
       return { booking_status: bookingStatus };
     });
+
+    const confirmation = confirmations[0];
+    if (confirmation) {
+      try {
+        await this.sms.sendTransactional(confirmation.phone, confirmation.message);
+      } catch (err) {
+        // Operational alert only: the payment is captured and the booking is
+        // CONFIRMED regardless of delivery. Never fake a delivery either.
+        console.error(
+          `[booking-confirmation] SMS delivery failed for ${confirmation.phone}:`,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+
     return { captured: true, ...result };
   }
 }

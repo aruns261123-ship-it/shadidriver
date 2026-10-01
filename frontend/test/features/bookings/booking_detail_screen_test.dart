@@ -58,7 +58,7 @@ void main() {
       },
     );
 
-    testWidgets('renders call chauffeur action and handles tap', (
+    testWidgets('never reveals the chauffeur identity or a direct-call action', (
       tester,
     ) async {
       final mockBookingRepo = MockBookingRepository();
@@ -77,16 +77,16 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Seeded bk_mock_req_1 has chauffeurName 'Rajesh Kumar'
-      expect(find.text('Rajesh Kumar'), findsOneWidget);
-      final callButton = find.byKey(const Key('detail_call_chauffeur_cta'));
-      expect(callButton, findsOneWidget);
-
-      await tester.tap(callButton);
-      await tester.pumpAndSettle();
-
+      // The seeded row carries a chauffeur name, but the CUSTOMER view shows
+      // the platform assurance instead: allocation is owned by ShadiDriver
+      // operations and the customer never gets driver identity or contact.
+      expect(find.text('Rajesh Kumar'), findsNothing);
       expect(
-        find.text('Connecting to Chauffeur Rajesh Kumar…'),
+        find.byKey(const Key('detail_call_chauffeur_cta')),
+        findsNothing,
+      );
+      expect(
+        find.textContaining('verified by ShadiDriver'),
         findsOneWidget,
       );
     });

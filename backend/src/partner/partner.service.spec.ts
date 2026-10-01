@@ -190,7 +190,11 @@ describe('PartnerService', () => {
       $transaction: jest.fn(async (fn: any) => fn(prisma)),
     };
 
-    service = new PartnerService(prisma);
+    service = new PartnerService(prisma, {
+      name: 'test',
+      put: jest.fn(),
+      delete: jest.fn(),
+    } as never);
   });
 
   // ---------------------------------------------------------------- the gate

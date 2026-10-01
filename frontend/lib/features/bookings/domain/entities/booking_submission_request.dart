@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../search/domain/entities/trip_type.dart';
 import '../policies/booking_location_rules.dart';
 import 'booking_draft.dart';
 
@@ -23,7 +24,12 @@ class BookingSubmissionRequest {
   // Service Timing & Route Distance
   final DateTime serviceStartDateTime;
   final DateTime serviceEndDateTime;
+
+  /// ONE-WAY route distance (pickup → destination).
   final double? routeDistanceKm;
+
+  /// Customer-chosen direction (ONE_WAY | ROUND_TRIP); server prices it.
+  final TripType tripType;
 
   // Route & Locations
   final String city;
@@ -59,6 +65,7 @@ class BookingSubmissionRequest {
     required this.serviceStartDateTime,
     required this.serviceEndDateTime,
     this.routeDistanceKm,
+    this.tripType = TripType.oneWay,
     required this.city,
     required this.pickupAddress,
     required this.destinationAddress,
@@ -105,6 +112,7 @@ class BookingSubmissionRequest {
       serviceStartDateTime: draft.serviceStartDateTime,
       serviceEndDateTime: draft.serviceEndDateTime,
       routeDistanceKm: draft.routeDistanceKm,
+      tripType: draft.tripType,
       city: draft.city,
       pickupAddress: draft.pickupAddress,
       destinationAddress: draft.destinationAddress,

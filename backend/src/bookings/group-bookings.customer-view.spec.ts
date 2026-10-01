@@ -21,6 +21,7 @@ function source(overrides: Partial<Parameters<typeof serializeCustomerGroupBooki
     advanceTokenPaise: 750_000n,
     requirements: ['Wedding decoration'],
     communicationPreference: 'WHATSAPP',
+    createdAt: new Date('2026-09-30T06:00:00Z'),
     requestedFleetItems: [{ vehicleTypeId: 'VT_THAR', quantity: 2 }],
     assignments: [
       {
@@ -55,6 +56,7 @@ describe('customer-facing group booking payload', () => {
     expect(view.communication_preference).toBe('WHATSAPP');
     expect(view.requested_fleet).toEqual([{ vehicleTypeId: 'VT_THAR', quantity: 2 }]);
     expect(view.estimated_total_paise).toBe('3000000');
+    expect(view.created_at).toEqual(new Date('2026-09-30T06:00:00Z'));
     expect(view.assignments).toHaveLength(1);
   });
 

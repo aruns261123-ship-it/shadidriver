@@ -56,6 +56,7 @@ import '../../features/support/domain/repositories/support_repository.dart';
 import '../../features/support/data/mock_support_repository.dart';
 import '../../features/reviews/domain/repositories/review_repository.dart';
 import '../../features/reviews/data/mock_review_repository.dart';
+import '../../features/reviews/data/review_api_repository.dart';
 import '../../features/trips/domain/repositories/trip_repository.dart';
 import '../../features/trips/data/mock_trip_repository.dart';
 import '../../features/trips/data/trip_api_repository.dart';
@@ -298,8 +299,17 @@ final supportRepositoryProvider = Provider<SupportRepository>((ref) {
   return MockSupportRepository();
 });
 
+/// Reviews — REAL backend submission by default (the server enforces
+/// COMPLETED-only, one-per-booking, moderation intake). The mock exists only
+/// for `useMockData` offline UI development and tests.
 final reviewRepositoryProvider = Provider<ReviewRepository>((ref) {
-  return MockReviewRepository();
+  final useMock = ref.watch(
+    environmentConfigProvider.select((c) => c.useMockData),
+  );
+  if (useMock) {
+    return MockReviewRepository();
+  }
+  return ReviewApiRepository(ref.watch(apiClientProvider));
 });
 
 final tripRepositoryProvider = Provider<TripRepository>((ref) {
@@ -407,6 +417,7 @@ final searchHandoffProvider = Provider<SearchHandoff>((ref) {
     eventDate: query.eventDate,
     occasion: query.occasionId,
     passengerCount: query.passengerCount,
+    tripType: query.tripType,
   );
 });
 

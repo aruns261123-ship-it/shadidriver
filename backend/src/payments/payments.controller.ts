@@ -148,13 +148,22 @@ export class PaymentsController {
   @Public()
   @Post('webhook')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Gateway webhook ingestion (HMAC-verified over raw body)' })
+  @ApiOperation({
+    summary:
+      'Gateway webhook ingestion (HMAC-verified over raw body; accepts x-razorpay-signature or x-gateway-signature)',
+  })
   webhook(
     @Req() request: RawBodyRequest<Request>,
-    @Headers('x-gateway-signature') signature?: string,
+    @Headers('x-gateway-signature') gatewaySignature?: string,
+    @Headers('x-razorpay-signature') razorpaySignature?: string,
   ) {
     const rawBody =
       request.rawBody?.toString('utf8') ?? JSON.stringify(request.body ?? {});
-    return this.paymentsService.ingestWebhook({ rawBody, signature: signature ?? '' });
+    return this.paymentsService.ingestWebhook({
+      rawBody,
+      // Razorpay sends `x-razorpay-signature`; the generic header keeps the
+      // mock gateway and older proxies working.
+      signature: razorpaySignature ?? gatewaySignature ?? '',
+    });
   }
 }

@@ -24,4 +24,19 @@ export class ConsoleSmsProvider implements SmsProvider {
     );
     return { accepted: true, messageId: `dev-${Date.now()}` };
   }
+
+  async sendTransactional(phoneNumber: string, message: string): Promise<SmsSendResult> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'ConsoleSmsProvider is forbidden in production. Configure SMS_PROVIDER=msg91 with real credentials.',
+      );
+    }
+    console.warn(
+      `\n====================================================================\n` +
+        `  [DEV SMS → ${phoneNumber}]\n` +
+        `  ${message}\n` +
+        `====================================================================\n`,
+    );
+    return { accepted: true, messageId: `dev-${Date.now()}` };
+  }
 }

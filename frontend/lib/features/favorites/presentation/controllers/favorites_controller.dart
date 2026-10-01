@@ -84,9 +84,13 @@ class FavoritesController extends Notifier<FavoritesState> {
       }
     });
 
-    // Cold start with a restored session.
+    // Cold start with a restored session. DEFERRED: the session listener can
+    // fire during the very first build (an already-authenticated customer
+    // opening the Home screen), and writing `state` inside `build` throws
+    // "Tried to read the state of an uninitialized provider". Scheduling the
+    // import after the current build keeps the provider self-consistent.
     if (ref.read(activeSessionProvider).isAuthenticated) {
-      unawaited(_onSignedIn());
+      Future.microtask(_onSignedIn);
     }
     return const FavoritesState();
   }

@@ -6,11 +6,13 @@ import '../../../app/router/route_paths.dart';
 import '../../../core/network/api_response.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/shadi_imagery.dart';
 import '../../../core/widgets/shadi_card.dart';
 import '../../../core/widgets/shadi_error_view.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../core/widgets/shadi_primary_button.dart';
 import '../../../core/widgets/shadi_quantity_stepper.dart';
+import '../../search/domain/entities/trip_type.dart';
 import '../domain/entities/fleet_availability_result.dart';
 import '../domain/entities/guest_fleet_selection.dart';
 import 'controllers/fleet_builder_controller.dart';
@@ -69,16 +71,9 @@ class _GroupBookingScreenState extends ConsumerState<GroupBookingScreen> {
     final items = (envelope.data as List? ?? const [])
         .whereType<Map<String, dynamic>>()
         .toList();
-    return items.map((t) {
-      return FleetLineState(
-        vehicleTypeId: (t['id'] as String?) ?? '',
-        displayName:
-            (t['displayName'] as String?) ?? (t['display_name'] as String?) ?? '',
-        vehicleClass: (t['vehicleClass'] as String?) ?? '',
-        seatingCapacity: (t['seatingCap'] as num?)?.toInt() ?? 4,
-        quantity: 0,
-      );
-    }).toList();
+    // One mapper, unit-tested against the real wire shape — reading the wrong
+    // key casing here silently degraded every type to "4 seats • ".
+    return items.map(FleetLineState.fromVehicleTypeJson).toList();
   }
 
   @override
@@ -126,6 +121,10 @@ class _GroupBookingFormState extends ConsumerState<_GroupBookingForm> {
   DateTime _start = DateTime.now().add(const Duration(days: 7, hours: 4));
   int _passengerCount = 12;
 
+  /// Customer-chosen trip direction, seeded from the guest selection carried
+  /// through Home/search and echoed into availability + the submission.
+  TripType _tripType = TripType.oneWay;
+
   GroupBookingController get _controller =>
       ref.read(groupBookingControllerProvider(widget.types).notifier);
 
@@ -170,6 +169,10 @@ class _GroupBookingFormState extends ConsumerState<_GroupBookingForm> {
     }
     if (trip.contactName != null) _contactNameCtrl.text = trip.contactName!;
     if (trip.contactPhone != null) _contactPhoneCtrl.text = trip.contactPhone!;
+
+    if (trip.tripType != TripType.oneWay) {
+      setState(() => _tripType = trip.tripType);
+    }
 
     final nextPassenger =
         (trip.passengerCount != null && trip.passengerCount! >= 2)
@@ -231,6 +234,7 @@ class _GroupBookingFormState extends ConsumerState<_GroupBookingForm> {
             serviceStart: _start,
             serviceEnd: _start.add(const Duration(hours: 8)),
             passengerCount: _passengerCount,
+            tripType: _tripType,
           ),
         );
   }
@@ -350,6 +354,7 @@ class _GroupBookingFormState extends ConsumerState<_GroupBookingForm> {
         serviceStartDateTime: _start,
         serviceEndDateTime: _start.add(const Duration(hours: 8)),
         passengerCount: _passengerCount,
+        tripType: _tripType,
       );
 
   Future<void> _checkAvailability() async {
@@ -549,16 +554,21 @@ class _GroupBookingFormState extends ConsumerState<_GroupBookingForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Reference cart heading: the Playfair "YOUR CARS" section title.
           Text(
-            'YOUR SELECTION',
-            style: AppTypography.labelLarge.copyWith(
-              letterSpacing: 1.2,
-              color: AppColors.textSecondaryLight,
+            'YOUR CARS',
+            style: TextStyle(
+              fontFamily: AppTypography.ceremonialFontFamily,
+              fontFamilyFallback: AppTypography.ceremonialFontFallbacks,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: AppColors.darkBurgundy,
+              letterSpacing: 0.4,
             ),
           ),
           const SizedBox(height: 12),
           for (final line in state.selectedLines) _buildSelectionLine(line),
-          const Divider(color: AppColors.borderLight),
+          Container(height: 1, color: AppColors.borderLight),
           const SizedBox(height: 4),
           Row(
             children: [
@@ -600,10 +610,14 @@ class _GroupBookingFormState extends ConsumerState<_GroupBookingForm> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'YOUR SELECTION',
-              style: AppTypography.labelLarge.copyWith(
-                letterSpacing: 1.2,
-                color: AppColors.textSecondaryLight,
+              'YOUR CARS',
+              style: TextStyle(
+                fontFamily: AppTypography.ceremonialFontFamily,
+                fontFamilyFallback: AppTypography.ceremonialFontFallbacks,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppColors.darkBurgundy,
+                letterSpacing: 0.4,
               ),
             ),
             const SizedBox(height: 12),
@@ -641,19 +655,18 @@ class _GroupBookingFormState extends ConsumerState<_GroupBookingForm> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Type thumbnail. The public vehicle-type payload carries no
-              // image, so this is a deliberate placeholder, never a fake photo.
+              // Reference fleet-photo treatment (55×49, radius 9). The public
+              // vehicle-type payload carries no image, so the bundled
+              // reference photography stands in — never a bare placeholder.
               Container(
-                width: 56,
-                height: 56,
+                width: 55,
+                height: 49,
                 decoration: BoxDecoration(
-                  color: AppColors.secondarySurface,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.directions_car_rounded,
-                  color: AppColors.textTertiaryLight,
-                  size: 28,
+                  borderRadius: BorderRadius.circular(9),
+                  image: const DecorationImage(
+                    image: AssetImage(ShadiImagery.primary),
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -663,7 +676,9 @@ class _GroupBookingFormState extends ConsumerState<_GroupBookingForm> {
                   children: [
                     Text(
                       line.displayName,
-                      style: AppTypography.titleSmall,
+                      style: AppTypography.titleSmall.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -820,6 +835,61 @@ class _GroupBookingFormState extends ConsumerState<_GroupBookingForm> {
     );
   }
 
+  /// One Way / Both Way — persisted into availability, pricing snapshot and
+  /// the booking; the SERVER bills a round trip at twice the route distance.
+  Widget _buildTripTypeSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Trip type', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _tripTypeOption(TripType.oneWay, 'One Way')),
+            const SizedBox(width: 10),
+            Expanded(child: _tripTypeOption(TripType.roundTrip, 'Both Way')),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _tripTypeOption(TripType value, String label) {
+    final selected = _tripType == value;
+    return GestureDetector(
+      onTap: () {
+        if (selected) return;
+        setState(() => _tripType = value);
+        _syncToGuestSelection();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryBurgundy.withValues(alpha: 0.06)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? AppColors.primaryBurgundy : AppColors.borderLight,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: AppTypography.labelLarge.copyWith(
+              color: selected
+                  ? AppColors.primaryBurgundy
+                  : AppColors.textSecondaryLight,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEventDetails() {
     return ShadiCard(
       padding: const EdgeInsets.all(16),
@@ -827,6 +897,8 @@ class _GroupBookingFormState extends ConsumerState<_GroupBookingForm> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Event Details', style: AppTypography.titleMedium),
+          const SizedBox(height: 12),
+          _buildTripTypeSelector(),
           const SizedBox(height: 12),
           TextFormField(
             controller: _pickupCtrl,

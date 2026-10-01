@@ -33,6 +33,7 @@ import {
   FleetRequestLineDto,
 } from '../availability/availability.controller';
 import { GroupBookingsService, SubmitGroupBookingInput } from './group-bookings.service';
+import { TRIP_TYPE_VALUES } from '../common/domain/trip-type';
 
 class SubmitGroupBookingDto {
   @IsString() @Length(2, 50) serviceCategoryId!: string;
@@ -45,6 +46,8 @@ class SubmitGroupBookingDto {
   @IsString() @Length(2, 120) primaryContactName!: string;
   @IsString() @Length(8, 20) primaryContactPhone!: string;
   @IsInt() @Min(1) @Max(200) passengerCount!: number;
+  /** ONE_WAY or ROUND_TRIP — shapes the persisted pricing snapshot. */
+  @IsOptional() @IsIn(TRIP_TYPE_VALUES) tripType?: string;
   // Each element is ONE requested vehicle line. Validating these against the
   // whole availability DTO (which itself contains a `fleet` array) rejected
   // every real submission with "vehicleTypeId should not exist".
@@ -136,6 +139,7 @@ export class GroupBookingsController {
       primaryContactName: dto.primaryContactName,
       primaryContactPhone: dto.primaryContactPhone,
       passengerCount: dto.passengerCount,
+      tripType: dto.tripType as SubmitGroupBookingInput['tripType'],
       fleet: dto.fleet,
       idempotencyKey: dto.idempotencyKey,
       requirements: dto.requirements,
@@ -162,13 +166,13 @@ export class GroupBookingsController {
   @ApiOperation({
     summary: 'Group booking detail — owner or admin only (404 for anyone else)',
   })
-  getById(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  getById(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.groupBookingsService.getGroupBooking(id, user);
   }
 
   @Get(':id/assignments')
   @ApiOperation({ summary: 'Vehicle assignments under this group booking (customer-safe)' })
-  assignments(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  assignments(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.groupBookingsService.getGroupBooking(id, user);
   }
 
@@ -179,7 +183,7 @@ export class GroupBookingsController {
   })
   customerTransition(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CustomerTransitionDto,
   ) {
     return this.groupBookingsService.customerTransition(id, dto.action, user, dto.reason);
@@ -234,7 +238,7 @@ export class GroupBookingsController {
   @Post('assignments/:id/acknowledge')
   @Roles(Role.Driver)
   @ApiOperation({ summary: 'Chauffeur acknowledges an operations-assigned duty' })
-  acknowledgeAssignment(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  acknowledgeAssignment(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.groupBookingsService.acknowledgeAssignment(id, user.userId);
   }
 
@@ -245,7 +249,7 @@ export class GroupBookingsController {
   })
   declineAssignment(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { reason?: string },
   ) {
     return this.groupBookingsService.declineAssignment(
@@ -259,7 +263,7 @@ export class GroupBookingsController {
   @Post('assignments/:id/confirm-vehicle')
   @Roles(Role.OperationsAdmin)
   @ApiOperation({ summary: 'Operations: confirm the reserved vehicle for an assignment' })
-  confirmVehicle(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  confirmVehicle(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.groupBookingsService.confirmVehicleAllocation(id, user.userId);
   }
 
@@ -268,7 +272,7 @@ export class GroupBookingsController {
   @ApiOperation({ summary: 'Operations: assign the chauffeur internally (no customer-visible offer)' })
   assignChauffeur(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { driverId: string },
   ) {
     return this.groupBookingsService.assignChauffeur(id, body.driverId, user.userId);

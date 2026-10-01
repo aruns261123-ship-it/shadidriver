@@ -66,13 +66,19 @@ export class PricingService {
     const created = await this.prisma.$transaction(async (tx) => {
       // An APPROVED tariff stays the live one until an admin approves the
       // successor; the new row is purely a pending proposal.
+      //
+      // The customer per-km rate is a SERVER computation from the fixed
+      // ShadiDriver formula — the partner supplies fuel price and mileage
+      // only; any client-sent perKmPaise is ignored.
       const row = await tx.vehiclePricing.create({
         data: {
           vehicleId,
           version: nextVersion,
           localIncludedKm: dto.localIncludedKm,
           localAmountPaise: dto.localAmountPaise,
-          perKmPaise: dto.perKmPaise,
+          perKmPaise: derivePerKmPaise(dto.fuelPricePerLitre, dto.mileageKmPerLitre),
+          fuelPricePerLitre: dto.fuelPricePerLitre,
+          mileageKmPerLitre: dto.mileageKmPerLitre,
           hourlyPaise: dto.hourlyPaise ?? null,
           extraHourPaise: dto.extraHourPaise ?? null,
           fullDayPaise: dto.fullDayPaise ?? null,
@@ -164,7 +170,11 @@ export class PricingService {
     // the full-day rate — the standard Indian commercial model prices the
     // outstation DAY below a city full-day package because per-km charges
     // accumulate over long distances on top of it.
-    if (dto.outstationPerKmPaise !== undefined && dto.outstationPerKmPaise < dto.perKmPaise) {
+    if (
+      dto.outstationPerKmPaise !== undefined &&
+      dto.perKmPaise !== undefined &&
+      dto.outstationPerKmPaise < dto.perKmPaise
+    ) {
       throw new BadRequestAppException(
         ErrorCode.VALIDATION_FAILED,
         'outstationPerKmPaise cannot be lower than the local per-km rate.',
@@ -186,6 +196,8 @@ export class PricingService {
     overnightPaise: bigint | null;
     outstationPerDayPaise: bigint | null;
     outstationPerKmPaise: bigint | null;
+    fuelPricePerLitre: number | null;
+    mileageKmPerLitre: number | null;
     status: PricingStatus;
     submittedAt: Date;
     reviewedAt: Date | null;
@@ -200,6 +212,13 @@ export class PricingService {
       local_included_km: r.localIncludedKm,
       local_amount_paise: r.localAmountPaise?.toString() ?? null,
       per_km_paise: r.perKmPaise?.toString() ?? null,
+      fuel_price_per_litre: r.fuelPricePerLitre ?? null,
+      mileage_km_per_litre: r.mileageKmPerLitre ?? null,
+      // The formula is public: partners can verify the derived rate.
+      distance_rate_formula:
+        r.fuelPricePerLitre != null && r.mileageKmPerLitre
+          ? `₹${r.fuelPricePerLitre} ÷ ${r.mileageKmPerLitre} km/l + ₹10 = ₹${(Number(r.perKmPaise) / 100).toFixed(3)}/km`
+          : null,
       hourly_paise: r.hourlyPaise?.toString() ?? null,
       extra_hour_paise: r.extraHourPaise?.toString() ?? null,
       full_day_paise: r.fullDayPaise?.toString() ?? null,
@@ -215,4 +234,18 @@ export class PricingService {
       is_live: r.status === PricingStatus.APPROVED,
     };
   }
+}
+
+/**
+ * ShadiDriver distance-rate formula (fixed, not configurable per partner):
+ *   ratePerKm(₹) = fuelPricePerLitre ÷ mileageKmPerLitre + 10
+ * e.g. ₹95 ÷ 8 + ₹10 = ₹21.875/km → 2188 paise (rounded to the whole paisa).
+ * The partner supplies the two inputs; the customer rate is server-owned.
+ */
+export function derivePerKmPaise(
+  fuelPricePerLitre: number,
+  mileageKmPerLitre: number,
+): bigint {
+  const rate = fuelPricePerLitre / mileageKmPerLitre + 10;
+  return BigInt(Math.round(rate * 100));
 }

@@ -642,6 +642,10 @@ describe('GroupBookingsService', () => {
   // ------------------------------------------------------------------ quote
 
   describe('submitGroupBooking quoting', () => {
+    // Mirrors persistence: submission re-reads the booking through the CUSTOMER
+    // view, so the fake must serve findUnique after create.
+    const stored: any[] = [];
+    const storedAssignments: any[] = [];
     const approvedTariff = {
       id: 'pricing-9',
       version: 4,
@@ -673,7 +677,32 @@ describe('GroupBookingsService', () => {
     };
 
     beforeEach(() => {
-      prisma.groupBooking.findUnique.mockResolvedValue(null);
+      stored.length = 0;
+      storedAssignments.length = 0;
+      prisma.groupBooking.findUnique.mockImplementation(async ({ where }: any) => {
+        const found = where?.id
+          ? stored.find((g) => g.id === where.id)
+          : stored.find((g) => g.idempotencyKey === where?.idempotencyKey);
+        if (!found) return null;
+        return {
+          ...found,
+          // The customer view loads assignments + their vehicle, exactly like
+          // Prisma's include does against the real database.
+          assignments: storedAssignments.map((a, i) => ({
+            id: `asg-${i + 1}`,
+            sequenceNumber: a.sequenceNumber,
+            assignmentStatus: a.assignmentStatus,
+            requestedModel: a.requestedModel,
+            estimatedTotalPaise: a.estimatedTotalPaise,
+            advanceTokenPaise: a.advanceTokenPaise,
+            vehicle: {
+              id: a.vehicleId,
+              fleetCode: 'SD-F-001',
+              vehicleType: { displayName: 'Mahindra Thar' },
+            },
+          })),
+        };
+      });
       availability.checkFleetAvailability.mockResolvedValue({
         fully_available: true,
         lines: [],
@@ -688,10 +717,20 @@ describe('GroupBookingsService', () => {
         { id: 'veh-1', basePricePaise: 0n },
         { id: 'veh-2', basePricePaise: 0n },
       ]);
-      prisma.groupBooking.create.mockImplementation(async ({ data }: any) => ({
-        id: GROUP_ID,
-        ...data,
-      }));
+      prisma.vehicleAssignment.createMany.mockImplementation(async ({ data }: any) => {
+        storedAssignments.push(...(Array.isArray(data) ? data : [data]));
+        return { count: Array.isArray(data) ? data.length : 1 };
+      });
+      prisma.groupBooking.create.mockImplementation(async ({ data }: any) => {
+        const created = {
+          id: GROUP_ID,
+          version: 1,
+          createdAt: new Date(),
+          ...data,
+        };
+        stored.push(created);
+        return created;
+      });
     });
 
     it('prices from the APPROVED tariff, never the legacy (often zero) base price', async () => {
@@ -778,15 +817,29 @@ describe('GroupBookingsService', () => {
     });
 
     it('replays the same request instead of creating a duplicate', async () => {
-      prisma.groupBooking.findUnique.mockResolvedValue({
-        id: GROUP_ID,
-        referenceCode: 'SD-GRP-2026-000123',
-        assignments: [],
-      });
+      stored.push(
+        group({
+          idempotencyKey: `${input.customerId}:grp:${input.idempotencyKey}`,
+        }),
+      );
       const result = await service.submitGroupBooking(input);
       expect(result.idempotentReplay).toBe(true);
       expect(prisma.groupBooking.create).not.toHaveBeenCalled();
       expect(prisma.vehiclePricing.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('answers with the CUSTOMER view — raw keys (idempotency key, snapshot) never reach the wire', async () => {
+      prisma.vehiclePricing.findFirst.mockResolvedValue(approvedTariff);
+      const result = await service.submitGroupBooking(input);
+      const view = result.groupBooking as Record<string, unknown>;
+      expect(view.reference_code).toBeTruthy();
+      expect(Array.isArray(view.assignments)).toBe(true);
+      expect((view.assignments as unknown[]).length).toBe(2);
+      const wire = JSON.stringify(view);
+      expect(wire).not.toMatch(/idempotency_key|idempotencyKey/);
+      expect(wire).not.toMatch(/pricing_snapshot|pricingSnapshot/);
+      expect(wire).not.toMatch(/customer_fk|customerFk/);
+      expect(wire).not.toMatch(/advance_paid_at|balance_paid_at/);
     });
   });
 });

@@ -67,10 +67,14 @@ void main() {
         findsOneWidget,
       );
 
-      // Vehicle & Chauffeur
+      // Vehicle & Chauffeur — the customer books a car; ops allocates the
+      // chauffeur and no identity is ever shown pre- or post-allocation.
       expect(find.text('BMW 5 Series'), findsOneWidget);
       expect(find.textContaining('Luxury Sedan'), findsOneWidget);
-      expect(find.textContaining('Assigned Chauffeur:'), findsOneWidget);
+      expect(
+        find.textContaining('assigned & verified by ShadiDriver'),
+        findsOneWidget,
+      );
 
       // Ceremony & Attire
       expect(find.text('Ceremony & Attire'), findsOneWidget);

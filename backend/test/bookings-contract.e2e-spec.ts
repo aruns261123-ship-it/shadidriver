@@ -58,6 +58,7 @@ const CLIENT_CONTRACT_FIELDS = [
   'destinationAddress',
   'venueName',
   'routeDistanceKm',
+  'tripType',
   'primaryContactName',
   'primaryContactPhone',
   'passengerCount',
@@ -82,8 +83,8 @@ describe('POST /api/v1/bookings (e2e contract)', () => {
     getBookingById: jest.fn(),
     transition: jest.fn(),
     listDriverBookings: jest.fn(),
-    acceptBooking: jest.fn(),
-    declineBooking: jest.fn(),
+    assignChauffeur: jest.fn(),
+    reportAssignmentConflict: jest.fn(),
     resendTripOtp: jest.fn(),
   };
 

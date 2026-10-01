@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   Param,
+  ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -57,7 +58,7 @@ export class FavoritesController {
   @ApiOperation({ summary: 'Save a vehicle (idempotent)' })
   add(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('vehicleId') vehicleId: string,
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
   ) {
     return this.favoritesService.add(user.userId, vehicleId);
   }
@@ -67,7 +68,7 @@ export class FavoritesController {
   @ApiOperation({ summary: 'Remove a saved vehicle (idempotent)' })
   remove(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('vehicleId') vehicleId: string,
+    @Param('vehicleId', ParseUUIDPipe) vehicleId: string,
   ) {
     return this.favoritesService.remove(user.userId, vehicleId);
   }

@@ -4,6 +4,7 @@ import { BookingsModule } from '../bookings/bookings.module';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService, PAYMENT_GATEWAY } from './payments.service';
 import { MockPaymentGateway } from './mock-gateway.provider';
+import { RazorpayGateway } from './razorpay-gateway.provider';
 import { PaymentGateway } from './payment-gateway.interface';
 
 @Module({
@@ -16,12 +17,16 @@ import { PaymentGateway } from './payment-gateway.interface';
       useFactory: (): PaymentGateway => {
         const gateway = (process.env.PAYMENT_GATEWAY ?? 'mock').toLowerCase();
         if (gateway === 'razorpay') {
-          // Razorpay adapter lands with real merchant credentials (ADR-013).
-          throw new Error(
-            'Razorpay adapter requires merchant credentials; implement RazorpayGateway in src/payments/ and provide PAYMENT_KEY_ID/PAYMENT_KEY_SECRET.',
-          );
+          // REAL integration: fails at boot when merchant credentials are
+          // missing — production never runs a gateway that cannot collect.
+          return new RazorpayGateway();
         }
-        return new MockPaymentGateway();
+        if (gateway === 'mock') {
+          return new MockPaymentGateway();
+        }
+        throw new Error(
+          `Unknown PAYMENT_GATEWAY '${gateway}'. Supported: razorpay (real), mock (development only).`,
+        );
       },
     },
   ],

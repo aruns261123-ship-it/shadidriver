@@ -21,6 +21,117 @@ import { DecisionAction } from './dto/admin.dto';
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // -------------------------------------------------------------- customer stats
+
+  /**
+   * REAL customer counts from the users table — no sample values anywhere.
+   *   total   → every customer-primaried account that is not soft-deleted;
+   *   new     → signed up within the trailing 30 days;
+   *   active  → placed at least one booking/group booking (correctness over
+   *             “logged in recently”, which is trivially gamed by sessions).
+   */
+  async customerStats() {
+    const customerWhere: Prisma.UserWhereInput = {
+      primaryRole: 'customer',
+      deletedAt: null,
+    };
+    const since = new Date(Date.now() - 30 * 24 * 3_600_000);
+
+    const [total, newThisMonth, activeWithBooking] = await Promise.all([
+      this.prisma.user.count({ where: customerWhere }),
+      this.prisma.user.count({
+        where: { ...customerWhere, createdAt: { gte: since } },
+      }),
+      this.prisma.user.count({
+        where: {
+          ...customerWhere,
+          OR: [
+            { bookingsAsCustomer: { some: {} } },
+            { groupBookingsAsCustomer: { some: {} } },
+          ],
+        },
+      }),
+    ]);
+
+    return {
+      total_customers: total,
+      new_customers_30d: newThisMonth,
+      active_customers: activeWithBooking,
+      generated_at: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * FULL dashboard KPI set — every number from live database counts, never
+   * reference/sample values. One call powers the Super Admin console header.
+   */
+  async dashboardStats() {
+    const since30d = new Date(Date.now() - 30 * 24 * 3_600_000);
+    const adminRoles = ['operationsAdmin', 'verificationAdmin', 'financeAdmin', 'superAdmin'];
+
+    const [
+      totalCustomers,
+      totalDrivers,
+      totalCars,
+      availableCars,
+      pendingVehicleVerification,
+      pendingPartnerVerification,
+      pendingDocumentReview,
+      newBookings,
+      confirmedBookings,
+      completedBookings,
+      paymentsPending,
+    ] = await Promise.all([
+      this.prisma.user.count({ where: { primaryRole: 'customer', deletedAt: null } }),
+      this.prisma.driverProfile.count({ where: { verificationStatus: 'APPROVED' } }),
+      this.prisma.vehicle.count({ where: { isActive: true } }),
+      this.prisma.vehicle.count({
+        where: {
+          verificationStatus: 'APPROVED',
+          isActive: true,
+          isAvailable: true,
+        },
+      }),
+      this.prisma.vehicle.count({
+        where: { verificationStatus: { in: ['PENDING_SUBMISSION', 'SUBMITTED'] } },
+      }),
+      this.prisma.partnerProfile.count({
+        where: { verificationStatus: { in: ['PENDING_SUBMISSION', 'SUBMITTED'] } },
+      }),
+      this.prisma.vehicleDocument.count({ where: { verificationStatus: 'PENDING_REVIEW' } }),
+      this.prisma.booking.count({ where: { status: 'REQUESTED' } }),
+      this.prisma.booking.count({ where: { status: 'CONFIRMED' } }),
+      this.prisma.booking.count({ where: { status: 'COMPLETED' } }),
+      this.prisma.payment.count({ where: { status: 'INITIATED' } }),
+    ]);
+
+    const groupStatuses = await this.prisma.groupBooking.groupBy({
+      by: ['status'],
+      _count: { id: true },
+    });
+    const groupCount = (status: string) =>
+      groupStatuses.find((g) => g.status === status)?._count.id ?? 0;
+
+    return {
+      total_customers: totalCustomers,
+      total_drivers: totalDrivers,
+      total_cars: totalCars,
+      available_cars: availableCars,
+      pending_verification:
+        pendingVehicleVerification + pendingPartnerVerification + pendingDocumentReview,
+      pending_verification_breakdown: {
+        vehicles: pendingVehicleVerification,
+        partners: pendingPartnerVerification,
+        documents: pendingDocumentReview,
+      },
+      new_bookings: newBookings + groupCount('REQUESTED'),
+      confirmed_bookings: confirmedBookings + groupCount('CONFIRMED'),
+      completed_bookings: completedBookings + groupCount('COMPLETED'),
+      payments_pending: paymentsPending,
+      generated_at: new Date().toISOString(),
+    };
+  }
+
   // ------------------------------------------------------------------ queues
 
   /** Partners awaiting review, oldest submission first. */

@@ -1,0 +1,6 @@
+# Local development override: allow the Flutter web preview origin(s) to call
+# the API from a browser (CORS). Merge-safe; keeps the default localhost:3000.
+services:
+  api:
+    environment:
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:8080,http://127.0.0.1:8080"

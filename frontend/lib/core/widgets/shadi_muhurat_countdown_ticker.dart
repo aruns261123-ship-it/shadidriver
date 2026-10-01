@@ -23,6 +23,10 @@ class ShadiMuhuratCountdownTicker extends StatefulWidget {
 
 class _ShadiMuhuratCountdownTickerState
     extends State<ShadiMuhuratCountdownTicker> {
+  /// Below this the header badge takes its own line instead of squeezing the
+  /// ceremony name (mirrors the ceremony column's usable width).
+  static const double _headerRowMinWidth = 300;
+
   Timer? _timer;
   late DateTime _target;
   late Duration _remaining;
@@ -109,73 +113,48 @@ class _ShadiMuhuratCountdownTickerState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.champagneGold.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.auto_awesome,
-                  size: 16,
-                  color: AppColors.softChampagne,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          // HEADER — the badge used to sit unbounded beside the ceremony name,
+          // which squeezed the name to nothing on a compact phone. It now takes
+          // its own line whenever the row has no room for both.
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final badge = _buildBadge();
+              final stacks = constraints.maxWidth < _headerRowMinWidth ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.2;
+
+              if (!stacks) {
+                return Row(
                   children: [
-                    Text(
-                      widget.ceremonyName.toUpperCase(),
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.softChampagne,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                        fontSize: 10,
-                      ),
-                    ),
-                    if (widget.venueName != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.venueName!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: Colors.white70,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
+                    _buildMark(),
+                    const SizedBox(width: 8),
+                    Expanded(child: _buildCeremonyLabel()),
+                    const SizedBox(width: 8),
+                    badge,
                   ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.warmGold.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.champagneGold.withValues(alpha: 0.5),
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _buildMark(),
+                      const SizedBox(width: 8),
+                      Flexible(child: _buildCeremonyLabel()),
+                    ],
                   ),
-                ),
-                child: Text(
-                  'LAGNA COUNTDOWN',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.softChampagne,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 9,
-                  ),
-                ),
-              ),
-            ],
+                  const SizedBox(height: 8),
+                  badge,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 14),
 
-          // Ticker Unit Boxes
+          // Ticker Unit Boxes. Each unit is an Expanded share of the row and
+          // scales its own digits down only when they would not fit, so the
+          // countdown can never overflow and its digits are never clipped.
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -202,12 +181,17 @@ class _ShadiMuhuratCountdownTickerState
                 color: AppColors.softChampagne,
               ),
               const SizedBox(width: 5),
-              Text(
-                'Royal Chauffeur on standby 45 mins prior to the holy hour',
-                style: AppTypography.labelSmall.copyWith(
-                  color: Colors.white70,
-                  fontSize: 10,
-                  fontStyle: FontStyle.italic,
+              // Flexible + centred: the assurance line reflows onto a second
+              // line on a compact phone instead of overflowing the card.
+              Flexible(
+                child: Text(
+                  'Royal Chauffeur on standby 45 mins prior to the holy hour',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.labelSmall.copyWith(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ),
             ],
@@ -218,37 +202,108 @@ class _ShadiMuhuratCountdownTickerState
   }
 
   Widget _buildTimeUnit(String value, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.champagneGold.withValues(alpha: 0.4),
+              ),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: AppTypography.titleLarge.copyWith(
+                  color: AppColors.softChampagne,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.champagneGold.withValues(alpha: 0.8),
+                fontWeight: FontWeight.w700,
+                fontSize: 9,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMark() {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: AppColors.champagneGold.withValues(alpha: 0.2),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(
+        Icons.auto_awesome,
+        size: 16,
+        color: AppColors.softChampagne,
+      ),
+    );
+  }
+
+  Widget _buildCeremonyLabel() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.45),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: AppColors.champagneGold.withValues(alpha: 0.4),
-            ),
-          ),
-          child: Text(
-            value,
-            style: AppTypography.titleLarge.copyWith(
-              color: AppColors.softChampagne,
-              fontWeight: FontWeight.w800,
-              fontSize: 20,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
         Text(
-          label,
+          widget.ceremonyName.toUpperCase(),
           style: AppTypography.labelSmall.copyWith(
-            color: AppColors.champagneGold.withValues(alpha: 0.8),
-            fontWeight: FontWeight.w700,
-            fontSize: 9,
+            color: AppColors.softChampagne,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+            fontSize: 10,
           ),
         ),
+        if (widget.venueName != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            widget.venueName!,
+            style: AppTypography.bodySmall.copyWith(
+              color: Colors.white70,
+              fontSize: 11,
+            ),
+          ),
+        ],
       ],
+    );
+  }
+
+  Widget _buildBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.warmGold.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.champagneGold.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Text(
+        'LAGNA COUNTDOWN',
+        style: AppTypography.labelSmall.copyWith(
+          color: AppColors.softChampagne,
+          fontWeight: FontWeight.w700,
+          fontSize: 9,
+        ),
+      ),
     );
   }
 

@@ -3,6 +3,7 @@ import { PrismaService } from '../database/prisma.service';
 import { CONFIG_TOKEN, AppConfig } from '../config/configuration';
 import { BadRequestAppException, NotFoundAppException } from '../auth/errors/auth.exceptions';
 import { ErrorCode } from '../common/errors/error-codes';
+import { billableDistanceKm, TripType } from '../common/domain/trip-type';
 
 export interface QuoteRequestInput {
   serviceCategoryId: string;
@@ -10,7 +11,10 @@ export interface QuoteRequestInput {
   city?: string;
   serviceStartTime: Date;
   serviceEndTime: Date;
+  /** ONE-WAY route distance (pickup → destination) in km. */
   routeDistanceKm?: number;
+  /** Direction the customer chose; decides the billed distance server-side. */
+  tripType?: TripType;
   selectedAddonIds?: string[];
   isUrgent?: boolean;
 }
@@ -33,13 +37,18 @@ export interface Quote {
   advance_token_paise: number;
   balance_paise: number;
   pricing_rule_id: string | null;
+  /** Direction this quote was computed for — the client echoes it, never sets it. */
+  trip_type: string;
   breakdown: {
     duration_hours: number;
     is_overnight: boolean;
     base_hours: number;
     extra_hours: number;
     extra_hours_charged: number;
-    distance_km: number | null;
+    /** The one-way route distance the customer searched with. */
+    route_distance_km: number | null;
+    /** Billed distance after the server's trip-direction rule. */
+    billable_distance_km: number;
     extra_km_charged: number;
     addons_count: number;
   };
@@ -184,7 +193,9 @@ export class QuotesService {
     }
 
     // --- extra distance beyond base km ---
-    const distance = input.routeDistanceKm ?? 0;
+    // Billable distance is a SERVER decision: a round trip ("Both Way") bills
+    // the one-way route twice, regardless of what the client repeats back.
+    const distance = billableDistanceKm(input.routeDistanceKm, input.tripType);
     const extraKm = Math.max(0, distance - rule.baseKm);
     const extraKmCharged = Math.round(extraKm * Number(rule.extraKmRatePaise));
     if (extraKmCharged > 0) {
@@ -274,13 +285,15 @@ export class QuotesService {
       advance_token_paise: advance,
       balance_paise: total - advance,
       pricing_rule_id: rule.id,
+      trip_type: input.tripType ?? TripType.ONE_WAY,
       breakdown: {
         duration_hours: durationHours,
         is_overnight: isOvernight,
         base_hours: rule.baseHours,
         extra_hours: extraHours,
         extra_hours_charged: extraHoursCharged,
-        distance_km: input.routeDistanceKm ?? null,
+        route_distance_km: input.routeDistanceKm ?? null,
+        billable_distance_km: distance,
         extra_km_charged: extraKmCharged,
         addons_count: addonIds.length,
       },
@@ -295,5 +308,20 @@ export class QuotesService {
    */
   async quoteForSubmission(input: Omit<QuoteRequestInput, 'isUrgent'>) {
     return this.createQuote(input);
+  }
+
+  /**
+   * Validates that a persisted booking matches the direction it was quoted
+   * for. The client's value is advisory; a mismatch is a contract breach —
+   * e.g. a cart switched to Both Way after the quote, which must re-quote.
+   */
+  validateTripTypeMatches(persistedTripType: string, requested: TripType | undefined): void {
+    const effective = requested ?? TripType.ONE_WAY;
+    if (persistedTripType !== effective) {
+      throw new BadRequestAppException(
+        ErrorCode.VALIDATION_FAILED,
+        `Trip type changed since the quote (persisted ${persistedTripType}, requested ${effective}). Re-quote before submitting.`,
+      );
+    }
   }
 }

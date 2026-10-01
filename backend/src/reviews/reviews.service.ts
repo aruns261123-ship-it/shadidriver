@@ -117,7 +117,12 @@ export class ReviewsService {
       this.prisma.review.count({ where: { customerFk: reviewer.userId } }),
     ]);
     return {
-      items: rows.map((r) => this.toSelfView(r)),
+      items: rows.map((r) =>
+        this.toSelfView({
+          ...r,
+          groupBookingId: (r as { groupBookingId?: string | null }).groupBookingId ?? null,
+        }),
+      ),
       page,
       limit,
       total,
@@ -329,11 +334,14 @@ export class ReviewsService {
     createdAt: Date;
     moderatedAt: Date | null;
     moderationReason: string | null;
+    groupBookingId?: string | null;
     vehicle?: { fleetCode: string; vehicleType: { displayName: string } | null } | null;
   }) {
     return {
       id: review.id,
       status: review.status,
+      // Lets the client key "already reviewed" onto its booking id.
+      group_booking_id: review.groupBookingId ?? null,
       ratings: {
         overall: review.overallRating,
         punctuality: review.punctualityRating,

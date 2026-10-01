@@ -110,7 +110,8 @@ void main() {
 
     expect(viewModel.title.trim(), isNotEmpty);
     expect(viewModel.priceText, startsWith('₹'));
-    expect(find.text('View Details'), findsOneWidget);
+    // The reference card's action is the burgundy "Add" pill.
+    expect(find.text('Add'), findsOneWidget);
   });
 }
 
@@ -123,9 +124,7 @@ Future<List<FlutterErrorDetails>> _pumpCard(
 ) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = Size(width, 900);
-  addTearDown(tester.view.reset);
-
-  final captured = <FlutterErrorDetails>[];
+  addTearDown(tester.view.reset);    final captured = <FlutterErrorDetails>[];
   final previous = FlutterError.onError;
   FlutterError.onError = captured.add;
   await tester.pumpWidget(
@@ -134,7 +133,11 @@ Future<List<FlutterErrorDetails>> _pumpCard(
         body: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: ShadiVehicleCard(viewModel: viewModel, onTap: () {}),
+            child: ShadiVehicleCard(
+              viewModel: viewModel,
+              onTap: () {},
+              onAddToSelection: () {},
+            ),
           ),
         ),
       ),

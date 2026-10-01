@@ -18,6 +18,9 @@ import { GlobalExceptionFilter } from '../src/common/filters/global-exception.fi
  * the one the app actually sends.
  */
 const CUSTOMER_ID = '5e2c6af1-1111-4111-8111-111111111111';
+// Real-shaped id: the controllers now validate route ids as UUIDs (a
+// malformed id must be a 400, never a Prisma P2023 → 500).
+const GROUP_ID = '5e2c6af1-2222-4222-8222-222222222222';
 
 const VALID_BODY = {
   serviceCategoryId: 'SVC_BARAAT',
@@ -203,12 +206,12 @@ describe('group booking request HTTP contract', () => {
   it('a customer may only take the three lifecycle actions open to them', async () => {
     for (const action of ['CONFIRM_BOOKING', 'REVISE_OPTIONS', 'CANCEL']) {
       await request(app.getHttpServer())
-        .post('/api/v1/group-bookings/grp-1/transition')
+        .post(`/api/v1/group-bookings/${GROUP_ID}/transition`)
         .send({ action })
         .expect(201);
     }
     await request(app.getHttpServer())
-      .post('/api/v1/group-bookings/grp-1/transition')
+      .post(`/api/v1/group-bookings/${GROUP_ID}/transition`)
       .send({ action: 'BEGIN_REVIEW' })
       .expect(400);
     expect(serviceStub.customerTransition).toHaveBeenCalledTimes(3);
@@ -216,11 +219,11 @@ describe('group booking request HTTP contract', () => {
 
   it('passes the authenticated identity through, never a body-supplied one', async () => {
     await request(app.getHttpServer())
-      .post('/api/v1/group-bookings/grp-1/transition')
+      .post(`/api/v1/group-bookings/${GROUP_ID}/transition`)
       .send({ action: 'CANCEL', reason: 'Plans changed.' })
       .expect(201);
     expect(serviceStub.customerTransition).toHaveBeenCalledWith(
-      'grp-1',
+      GROUP_ID,
       'CANCEL',
       expect.objectContaining({ userId: CUSTOMER_ID }),
       'Plans changed.',

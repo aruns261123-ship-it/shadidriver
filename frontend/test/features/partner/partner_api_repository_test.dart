@@ -436,7 +436,8 @@ void main() {
         const VehicleTariffDraft(
           localIncludedKm: 45,
           localAmountPaise: 300000,
-          perKmPaise: 1400,
+          fuelPricePerLitre: 95,
+          mileageKmPerLitre: 8,
           hourlyPaise: 25000,
           fullDayPaise: 1500000,
         ),
@@ -445,11 +446,13 @@ void main() {
       expect(result.isSuccess, isTrue);
       expect(s.methods.single, 'POST');
       expect(s.paths.single, '/api/v1/partner/vehicles/vh-1/pricing');
-      // Exact DTO shape: required trio + optional additions, all ints.
+      // Exact DTO shape: required inputs (fuel + mileage drive the server-
+      // derived rate) + optional additions, all ints.
       expect(s.bodies.single, {
         'localIncludedKm': 45,
         'localAmountPaise': 300000,
-        'perKmPaise': 1400,
+        'fuelPricePerLitre': 95.0,
+        'mileageKmPerLitre': 8.0,
         'hourlyPaise': 25000,
         'fullDayPaise': 1500000,
       });

@@ -161,9 +161,16 @@ class _RatingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SizedBox(
-          width: 170,
-          child: Text(label, style: AppTypography.labelMedium),
+        // Flexible label: a fixed-width label plus five tap targets overflows a
+        // phone-width sheet (the stars would be clipped). The label ellipsizes
+        // instead, so every rating control stays visible and tappable.
+        Expanded(
+          child: Text(
+            label,
+            style: AppTypography.labelMedium,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         ...List.generate(5, (i) {
           final star = i + 1;

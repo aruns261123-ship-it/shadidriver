@@ -5,6 +5,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsDateString,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -16,6 +17,7 @@ import {
 import { Type } from 'class-transformer';
 import { Public } from '../auth/guards/jwt-auth.guard';
 import { AvailabilityService, FleetRequestLine } from './availability.service';
+import { TRIP_TYPE_VALUES } from '../common/domain/trip-type';
 
 export class FleetRequestLineDto {
   @IsString()
@@ -45,6 +47,11 @@ export class CheckFleetAvailabilityDto {
   @IsOptional()
   @IsString()
   city?: string;
+
+  /** Echoed into the result; overlap conflicts use the FULL window either way. */
+  @IsOptional()
+  @IsIn(TRIP_TYPE_VALUES)
+  tripType?: string;
 }
 
 @ApiTags('availability')
@@ -63,11 +70,13 @@ export class AvailabilityController {
       vehicleTypeId: f.vehicleTypeId,
       quantity: f.quantity,
     }));
-    return this.availabilityService.checkFleetAvailability(
-      lines,
-      new Date(dto.serviceStartTime),
-      new Date(dto.serviceEndTime),
-      dto.city,
-    );
+    return this.availabilityService
+      .checkFleetAvailability(
+        lines,
+        new Date(dto.serviceStartTime),
+        new Date(dto.serviceEndTime),
+        dto.city,
+      )
+      .then((r) => ({ ...r, trip_type: dto.tripType ?? 'ONE_WAY' }));
   }
 }

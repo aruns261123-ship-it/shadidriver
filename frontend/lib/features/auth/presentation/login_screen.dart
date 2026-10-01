@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../app/providers/app_providers.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/phone_number.dart';
 import '../../../core/widgets/shadi_card.dart';
+import '../../../core/widgets/shadi_logo_mark.dart';
 import '../../../core/widgets/shadi_primary_button.dart';
 import '../domain/entities/account_status.dart';
 import '../domain/entities/auth_session.dart';
@@ -166,6 +168,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         .signUp(phoneNumber: phone, displayName: name, role: _signUpRole);
   }
 
+  /// REAL Google sign-in path. In mock-data mode (offline UI development
+  /// only) the mock repository handles the call; in the real mode the ID
+  /// token exchange happens at the backend. Cancelled sheets surface no error.
+  Future<void> _onGoogleSignIn() async {
+    final useMock = ref
+        .read(environmentConfigProvider)
+        .useMockData;
+    if (useMock) {
+      ref.read(authControllerProvider.notifier).signInWithGoogle();
+      return;
+    }
+    await ref.read(authControllerProvider.notifier).signInWithGoogle();
+  }
+
   void _onVerifyOtp(String otpSessionId) {
     HapticFeedback.mediumImpact();
     final code = _otpController.text.trim();
@@ -237,39 +253,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildBrandHeader() {
     return Column(
       children: [
-        Container(
-          width: 76,
-          height: 76,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [AppColors.primaryBurgundy, AppColors.darkBurgundy],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primaryBurgundy.withValues(alpha: 0.25),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
-            border: Border.all(color: AppColors.champagneGold, width: 2),
-          ),
-          child: const Center(
-            child: Icon(
-              Icons.directions_car_filled_rounded,
-              color: AppColors.champagneGold,
-              size: 38,
-            ),
-          ),
-        ),
+        // Design-system crest: the asymmetric burgundy mark with the
+        // champagne glyph, over the Playfair Display wordmark.
+        const ShadiLogoMark(size: 76),
         const SizedBox(height: 14),
         Text(
           AppConstants.appName,
-          style: AppTypography.displayMedium.copyWith(
+          style: TextStyle(
+            fontFamily: AppTypography.ceremonialFontFamily,
+            fontFamilyFallback: AppTypography.ceremonialFontFallbacks,
+            fontSize: 30,
+            fontWeight: FontWeight.w600,
             color: AppColors.primaryBurgundy,
-            fontWeight: FontWeight.w800,
             letterSpacing: 0.5,
           ),
         ),
@@ -439,6 +434,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           text: 'Continue',
           isLoading: isLoading,
           onPressed: isLoading ? null : _onRequestOtp,
+        ),
+        const SizedBox(height: 12),
+        // Reference auth treatment: the Google row is the primary customer
+        // hand-off. REAL flow: google_sign_in obtains the ID token, the
+        // backend verifies it server-side and issues the same session as OTP.
+        Row(
+          children: [
+            const Expanded(child: Divider(color: AppColors.borderLight)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'or',
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.textTertiaryLight,
+                ),
+              ),
+            ),
+            const Expanded(child: Divider(color: AppColors.borderLight)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: isLoading ? null : _onGoogleSignIn,
+            icon: const Icon(Icons.g_mobiledata_rounded, size: 26),
+            label: Text(
+              'Continue with Google',
+              style: AppTypography.labelLarge.copyWith(
+                color: AppColors.textPrimaryLight,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 50),
+              side: const BorderSide(color: AppColors.borderLight),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              backgroundColor: Colors.white,
+            ),
+          ),
         ),
         const SizedBox(height: 16),
         Center(

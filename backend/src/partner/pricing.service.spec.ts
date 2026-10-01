@@ -11,7 +11,10 @@ function tariffDto(overrides: Record<string, unknown> = {}) {
   return {
     localIncludedKm: 45,
     localAmountPaise: 300000,
-    perKmPaise: 2200,
+    // The rate is DERIVED server-side from the formula inputs:
+    // ₹95 ÷ 8 + ₹10 = ₹21.875/km → 2188 paise.
+    fuelPricePerLitre: 95,
+    mileageKmPerLitre: 8,
     ...overrides,
   } as never;
 }
@@ -202,7 +205,8 @@ describe('PricingService (partner tariff submission)', () => {
     ],
     [
       'outstation per-km below local per-km',
-      tariffDto({ outstationPerKmPaise: 1000 }),
+      // Derived local rate is 2188 paise, so 1000 must be rejected.
+      tariffDto({ outstationPerKmPaise: 1000, perKmPaise: 2188 }),
       /outstationPerKmPaise cannot be lower than the local per-km rate/i,
     ],
   ])('rejects %s', async (_label, dto, message) => {

@@ -8,6 +8,29 @@ import { PrismaClient, BookingStatus, DutyStatus, VerificationStatus } from '@pr
  */
 const prisma = new PrismaClient();
 
+/**
+ * Managed vehicle imagery. These files ship with the repo under
+ * `backend/public/media/vehicles/` and are served by the API at `/media/**`
+ * (see main.ts useStaticAssets). Same-origin managed storage: no third-party
+ * image hosts, no random external URLs — production swaps the directory for
+ * object storage and updates the rows, the contract never changes.
+ */
+const MEDIA_BASE = '/media/vehicles';
+const IMAGES_BY_CLASS: Record<string, { primary: string; gallery: string[] }> = {
+  EXECUTIVE_MPV: {
+    primary: `${MEDIA_BASE}/innova_crysta_01.jpg`,
+    gallery: [`${MEDIA_BASE}/innova_crysta_01.jpg`, `${MEDIA_BASE}/innova_crysta_02.jpg`],
+  },
+  LUXURY_SEDAN: {
+    primary: `${MEDIA_BASE}/luxury_sedan_01.jpg`,
+    gallery: [`${MEDIA_BASE}/luxury_sedan_01.jpg`, `${MEDIA_BASE}/luxury_sedan_02.jpg`],
+  },
+  ULTRA_LUXURY: {
+    primary: `${MEDIA_BASE}/ultra_luxury_01.jpg`,
+    gallery: [`${MEDIA_BASE}/ultra_luxury_01.jpg`, `${MEDIA_BASE}/ultra_luxury_02.jpg`],
+  },
+};
+
 async function main(): Promise<void> {
   console.log('Seeding ShadiDriver development data…');
 
@@ -103,7 +126,12 @@ async function main(): Promise<void> {
     { id: 'VT_MERCEDES_E', make: 'Mercedes-Benz', model: 'E-Class', displayName: 'Mercedes-Benz E-Class', seatingCap: 4, vehicleClass: 'ULTRA_LUXURY', amenityTags: ['Dual AC', 'Chauffeur Partition'] },
   ];
   for (const vt of vehicleTypesData) {
-    await prisma.vehicleType.upsert({ where: { id: vt.id }, update: {}, create: vt });
+    const imagery = IMAGES_BY_CLASS[vt.vehicleClass];
+    await prisma.vehicleType.upsert({
+      where: { id: vt.id },
+      update: { imageUrl: imagery.primary },
+      create: { ...vt, imageUrl: imagery.primary },
+    });
   }
 
   // ---------------------------------------------------------------- vehicles
@@ -122,9 +150,11 @@ async function main(): Promise<void> {
   const vehicles = [];
   for (const v of vehiclesData) {
     const vt = vehicleTypesData.find((t) => t.id === v.typeId)!;
+    const imagery = IMAGES_BY_CLASS[vt.vehicleClass];
     const vehicle = await prisma.vehicle.upsert({
       where: { fleetCode: v.fleetCode },
-      update: {},
+      // Refresh imagery on re-seed so pre-existing rows also get real photos.
+      update: { imageUrl: imagery.primary, photoUrls: imagery.gallery },
       create: {
         fleetCode: v.fleetCode,
         vehicleTypeId: v.typeId,
@@ -135,6 +165,10 @@ async function main(): Promise<void> {
         fuelType: 'PETROL',
         basePricePaise: v.price,
         city: v.city,
+        // Real managed imagery: card primary + detail gallery. Fallback
+        // photography is no longer the normal state for the seeded fleet.
+        imageUrl: imagery.primary,
+        photoUrls: imagery.gallery,
         verificationStatus: VerificationStatus.APPROVED,
         amenityTags: vt.amenityTags,
         serviceAreas: ['Delhi NCR', 'Gurugram', 'Noida', 'Faridabad', 'Ghaziabad'],

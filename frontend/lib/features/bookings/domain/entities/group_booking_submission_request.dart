@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../search/domain/entities/trip_type.dart';
 import 'customer_fleet_intent.dart';
 
 /// Customer submission request for creating a multi-vehicle / group booking.
@@ -13,6 +14,10 @@ class GroupBookingSubmissionRequest {
   final String destinationAddress;
   final String primaryContactName;
   final String primaryContactPhone;
+
+  /// ONE_WAY | ROUND_TRIP — server bakes it into the pricing snapshot.
+  final TripType tripType;
+
   final String idempotencyKey;
 
   /// Optional customer requirements (decoration, child seat, early arrival …).
@@ -31,6 +36,7 @@ class GroupBookingSubmissionRequest {
     required this.destinationAddress,
     required this.primaryContactName,
     required this.primaryContactPhone,
+    this.tripType = TripType.oneWay,
     required this.idempotencyKey,
     this.requirements = const [],
     this.communicationPreference = 'PHONE',

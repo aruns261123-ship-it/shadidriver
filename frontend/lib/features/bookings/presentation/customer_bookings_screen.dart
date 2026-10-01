@@ -406,21 +406,28 @@ class _CustomerBookingsScreenState extends ConsumerState<CustomerBookingsScreen>
               ],
             ),
           ],
-          if (booking.chauffeurName.isNotEmpty) ...[
+          // Privacy model: the customer never sees the chauffeur's identity —
+          // ShadiDriver operations owns allocation and stands behind the
+          // service. The wire carries only the assurance copy.
+          if (booking.chauffeurVerification.isNotEmpty) ...[
             const SizedBox(height: 8),
             Row(
               children: [
                 const Icon(
-                  Icons.person_pin_rounded,
+                  Icons.verified_user_rounded,
                   size: 14,
                   color: AppColors.champagneGold,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'Assigned Chauffeur: ${booking.chauffeurName}',
-                  style: AppTypography.labelSmall.copyWith(
-                    color: AppColors.textPrimaryLight,
-                    fontWeight: FontWeight.w600,
+                Flexible(
+                  child: Text(
+                    booking.chauffeurVerification,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.textPrimaryLight,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

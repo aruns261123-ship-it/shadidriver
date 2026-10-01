@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { EnvelopeInterceptor } from './interceptors/envelope.interceptor';
+import { StorageModule } from './storage/storage.module';
 
 /**
  * Cross-cutting infrastructure shared by every feature module:
@@ -15,8 +16,9 @@ import { EnvelopeInterceptor } from './interceptors/envelope.interceptor';
         limit: Number(process.env.THROTTLE_LIMIT ?? 100),
       },
     ]),
+    StorageModule,
   ],
   providers: [{ provide: APP_INTERCEPTOR, useClass: EnvelopeInterceptor }, { provide: APP_GUARD, useClass: ThrottlerGuard }],
-  exports: [ThrottlerModule],
+  exports: [ThrottlerModule, StorageModule],
 })
 export class CommonModule {}

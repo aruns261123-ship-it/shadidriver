@@ -495,6 +495,13 @@ void main() {
       final reloads = repo.calls.where((c) => c == 'listFleet').length -
           reloadsBefore;
       expect(reloads, lessThanOrEqualTo(2));
+      // The reference step system sits above the stage; scroll the review
+      // stage's action into view before asserting on it.
+      await tester.scrollUntilVisible(
+        find.text('Submit for Verification'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
       expect(find.text('Submit for Verification'), findsOneWidget);
       expect(find.text('Loading your partner desk…'), findsNothing);
       expect(find.textContaining('Toyota Innova Crysta'), findsWidgets);
@@ -506,7 +513,11 @@ void main() {
   // without burning a round-trip.
   group('PartnerVehiclePricingScreen tariff consistency', () {
     // Field order inside the pricing ListView.
-    const localIdx = 1, perKmIdx = 2, fullDayIdx = 5, outstationKmIdx = 8;
+    const localIdx = 1,
+        fuelIdx = 2,
+        mileageIdx = 3,
+        fullDayIdx = 6,
+        outstationKmIdx = 9;
 
     Future<void> pumpPricing(WidgetTester tester) async {
       // A tall surface keeps every field built, so index lookups are stable.
@@ -538,7 +549,8 @@ void main() {
       // ₹2000 clears the per-field floor (₹1000) but undercuts the ₹4500
       // local package — exactly the case only the cross-field rule catches.
       await tester.enterText(fieldAt(localIdx), '4500');
-      await tester.enterText(fieldAt(perKmIdx), '15');
+      await tester.enterText(fieldAt(fuelIdx), '95');
+      await tester.enterText(fieldAt(mileageIdx), '8');
       await tester.enterText(fieldAt(fullDayIdx), '2000');
       await tester.tap(find.text('Submit Tariff for Review'));
       await tester.pumpAndSettle();
@@ -556,7 +568,8 @@ void main() {
       await pumpPricing(tester);
 
       await tester.enterText(fieldAt(localIdx), '4500');
-      await tester.enterText(fieldAt(perKmIdx), '15');
+      await tester.enterText(fieldAt(fuelIdx), '95');
+      await tester.enterText(fieldAt(mileageIdx), '8');
       await tester.enterText(fieldAt(fullDayIdx), '9500');
       await tester.enterText(fieldAt(outstationKmIdx), '5');
       await tester.tap(find.text('Submit Tariff for Review'));
@@ -574,7 +587,8 @@ void main() {
       await pumpPricing(tester);
 
       await tester.enterText(fieldAt(localIdx), '4500');
-      await tester.enterText(fieldAt(perKmIdx), '15');
+      await tester.enterText(fieldAt(fuelIdx), '95');
+      await tester.enterText(fieldAt(mileageIdx), '8');
       await tester.enterText(fieldAt(fullDayIdx), '2000');
       await tester.tap(find.text('Submit Tariff for Review'));
       await tester.pumpAndSettle();

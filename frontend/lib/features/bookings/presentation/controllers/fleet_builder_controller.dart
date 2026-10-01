@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
+import '../../../search/domain/entities/trip_type.dart';
 import '../../domain/entities/customer_fleet_intent.dart';
 import '../../domain/entities/fleet_availability_result.dart';
 import '../../domain/entities/group_booking.dart';
@@ -19,6 +20,9 @@ class GroupBookingIntent {
   final DateTime serviceEndDateTime;
   final int passengerCount;
 
+  /// ONE_WAY | ROUND_TRIP — persisted and priced server-side.
+  final TripType tripType;
+
   const GroupBookingIntent({
     required this.ceremonyType,
     required this.city,
@@ -29,6 +33,7 @@ class GroupBookingIntent {
     required this.serviceStartDateTime,
     required this.serviceEndDateTime,
     required this.passengerCount,
+    this.tripType = TripType.oneWay,
   });
 }
 
@@ -217,6 +222,7 @@ class GroupBookingController extends StateNotifier<GroupBookingState> {
       serviceStartTime: intent.serviceStartDateTime,
       serviceEndTime: intent.serviceEndDateTime,
       city: intent.city,
+      tripType: intent.tripType,
     );
     return result.fold(
       (failure) {
@@ -265,9 +271,11 @@ class GroupBookingController extends StateNotifier<GroupBookingState> {
       destinationAddress: intent.destinationAddress,
       primaryContactName: intent.primaryContactName,
       primaryContactPhone: intent.primaryContactPhone,
+      tripType: intent.tripType,
       idempotencyKey:
           'grp-${intent.serviceStartDateTime.millisecondsSinceEpoch ~/ 60000}'
-          '-${units.toString().hashCode.abs().toRadixString(36)}',
+          '-${units.toString().hashCode.abs().toRadixString(36)}'
+          '-${intent.tripType.wire.toLowerCase()}',
     );
     final result = await _repo.submitGroupBooking(request);
     return result.fold(

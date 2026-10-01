@@ -258,12 +258,14 @@ class BookingResultScreen extends ConsumerWidget {
                       _buildInfoRow('Destination', result.destinationAddress),
                       const SizedBox(height: 8),
                       _buildInfoRow('Contact', result.primaryContactName),
-                      if (result.status == BookingStatus.driverAccepted &&
-                          result.chauffeurId.isNotEmpty) ...[
+                      // The customer never learns WHO the chauffeur is: once
+                      // operations has arranged the duty, the platform — not a
+                      // named person — stands behind the arrangement.
+                      if (result.status == BookingStatus.driverAccepted) ...[
                         const SizedBox(height: 8),
                         _buildInfoRow(
-                          'Assigned Chauffeur',
-                          'Confirmed (ID: ${result.chauffeurId})',
+                          'Vehicle & Chauffeur',
+                          'Verified by ShadiDriver',
                         ),
                       ],
                     ],

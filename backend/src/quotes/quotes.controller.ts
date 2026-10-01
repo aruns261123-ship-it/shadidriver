@@ -5,6 +5,7 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -15,6 +16,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../auth/domain/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { QuotesService, QuoteRequestInput } from './quotes.service';
+import { TRIP_TYPE_VALUES } from '../common/domain/trip-type';
 
 export class CreateQuoteDto {
   @ApiPropertyOptional({ example: 'SVC_BARAAT' })
@@ -46,6 +48,12 @@ export class CreateQuoteDto {
   @Min(0)
   routeDistanceKm?: number;
 
+  /** ONE_WAY (pickup → destination) or ROUND_TRIP (distance × 2). */
+  @ApiPropertyOptional({ enum: TRIP_TYPE_VALUES, example: 'ONE_WAY' })
+  @IsOptional()
+  @IsIn(TRIP_TYPE_VALUES)
+  tripType?: string;
+
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
@@ -75,6 +83,7 @@ export class QuotesController {
       serviceStartTime: new Date(dto.serviceStartTime),
       serviceEndTime: new Date(dto.serviceEndTime),
       routeDistanceKm: dto.routeDistanceKm,
+      tripType: dto.tripType as QuoteRequestInput['tripType'],
       selectedAddonIds: dto.selectedAddonIds,
       isUrgent: dto.isUrgent,
     };

@@ -18,9 +18,9 @@ void main() {
     );
   }
 
-  group('Vehicle Details & Chauffeur Profile Navigation Flow Tests', () {
+  group('Vehicle Details flow (reference Car-details surface)', () {
     testWidgets(
-      'VehicleDetailsScreen loads Audi A6 (v2) specs and chauffeur info',
+      'VehicleDetailsScreen loads Audi A6 (v2) specs and trust info',
       (tester) async {
         await tester.pumpWidget(
           createWidgetToTest(
@@ -28,14 +28,23 @@ void main() {
           ),
         );
 
-        // Settle async providers
         await tester.pumpAndSettle();
 
-        // Verify Audi A6 details
+        // Reference layout: eyebrow (vehicle class), Playfair title, spec grid
+        // cells and the rate card.
         expect(find.text('Audi A6'), findsWidgets);
-        expect(find.text('2024 • Premium Sedan'), findsOneWidget);
-        expect(find.text('Four-Zone Deluxe Climate Control'), findsOneWidget);
-        expect(find.text('Book Now'), findsOneWidget);
+        expect(
+          find.text('PREMIUM SEDAN', skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(find.text('4 Seats'), findsOneWidget);
+        expect(find.text('Pricing'), findsOneWidget);
+        expect(find.text('Calculated rate'), findsOneWidget);
+        // The single-vehicle booking entry remains reachable.
+        expect(
+          find.text('Book this car now', skipOffstage: false),
+          findsOneWidget,
+        );
       },
     );
 
@@ -51,8 +60,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Toyota Fortuner'), findsWidgets);
-      expect(find.text('2025 • Premium SUV'), findsOneWidget);
-      expect(find.text('7 Passengers'), findsOneWidget);
+      expect(find.text('PREMIUM SUV', skipOffstage: false), findsOneWidget);
+      expect(find.text('7 Seats'), findsOneWidget);
     });
 
     testWidgets(
@@ -76,7 +85,7 @@ void main() {
     );
 
     testWidgets(
-      'the customer vehicle page shows the ShadiDriver assurance panel and NO chauffeur identity',
+      'the customer vehicle page shows the ShadiDriver assurance and NO chauffeur identity',
       (tester) async {
         await tester.pumpWidget(
           createWidgetToTest(
@@ -86,9 +95,15 @@ void main() {
         await tester.pumpAndSettle();
 
         // Trust is expressed by the company, not by a person profile.
-        expect(find.text('ShadiDriver Assurance'), findsOneWidget);
         expect(
-          find.text('Vehicle & chauffeur verified by ShadiDriver'),
+          find.text('ShadiDriver Assurance', skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            'Vehicle and chauffeur verified by ShadiDriver',
+            skipOffstage: false,
+          ),
           findsOneWidget,
         );
 
@@ -115,38 +130,42 @@ void main() {
       },
     );
 
-    testWidgets('Search Results -> View Details -> Vehicle Details -> Book Now', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        createWidgetToTest(initialLocation: RoutePaths.customerSearchResults),
-      );
+    testWidgets(
+      'Search Results -> View Details -> Vehicle Details -> booking entry',
+      (tester) async {
+        await tester.pumpWidget(
+          createWidgetToTest(initialLocation: RoutePaths.customerSearchResults),
+        );
 
-      // Wait for search results
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
 
-      // Find 'View Details' button for first vehicle or tap the card.
-      final viewDetailsButton = find.text('View Details').first;
-      expect(viewDetailsButton, findsOneWidget);
+        // The reference card taps through from anywhere — the whole card is
+        // the affordance. Open the first card by tapping its title (BMW
+        // 5 Series is the first mock row).
+        final firstCardTitle = find.text('BMW 5 Series').first;
+        await tester.ensureVisible(firstCardTitle);
+        await tester.pumpAndSettle();
+        await tester.tap(firstCardTitle);
+        await tester.pumpAndSettle();
 
-      // The card now carries the trust caption and the guest Add-to-Selection
-      // action, so the button can sit below the fold — scroll it into view
-      // before tapping.
-      await tester.ensureVisible(viewDetailsButton);
-      await tester.pumpAndSettle();
-      await tester.tap(viewDetailsButton);
-      await tester.pumpAndSettle();
+        // The reference detail surface shows the Add-to-Cart bar plus the
+        // single-vehicle booking link.
+        expect(
+          find.text('Add to Cart', skipOffstage: false),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Book this car now', skipOffstage: false),
+          findsOneWidget,
+        );
 
-      // Verify we are on Vehicle Details screen
-      expect(find.text('Book Now'), findsOneWidget);
+        // The existing booking-entry flow remains reachable.
+        await tester.tap(find.text('Book this car now'));
+        await tester.pumpAndSettle();
 
-      // Tap 'Book Now'
-      await tester.tap(find.text('Book Now'));
-      await tester.pumpAndSettle();
-
-      // Verify we navigate to Booking Entry placeholder with selected vehicle ID
-      expect(find.text('Booking Experience'), findsOneWidget);
-      expect(find.textContaining('Vehicle ID:'), findsOneWidget);
-    });
+        expect(find.text('Booking Experience'), findsOneWidget);
+        expect(find.textContaining('Vehicle ID:'), findsOneWidget);
+      },
+    );
   });
 }

@@ -1,6 +1,7 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/result/result.dart';
 import '../../drivers/domain/entities/driver_decline_reason.dart';
+import '../../search/domain/entities/trip_type.dart';
 import '../domain/entities/booking_draft.dart';
 import '../domain/entities/booking_status.dart';
 import '../domain/entities/booking_submission_request.dart';
@@ -260,12 +261,39 @@ class MockBookingRepository implements BookingRepository {
     return Result.success(_submissionResults[bookingId]);
   }
 
+  /// Customer-visible mock summaries carry the platform ASSURANCE copy in
+  /// place of a chauffeur identity — the same contract the real wire uses
+  /// (the customer never learns who the chauffeur is).
+  BookingSummary _withAssurance(BookingSummary s) {
+    if (s.chauffeurName.isEmpty || s.chauffeurVerification.isNotEmpty) {
+      return s;
+    }
+    return BookingSummary(
+      id: s.id,
+      reference: s.reference,
+      serviceCategory: s.serviceCategory,
+      status: s.status,
+      eventStartTime: s.eventStartTime,
+      eventEndTime: s.eventEndTime,
+      pickupAddress: s.pickupAddress,
+      destinationAddress: s.destinationAddress,
+      routeDistanceKm: s.routeDistanceKm,
+      vehicleName: s.vehicleName,
+      chauffeurName: s.chauffeurName,
+      chauffeurVerification: 'Vehicle and chauffeur verified by ShadiDriver',
+      totalAmountCents: s.totalAmountCents,
+      advanceTokenCents: s.advanceTokenCents,
+      version: s.version,
+      startOtp: s.startOtp,
+    );
+  }
+
   @override
   Future<Result<BookingSummary>> getBookingById(String bookingId) async {
     await Future.delayed(const Duration(milliseconds: 150));
     final booking = _bookings[bookingId];
     if (booking != null) {
-      return Result.success(booking);
+      return Result.success(_withAssurance(booking));
     }
     return Result.failure(
       NotFoundFailure('Booking not found with ID: $bookingId'),
@@ -279,7 +307,7 @@ class MockBookingRepository implements BookingRepository {
     String? statusFilter,
   }) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    var list = _bookings.values.toList();
+    var list = _bookings.values.map(_withAssurance).toList();
     if (statusFilter != null && statusFilter.isNotEmpty) {
       list = list.where((b) => b.status == statusFilter).toList();
     }
@@ -879,6 +907,7 @@ class MockBookingRepository implements BookingRepository {
     DateTime? serviceStartTime,
     DateTime? serviceEndTime,
     String? city,
+    TripType tripType = TripType.oneWay,
   }) async {
     await Future.delayed(const Duration(milliseconds: 100));
 

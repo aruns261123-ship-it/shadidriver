@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../app/providers/app_providers.dart';
+import '../../../../core/network/api_response.dart';
 import '../../data/mock_review_repository.dart';
 import '../../domain/repositories/review_repository.dart';
 
@@ -87,10 +88,37 @@ final reviewControllerProvider = StateNotifierProvider.autoDispose
     });
 
 /// Whether a booking has already been reviewed (drives CTA vs "reviewed" tag).
-final bookingReviewedProvider = Provider.autoDispose.family<bool, String>((
-  ref,
-  bookingId,
-) {
-  final repo = ref.watch(reviewRepositoryProvider) as MockReviewRepository;
-  return repo.hasReviewForBooking(bookingId);
-});
+///
+/// REAL mode asks the backend (`GET /reviews/mine`, whose items carry
+/// `group_booking_id`); MOCK mode asks the in-memory store. A failed lookup
+/// resolves to false — the customer simply sees the review CTA again, never a
+/// fabricated "already reviewed" state.
+final bookingReviewedProvider = FutureProvider.autoDispose.family<bool, String>(
+  (ref, bookingId) async {
+    final useMock = ref.watch(
+      environmentConfigProvider.select((c) => c.useMockData),
+    );
+    if (useMock) {
+      final repo = ref.watch(reviewRepositoryProvider) as MockReviewRepository;
+      return repo.hasReviewForBooking(bookingId);
+    }
+    try {
+      final client = ref.watch(apiClientProvider);
+      final response = await client.get<Map<String, dynamic>>(
+        '${ApiPaths.v1}/reviews/mine',
+        queryParameters: {'limit': 50},
+      );
+      final envelope = ApiEnvelope.fromJson(response.data);
+      final data = (envelope.data as Map<String, dynamic>?) ?? const {};
+      final items = (data['items'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>();
+      return items.any(
+        (r) =>
+            (r['group_booking_id'] as String? ?? '') == bookingId &&
+            r['status'] != 'REJECTED',
+      );
+    } catch (_) {
+      return false;
+    }
+  },
+);

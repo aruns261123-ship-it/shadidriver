@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../search/domain/entities/trip_type.dart';
+
 /// One vehicle-type line of the guest's temporary fleet selection.
 @immutable
 class GuestFleetLine {
@@ -50,6 +52,10 @@ class GuestTripDetails {
   final String? contactName;
   final String? contactPhone;
 
+  /// Trip direction (ONE_WAY | ROUND_TRIP) — part of the booking intent that
+  /// must survive the login detour and reach the server.
+  final TripType tripType;
+
   const GuestTripDetails({
     this.ceremonyType,
     this.city,
@@ -60,6 +66,7 @@ class GuestTripDetails {
     this.passengerCount,
     this.contactName,
     this.contactPhone,
+    this.tripType = TripType.oneWay,
   });
 
   /// True when at least one trip field carries intent worth restoring.
@@ -80,6 +87,7 @@ class GuestTripDetails {
     int? passengerCount,
     String? contactName,
     String? contactPhone,
+    TripType? tripType,
   }) =>
       GuestTripDetails(
         ceremonyType: ceremonyType ?? this.ceremonyType,
@@ -91,6 +99,7 @@ class GuestTripDetails {
         passengerCount: passengerCount ?? this.passengerCount,
         contactName: contactName ?? this.contactName,
         contactPhone: contactPhone ?? this.contactPhone,
+        tripType: tripType ?? this.tripType,
       );
 }
 

@@ -5,14 +5,22 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router/route_paths.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/shadi_imagery.dart';
+import '../../../core/theme/shadi_tokens.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../core/widgets/shadi_card.dart';
 import '../../../core/widgets/shadi_empty_state.dart';
 import '../../../core/widgets/shadi_loading_indicator.dart';
 import '../../../core/widgets/shadi_offline_banner.dart';
 import '../../../core/widgets/shadi_primary_button.dart';
+import '../../../core/widgets/shadi_ref_typography.dart';
 import '../../../core/widgets/shadi_section_header.dart';
 import '../../../core/widgets/shadi_status_badge.dart';
+import '../../partner/domain/entities/partner_enums.dart';
+import '../../partner/domain/entities/partner_vehicle.dart';
+import '../../../app/providers/app_providers.dart';
+import '../../../app/providers/partner_providers.dart';
+import '../../../core/widgets/shadi_logo_mark.dart';
 import '../domain/entities/driver_active_trip.dart';
 import '../domain/entities/driver_booking_offer.dart';
 import '../domain/entities/driver_duty_status.dart';
@@ -20,12 +28,164 @@ import 'controllers/completed_assignments_controller.dart';
 import 'controllers/driver_dashboard_controller.dart';
 import 'controllers/driver_profile_controller.dart';
 
+/// Live fleet preview for the Fleet Home header/metrics — the partner's real
+/// `GET /partner/vehicles` payload, read-only on this screen. Mock mode (and
+/// any fleet-fetch failure) degrades to an empty fleet rather than hanging
+/// or throwing: the metrics simply show zeros.
+final Provider<Future<PartnerFleet>> _fleetPreviewProvider =
+    Provider<Future<PartnerFleet>>((ref) {
+  final env = ref.watch(environmentConfigProvider);
+  if (env.useMockData) {
+    return Future.value(const PartnerFleet(items: [], total: 0));
+  }
+  final repo = ref.watch(partnerRepositoryProvider);
+  return repo.listFleet().then(
+        (result) => result.fold(
+          (_) => const PartnerFleet(items: [], total: 0),
+          (fleet) => fleet,
+        ),
+      );
+});
+
 /// Milestone 5: Chauffeur Operational Dashboard.
 ///
-/// Displays real-time duty status controls (AVAILABLE, BUSY, OFFLINE, AVAILABLE_NOW)
-/// and lists server-authoritative incoming booking requests awaiting driver assignment.
+/// Rendered as the reference design's Fleet Home (PAGE 03): a burgundy header
+/// ("Good morning, `name`" / "Your fleet is ready to move."), the floating
+/// fleet-count card, the AVAILABILITY/VERIFICATION metric pair, Fleet
+/// attention, and Your cars — followed by the real duty controls, offers,
+/// and earnings sections (all live-data features preserved verbatim).
 class DriverDashboardScreen extends ConsumerWidget {
   const DriverDashboardScreen({super.key});
+
+  /// The reference Fleet Home header (PAGE 03): burgundy block with the
+  /// wordmark + notification row, "Good morning, `name`", the editorial
+  /// "Your fleet is ready to move." heading, and the floating ivory fleet
+  /// count card overlapping the header's bottom edge.
+  Widget _buildFleetHomeHeader(
+    BuildContext context,
+    String driverName,
+    DriverDashboardState state,
+    PartnerFleet? fleet,
+  ) {
+    final carCount = fleet?.items.length ?? 0;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          height: 325,
+          width: double.infinity,
+          color: AppColors.primaryBurgundy,
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: ShadiWordmark(light: true, fontSize: 17, markSize: 32),
+                    ),
+                    IconButton(
+                      key: const Key('driver_dashboard_active_trip_action'),
+                      icon: const Icon(Icons.navigation_rounded, color: Colors.white),
+                      tooltip: 'Active Trip Console',
+                      onPressed: () => _openActiveTrip(context, state),
+                    ),
+                    IconButton(
+                      key: const Key('driver_dashboard_biometric_lock_action'),
+                      icon: const Icon(Icons.fingerprint_rounded, color: Colors.white),
+                      tooltip: 'Biometric Duty Lock',
+                      onPressed: () => _showBiometricSecuritySheet(context),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.account_circle_outlined, color: Colors.white),
+                      tooltip: 'Chauffeur Profile',
+                      onPressed: () => context.push(RoutePaths.driverProfile),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 33),
+                Text(
+                  'Good morning, $driverName',
+                  style: ShadiRefType.ui10.copyWith(
+                    color: AppColors.softChampagne,
+                    fontSize: 9,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text.rich(
+                  TextSpan(
+                    text: 'Your fleet is\n',
+                    children: [
+                      TextSpan(
+                        text: 'ready to move.',
+                        style: const TextStyle(
+                          color: AppColors.warmGold,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                  style: ShadiRefType.display34.copyWith(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Floating fleet-count card (bottom: -28 in the reference).
+        Positioned(
+          left: 18,
+          right: 18,
+          bottom: -28,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.ivory,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x143B0910),
+                  blurRadius: 24,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Text(
+                  '$carCount',
+                  style: ShadiRefType.numeral32.copyWith(
+                    color: AppColors.primaryBurgundy,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'cars in your fleet',
+                    style: ShadiRefType.ui10.copyWith(
+                      color: ShadiColors.muted,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Flexible(
+                  child: ShadiPrimaryButton(
+                    text: 'Manage My Cars',
+                    height: 37,
+                    onPressed: () =>
+                        context.push(RoutePaths.partnerOnboarding),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,74 +195,10 @@ class DriverDashboardScreen extends ConsumerWidget {
     final driverId = ref.watch(currentDriverIdProvider);
     final profileState = ref.watch(driverProfileControllerProvider(driverId));
     final driverName = profileState.profile?.fullName ?? 'Rajesh Kumar';
+    final fleetFuture = ref.watch(_fleetPreviewProvider);
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Chauffeur Console',
-              style: AppTypography.displaySmall.copyWith(
-                color: AppColors.primaryBurgundy,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            Text(
-              '$driverName • Ceremonial Fleet PB-01',
-              style: AppTypography.labelSmall.copyWith(
-                color: AppColors.textSecondaryLight,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            key: const Key('driver_dashboard_active_trip_action'),
-            icon: const Icon(
-              Icons.navigation_rounded,
-              color: AppColors.primaryBurgundy,
-            ),
-            tooltip: 'Active Trip Console',
-            onPressed: () {
-              if (state.hasActiveAssignment) {
-                context.push(
-                  RoutePaths.driverActiveTripPath(
-                    state.activeAssignment!.bookingId,
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('No active ceremonial assignment right now.'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-            },
-          ),
-          IconButton(
-            key: const Key('driver_dashboard_biometric_lock_action'),
-            icon: const Icon(
-              Icons.fingerprint_rounded,
-              color: AppColors.primaryBurgundy,
-            ),
-            tooltip: 'Biometric Duty Lock',
-            onPressed: () => _showBiometricSecuritySheet(context),
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.account_circle_outlined,
-              color: AppColors.primaryBurgundy,
-            ),
-            tooltip: 'Chauffeur Profile',
-            onPressed: () => context.push(RoutePaths.driverProfile),
-          ),
-        ],
-      ),
       body: RefreshIndicator(
         onRefresh: () async {
           await controller.loadDashboard();
@@ -113,20 +209,76 @@ class DriverDashboardScreen extends ConsumerWidget {
               .loadCompleted();
         },
         color: AppColors.primaryBurgundy,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // 0. Offline Resilience Status
-            const ShadiOfflineBanner(
-              message:
-                  'Chauffeur Offline Resilience Active • Itineraries cached',
-            ),
-            const SizedBox(height: 8),
+        child: FutureBuilder<PartnerFleet>(
+          future: fleetFuture,
+          builder: (context, fleetSnap) {
+            final fleet = fleetSnap.data;
+            final availableCount = fleet?.items
+                    .where((v) => v.isAvailable && v.isBookable)
+                    .length ??
+                0;
+            final verifiedCount = fleet?.verifiedCount ?? 0;
+            final expiringCount = fleet?.items.fold<int>(
+                  0,
+                  (sum, v) =>
+                      sum +
+                      v.documents
+                          .where(
+                            (d) =>
+                                d.expiresAt != null &&
+                                d.expiresAt!.isBefore(
+                                  DateTime.now()
+                                      .add(const Duration(days: 30)),
+                                ),
+                          )
+                          .length,
+                ) ??
+                0;
 
-            // 1. Duty Status Selector Card
-            _buildDutyStatusCard(context, state, controller),
+            return ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                // REFERENCE FLEET HOME HEADER — burgundy, editorial greeting.
+                _buildFleetHomeHeader(context, driverName, state, fleet),
 
-            const SizedBox(height: 16),
+                const SizedBox(height: 40), // room for the floating count card
+
+                // REFERENCE METRIC PAIR — AVAILABILITY / VERIFICATION.
+                _buildMetricPair(availableCount, verifiedCount),
+
+                // REFERENCE FLEET ATTENTION — expiring documents.
+                if (expiringCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(17, 0, 17, 0),
+                    child: _buildFleetAttention(expiringCount),
+                  ),
+
+                // REFERENCE YOUR CARS — the fleet rows.
+                if (fleet != null && fleet.items.isNotEmpty)
+                  _buildYourCars(fleet.items),
+
+                const SizedBox(height: 12),
+
+                // LIVE OPERATIONS SECTIONS (preserved verbatim).
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 0. Offline Resilience Status
+                      const ShadiOfflineBanner(
+                        message:
+                            'Chauffeur Offline Resilience Active • Itineraries cached',
+                      ),
+                      const SizedBox(height: 8),
+
+                      // 1. Duty Status Selector Card
+                      _buildDutyStatusCard(context, state, controller),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
 
             // 2. Status Explanation Banner
             _buildStatusBanner(context, state.dutyStatus, controller),
@@ -138,37 +290,38 @@ class DriverDashboardScreen extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
-            // 3. Section Header for Requests
+            // 3. Section Header for Assigned Duties (operations allocates ALL
+            //    work — there is no incoming marketplace queue).
             ShadiSectionHeader(
-              title: 'Incoming Booking Offers',
-              subtitle: state.canReceiveOffers
-                  ? '${state.offers.length} pending ceremonial reservation${state.offers.length == 1 ? '' : 's'}'
-                  : 'Dispatch queue paused (Duty status inactive)',
+              title: 'Assigned Duties',
+              subtitle: state.offers.isEmpty
+                  ? 'Operations allocates your duties — they appear here.'
+                  : '${state.offers.length} operations-assigned dut${state.offers.length == 1 ? 'y' : 'ies'}',
             ),
 
             const SizedBox(height: 12),
 
-            // 4. Offer Cards or Empty / Inactive State
+            // 4. Duty Cards or Empty / Inactive State
             if (state.isLoading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 40),
                 child: Center(
                   child: ShadiLoadingIndicator(
-                    message: 'Refreshing dispatch offers...',
+                    message: 'Refreshing assigned duties...',
                   ),
                 ),
               )
-            else if (!state.canReceiveOffers)
+            else if (!state.canReceiveOffers && state.offers.isEmpty)
               _buildInactiveDispatchCard(context, controller)
             else if (state.offers.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 32),
                 child: ShadiEmptyState(
                   icon: Icons.assignment_turned_in_outlined,
-                  title: 'No Pending Offers',
+                  title: 'No Assigned Duties',
                   description:
-                      'You are active in the ceremonial dispatch pool. New wedding booking requests matching your vehicle and qualifications will appear here.',
-                  actionLabel: 'Refresh Dispatch',
+                      'ShadiDriver operations allocates every booking. Duties assigned to you appear here with the itinerary and host contact.',
+                  actionLabel: 'Refresh Duties',
                   onAction: () => controller.refreshOffers(),
                 ),
               )
@@ -186,7 +339,9 @@ class DriverDashboardScreen extends ConsumerWidget {
             ),
 
             if (!completedState.isLoading &&
-                completedState.assignments.isNotEmpty) ...[
+                completedState.assignments.isNotEmpty &&
+                completedState.assignments
+                    .any((a) => (a.estimatedTotalPaise ?? 0) > 0)) ...[
               const SizedBox(height: 12),
               _buildEarningsCard(
                 DriverEarningsSummary.fromAssignments(
@@ -218,8 +373,221 @@ class DriverDashboardScreen extends ConsumerWidget {
               ),
 
             const SizedBox(height: 32),
-          ],
+              ],
+            );
+          },
         ),
+      ),
+    );
+  }
+
+  void _openActiveTrip(BuildContext context, DriverDashboardState state) {
+    if (state.hasActiveAssignment) {
+      context.push(
+        RoutePaths.driverActiveTripPath(state.activeAssignment!.bookingId),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No active ceremonial assignment right now.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// The reference AVAILABILITY / VERIFICATION metric pair.
+  Widget _buildMetricPair(int availableCount, int verifiedCount) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(17, 0, 17, 24),
+      child: Row(
+        children: [
+          Expanded(
+            child: _MetricCard(
+              label: 'AVAILABILITY',
+              value: '$availableCount',
+              caption: 'Available',
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _MetricCard(
+              label: 'VERIFICATION',
+              value: '$verifiedCount',
+              caption: 'Verified',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The reference "Fleet attention" card (documents expiring soon).
+  Widget _buildFleetAttention(int expiringCount) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(ShadiRadius.fleetCard),
+        border: Border.all(color: ShadiColors.line),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: ShadiColors.warningSoft,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.description_outlined,
+              size: 18,
+              color: ShadiColors.saffron,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$expiringCount documents expiring soon',
+                  style: ShadiRefType.ui10.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimaryLight,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Review insurance documents',
+                  style: ShadiRefType.ui8.copyWith(color: ShadiColors.muted),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: ShadiColors.muted,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The reference "Your cars" list: photo, name, registration, verification
+  /// + availability badges, chevron. Language rule: AVAILABLE / NOT AVAILABLE.
+  Widget _buildYourCars(List<PartnerVehicle> cars) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(17, 0, 17, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Your cars',
+            style: ShadiRefType.heading20.copyWith(color: AppColors.darkBurgundy),
+          ),
+          const SizedBox(height: 14),
+          for (final car in cars)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(ShadiRadius.fleetCard),
+                border: Border.all(color: ShadiColors.line),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 55,
+                    height: 49,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(9),
+                      color: AppColors.secondarySurface,
+                      image: DecorationImage(
+                        image: AssetImage(ShadiImagery.forVehicle(
+                          car.photoUrls.isEmpty ? null : car.photoUrls.first,
+                          vehicleId: car.id,
+                        )),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          car.displayName ?? car.fleetCode,
+                          style: ShadiRefType.ui10.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimaryLight,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          car.maskedRegistration,
+                          style: ShadiRefType.ui8.copyWith(
+                            color: ShadiColors.muted,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: _MiniStatusBadge(
+                                label: ShadiRefType.caps(
+                                  car.verificationStatus.wire,
+                                ),
+                                tone: switch (car.verificationStatus) {
+                                  PartnerVerificationStatus.approved =>
+                                    _BadgeTone.success,
+                                  PartnerVerificationStatus.submitted ||
+                                  PartnerVerificationStatus.underReview ||
+                                  PartnerVerificationStatus.pendingSubmission ||
+                                  PartnerVerificationStatus.actionRequired =>
+                                    _BadgeTone.warning,
+                                  _ => _BadgeTone.danger,
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: _MiniStatusBadge(
+                                label: car.isAvailable && car.isBookable
+                                    ? 'AVAILABLE'
+                                    : 'NOT AVAILABLE',
+                                tone: car.isAvailable && car.isBookable
+                                    ? _BadgeTone.success
+                                    : _BadgeTone.neutral,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: ShadiColors.muted,
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -301,13 +669,18 @@ class DriverDashboardScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Operational Duty Status',
-                style: AppTypography.titleSmall.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.primaryBurgundy,
+              Expanded(
+                child: Text(
+                  'Operational Duty Status',
+                  style: AppTypography.titleSmall.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryBurgundy,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               ShadiStatusBadge(
                 status: state.dutyStatus.code,
                 color: _getStatusColor(state.dutyStatus),
@@ -440,12 +813,12 @@ class DriverDashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Dispatch Offers Paused',
+              'Duty List Paused',
               style: AppTypography.titleMedium,
             ),
             const SizedBox(height: 6),
             Text(
-              'To view and accept incoming wedding booking offers, switch your operational status to Available.',
+              'No duties to show right now. Switch to Available so operations can keep allocating work to you. Duties already assigned remain visible above.',
               style: AppTypography.bodySmall.copyWith(
                 color: AppColors.textSecondaryLight,
               ),
@@ -479,54 +852,68 @@ class DriverDashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Reference, Ceremony & Status
+            // Top Row: Reference, Ceremony & Status. The chips group is
+            // Flexible so a wide reference/status pair can never push the
+            // row past the card edge at a narrow phone width.
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondarySurface,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppColors.champagneGold),
-                      ),
-                      child: Text(
-                        offer.bookingReference,
-                        style: AppTypography.labelSmall.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryBurgundy,
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondarySurface,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: AppColors.champagneGold),
+                          ),
+                          child: Text(
+                            offer.bookingReference,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.labelSmall.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryBurgundy,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryBurgundy.withValues(
-                          alpha: 0.08,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryBurgundy.withValues(
+                              alpha: 0.08,
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            offer.ceremonyType,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.primaryBurgundy,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(
-                        offer.ceremonyType,
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.primaryBurgundy,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const ShadiStatusBadge(
-                  status: 'AWAITING CHAUFFEUR',
+                const SizedBox(width: 8),
+                ShadiStatusBadge(
+                  status: offer.statusLabel,
                   color: AppColors.warmGold,
                 ),
               ],
@@ -588,29 +975,36 @@ class DriverDashboardScreen extends ConsumerWidget {
 
             const Divider(height: 20),
 
-            // Bottom row: Payout + Action Button
+            // Bottom row: Payout + Action Button. Earnings are only shown
+            // when the server actually priced the row (duty views carry no
+            // pricing — operations reports payouts separately).
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Est. Chauffeur Earnings',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textSecondaryLight,
-                        fontSize: 10,
-                      ),
+                if (offer.estimatedTotalPaise > 0) ...[
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Est. Chauffeur Earnings',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.textSecondaryLight,
+                            fontSize: 10,
+                          ),
+                        ),
+                        Text(
+                          offer.formattedDriverEarningsPaise,
+                          style: AppTypography.titleMedium.copyWith(
+                            color: AppColors.primaryBurgundy,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      offer.formattedDriverEarningsPaise,
-                      style: AppTypography.titleMedium.copyWith(
-                        color: AppColors.primaryBurgundy,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 ElevatedButton.icon(
                   key: Key('review_offer_button_${offer.bookingId}'),
                   onPressed: () {
@@ -619,7 +1013,7 @@ class DriverDashboardScreen extends ConsumerWidget {
                     );
                   },
                   icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                  label: const Text('Review Offer'),
+                  label: const Text('View Duty'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryBurgundy,
                     foregroundColor: Colors.white,
@@ -979,6 +1373,98 @@ class DriverDashboardScreen extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Reference metric card (AVAILABILITY / VERIFICATION): hairline border,
+/// tiny tracked label, Playfair numeral, small caption.
+class _MetricCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final String caption;
+
+  const _MetricCard({
+    required this.label,
+    required this.value,
+    required this.caption,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(ShadiRadius.fleetCard),
+        border: Border.all(color: ShadiColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: ShadiRefType.ui7.copyWith(
+              color: ShadiColors.muted,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: ShadiRefType.numeral27.copyWith(
+              color: AppColors.primaryBurgundy,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            caption,
+            style: ShadiRefType.ui10.copyWith(color: AppColors.textPrimaryLight),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _BadgeTone { success, warning, danger, neutral }
+
+/// The reference fleet-row mini badge (19px, 6px text).
+class _MiniStatusBadge extends StatelessWidget {
+  final String label;
+  final _BadgeTone tone;
+
+  const _MiniStatusBadge({required this.label, required this.tone});
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg) = switch (tone) {
+      _BadgeTone.success => (ShadiColors.greenSoft, ShadiColors.green),
+      _BadgeTone.warning => (ShadiColors.warningSoft, ShadiColors.saffron),
+      _BadgeTone.danger => (ShadiColors.dangerSoft, ShadiColors.danger),
+      _BadgeTone.neutral => (
+          ShadiColors.neutralBadgeBg,
+          ShadiColors.neutralBadgeFg,
+        ),
+    };
+    return Container(
+      height: 19,
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(ShadiRadius.badgePill),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: ShadiRefType.ui7.copyWith(
+          fontSize: 6,
+          color: fg,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }

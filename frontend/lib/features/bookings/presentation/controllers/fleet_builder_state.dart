@@ -17,6 +17,32 @@ class FleetLineState {
     required this.quantity,
   });
 
+  /// Maps one entry of the public vehicle-TYPE wire format
+  /// (`GET /api/v1/vehicles/types`) onto a composition line at quantity 0.
+  ///
+  /// The backend speaks **snake_case**; this used to read camelCase keys, so
+  /// every type silently lost its class and fell back to 4 seats — the review
+  /// screen rendered "4 seats • " for a 6-seat Executive MPV. The camelCase
+  /// names survive only as a tolerant fallback.
+  factory FleetLineState.fromVehicleTypeJson(Map<String, dynamic> json) {
+    return FleetLineState(
+      vehicleTypeId: (json['id'] as String?) ?? '',
+      displayName:
+          (json['display_name'] as String?) ??
+          (json['displayName'] as String?) ??
+          '',
+      vehicleClass:
+          (json['vehicle_class'] as String?) ??
+          (json['vehicleClass'] as String?) ??
+          '',
+      seatingCapacity:
+          (json['seating_capacity'] as num?)?.toInt() ??
+          (json['seatingCap'] as num?)?.toInt() ??
+          4,
+      quantity: 0,
+    );
+  }
+
   FleetLineState copyWith({int? quantity}) => FleetLineState(
         vehicleTypeId: vehicleTypeId,
         displayName: displayName,

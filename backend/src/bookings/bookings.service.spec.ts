@@ -20,6 +20,7 @@ describe('BookingsService (engine)', () => {
     userId: 'driver-user-1',
     verificationStatus: 'APPROVED',
   };
+  const OPS_ADMIN = { userId: 'ops-admin-1', role: 'operationsAdmin' as never };
 
   function now2h() {
     return new Date(Date.now() + 2 * 3600_000);
@@ -53,9 +54,29 @@ describe('BookingsService (engine)', () => {
 
     const tx = {
       booking: {
-        findUnique: jest.fn(async ({ where }) =>
-          bookings.find((b) => b.id === where.id || b.idempotencyKey === where.idempotencyKey) ?? null,
-        ),
+        // Emulates Prisma `include` semantics: the service's role-scoped
+        // privacy DTOs read `customer`/`driver`/`vehicle` relations, so the
+        // harness must materialize them exactly as the real client would.
+        findUnique: jest.fn(async ({ where }) => {
+          const b =
+            bookings.find((x) => x.id === where.id || x.idempotencyKey === where.idempotencyKey) ?? null;
+          if (!b) return null;
+          return {
+            ...b,
+            customer: {
+              id: b.customerFk,
+              fullName: customer.fullName,
+              phoneNumber: customer.phoneNumber,
+            },
+            driver: b.driverFk
+              ? { id: b.driverFk, user: { fullName: 'Rajesh Kumar', phoneNumber: '+919810000002' } }
+              : null,
+            vehicle: b.vehicleFk
+              ? { fleetCode: 'SD-F-001', vehicleType: { displayName: 'Toyota Innova Crysta' } }
+              : null,
+            events: events.filter((e) => e.bookingId === b.id),
+          };
+        }),
         create: jest.fn(async ({ data }) => {
           const b = {
             id: `bk-${bookingSeq++}`,
@@ -107,7 +128,10 @@ describe('BookingsService (engine)', () => {
       __bookings: bookings,
       __events: events,
       __availabilities: availabilities,
-      $transaction: jest.fn(async (fn) => fn(tx)),
+      // Supports both the callback form and the promise-array form.
+      $transaction: jest.fn(async (arg: unknown) =>
+        Array.isArray(arg) ? Promise.all(arg as Promise<unknown>[]) : (arg as (t: unknown) => unknown)(tx),
+      ),
     };
 
     sms = { sendOtp: jest.fn().mockResolvedValue({ accepted: true }), name: 'test-sms' };
@@ -148,14 +172,40 @@ describe('BookingsService (engine)', () => {
       expect(other.idempotentReplay).toBe(false);
       expect(prisma.__bookings).toHaveLength(2);
     });
+
+    it('answers with the CUSTOMER view — a fresh row is still not the wire shape', async () => {
+      const { booking } = (await service.submitBooking(validInput)) as { booking: any };
+      const wire = JSON.stringify(booking);
+      expect(wire).not.toMatch(/idempotencyKey|idempotency_key/);
+      expect(wire).not.toMatch(/startOtpHash|start_otp_hash/);
+      expect(wire).not.toMatch(/customerFk|customer_fk/);
+      expect(booking.driver).toBeNull();
+      expect(booking.reference_code).toBeTruthy();
+      expect(Object.keys(booking)).toContain('submitted_at');
+      expect(booking.chauffeur_verification).toMatch(/operations is arranging/i);
+    });
+
+    it('a replay answers with the same customer view (and no raw row)', async () => {
+      await service.submitBooking(validInput);
+      const replay = await service.submitBooking({ ...validInput });
+      expect(replay.idempotentReplay).toBe(true);
+      const wire = JSON.stringify(replay.booking);
+      expect(wire).not.toMatch(/idempotencyKey|idempotency_key/);
+      expect(wire).not.toMatch(/startOtpHash|start_otp_hash/);
+    });
   });
 
   describe('server-authoritative pricing', () => {
     it('persists totals from the SERVER quote; client amounts are never read', async () => {
-      const { booking } = await service.submitBooking(validInput);
+      const { booking } = (await service.submitBooking(validInput)) as { booking: any };
       expect(quotes.createQuote).toHaveBeenCalledTimes(1);
-      expect(booking.estimatedTotalPaise).toBe(3_000_000n);
-      expect(booking.advanceTokenPaise).toBe(750_000n);
+      // Persisted on the row (the source of truth for every later settlement)
+      // …
+      expect(prisma.__bookings[0].estimatedTotalPaise).toBe(3_000_000n);
+      expect(prisma.__bookings[0].advanceTokenPaise).toBe(750_000n);
+      // … and exposed to the customer as string paise.
+      expect(booking.estimated_total_paise).toBe('3000000');
+      expect(booking.advance_token_paise).toBe('750000');
     });
 
     it('records a REQUESTED booking event for audit', async () => {
@@ -166,7 +216,7 @@ describe('BookingsService (engine)', () => {
     });
   });
 
-  describe('driver accept/decline', () => {
+  describe('operations-owned chauffeur allocation', () => {
     let booking: any;
     beforeEach(async () => {
       booking = (await service.submitBooking(validInput)).booking;
@@ -174,17 +224,19 @@ describe('BookingsService (engine)', () => {
       prisma.$queryRaw.mockResolvedValue([{ status: booking.status, id: booking.id }]);
     });
 
-    it('accept transitions REQUESTED → DRIVER_ACCEPTED and inserts a slot lock', async () => {
-      const accepted = await service.acceptBooking(booking.id, 'driver-user-1');
+    it('ops allocation transitions REQUESTED → DRIVER_ACCEPTED and inserts a slot lock', async () => {
+      const accepted = await service.assignChauffeur(booking.id, 'drv-profile-1', OPS_ADMIN);
       expect(accepted.status).toBe('DRIVER_ACCEPTED');
-      expect(accepted.driverFk).toBe('drv-profile-1');
-      expect(accepted.startOtpHash).toHaveLength(64);
+      // Allocation returns the operational view; the row carries the link.
+      const row = prisma.__bookings.find((b: { id: string }) => b.id === booking.id);
+      expect(row.driverFk).toBe('drv-profile-1');
+      expect(row.startOtpHash).toHaveLength(64);
       expect(prisma.__availabilities).toHaveLength(1);
       expect(prisma.__availabilities[0].status).toBe('BOOKED');
     });
 
-    it('delivers the trip OTP to the host phone after accept', async () => {
-      await service.acceptBooking(booking.id, 'driver-user-1');
+    it('delivers the trip OTP to the host phone after allocation', async () => {
+      await service.assignChauffeur(booking.id, 'drv-profile-1', OPS_ADMIN);
       expect(sms.sendOtp).toHaveBeenCalledTimes(1);
       const [phone, code] = sms.sendOtp.mock.calls[0];
       expect(phone).toBe(validInput.primaryContactPhone);
@@ -194,28 +246,31 @@ describe('BookingsService (engine)', () => {
       expect(verifyOtp(code, accepted.startOtpHash)).toBe(true);
     });
 
-    it('unverified chauffeurs cannot accept', async () => {
+    it('unverified chauffeurs cannot be assigned', async () => {
       prisma.driverProfile.findUnique.mockResolvedValue({
         ...driverProfile,
         verificationStatus: 'PENDING_SUBMISSION',
       });
-      await expect(service.acceptBooking(booking.id, 'driver-user-1')).rejects.toThrow(
+      await expect(service.assignChauffeur(booking.id, 'drv-profile-1', OPS_ADMIN)).rejects.toThrow(
         /verified chauffeurs/i,
       );
     });
 
-    it('accept fails when the booking is no longer REQUESTED', async () => {
+    it('allocation fails when the booking is no longer assignable', async () => {
       prisma.__bookings[0].status = 'CANCELLED';
       prisma.$queryRaw.mockResolvedValue([{ status: 'CANCELLED', id: booking.id }]);
-      await expect(service.acceptBooking(booking.id, 'driver-user-1')).rejects.toThrow(
-        /no longer available/i,
+      await expect(service.assignChauffeur(booking.id, 'drv-profile-1', OPS_ADMIN)).rejects.toThrow(
+        /cannot be allocated/i,
       );
     });
 
-    it('decline records the mandatory reason', async () => {
-      const result = await service.declineBooking(booking.id, 'driver-user-1', 'VEHICLE_BREAKDOWN');
-      expect(result.declined).toBe(true);
-      const event = prisma.__events.find((e: { eventReason: string }) => e.eventReason === 'VEHICLE_BREAKDOWN');
+    it('assignment conflict releases the duty back to operations', async () => {
+      // A conflict is reportable only against an EXISTING ops allocation.
+      await service.assignChauffeur(booking.id, 'drv-profile-1', OPS_ADMIN);
+      const result = await service.reportAssignmentConflict(booking.id, 'driver-user-1', 'VEHICLE_BREAKDOWN');
+      expect(result.released).toBe(true);
+      const event = prisma.__events.find((e: { eventReason: string }) =>
+        e.eventReason.includes('VEHICLE_BREAKDOWN'));
       expect(event).toBeTruthy();
       expect(event.triggerRole).toBe('driver');
     });
@@ -228,7 +283,7 @@ describe('BookingsService (engine)', () => {
     beforeEach(async () => {
       booking = (await service.submitBooking(validInput)).booking;
       prisma.$queryRaw.mockResolvedValue([{ status: booking.status, id: booking.id }]);
-      await service.acceptBooking(booking.id, 'driver-user-1');
+      await service.assignChauffeur(booking.id, 'drv-profile-1', OPS_ADMIN);
       tripOtp = sms.sendOtp.mock.calls[0][1];
       // Force through CONFIRMED → EN_ROUTE → ARRIVED for trip start testing.
       prisma.__bookings[0].status = 'ARRIVED';
@@ -264,10 +319,29 @@ describe('BookingsService (engine)', () => {
         'COMPLETE_TRIP',
         { userId: 'driver-user-1', role: 'driver' as never },
       );
+      // The driver's view carries the duty fields it needs — and the raw
+      // internal timestamps stay on the row.
       expect(updated.status).toBe('COMPLETED');
-      expect(updated.completedAt).toBeInstanceOf(Date);
+      expect('host_name' in updated).toBe(true);
+      expect(prisma.__bookings[0].completedAt).toBeInstanceOf(Date);
       // Calendar lock released.
       expect(prisma.availability.updateMany).toHaveBeenCalled();
+    });
+
+    it('transition responses NEVER carry the trip-OTP hash or idempotency key', async () => {
+      prisma.__bookings[0].status = 'CONFIRMED';
+      const updated = await service.transition(
+        booking.id,
+        'START_ROUTE',
+        { userId: 'driver-user-1', role: 'driver' as never },
+      );
+      // The raw row holds the hash; the wire view must not. A 4-digit OTP hash
+      // is brute-forceable offline in milliseconds, so leaking it would let a
+      // chauffeur start the trip without the host's code.
+      expect(prisma.__bookings[0].startOtpHash).toHaveLength(64);
+      const wire = JSON.stringify(updated);
+      expect(wire).not.toMatch(/startOtpHash|start_otp_hash/);
+      expect(wire).not.toMatch(/idempotencyKey|idempotency_key/);
     });
 
     it('customer may cancel while still REQUESTED', async () => {
@@ -278,8 +352,10 @@ describe('BookingsService (engine)', () => {
         { userId: customer.id, role: 'customer' as never },
         { reason: 'Change of plans' },
       );
+      // Customer view: lifecycle status is visible; the internal cancellation
+      // reason stays on the row (events carry the audited trail).
       expect(updated.status).toBe('CANCELLED');
-      expect(updated.cancellationReason).toBe('Change of plans');
+      expect(prisma.__bookings[0].cancellationReason).toBe('Change of plans');
     });
 
     it('customer CANNOT cancel after EN_ROUTE (ops-only)', async () => {
@@ -294,7 +370,7 @@ describe('BookingsService (engine)', () => {
     it('customer may resend; driver may NOT retrieve or resend', async () => {
       const booking = (await service.submitBooking(validInput)).booking;
       prisma.$queryRaw.mockResolvedValue([{ status: 'REQUESTED', id: booking.id }]);
-      await service.acceptBooking(booking.id, 'driver-user-1');
+      await service.assignChauffeur(booking.id, 'drv-profile-1', OPS_ADMIN);
       prisma.__bookings[0].status = 'ARRIVED';
 
       sms.sendOtp.mockClear();
@@ -304,6 +380,28 @@ describe('BookingsService (engine)', () => {
       await expect(
         service.resendTripOtp(booking.id, { userId: 'driver-user-1', role: 'driver' as never }),
       ).rejects.toThrow(/Only the booking customer/);
+    });
+  });
+
+  describe('customer booking list (privacy view)', () => {
+    it('serializes the customer’s own bookings without driver link, OTP hash, or idempotency key', async () => {
+      const { booking } = await service.submitBooking(validInput);
+      prisma.$queryRaw.mockResolvedValue([{ status: booking.status, id: booking.id }]);
+      await service.assignChauffeur(booking.id, 'drv-profile-1', OPS_ADMIN);
+
+      const page = await service.listMyBookings(customer.id, 1, 20);
+      expect(page.items).toHaveLength(1);
+      const item = page.items[0] as Record<string, unknown>;
+      expect(item.status).toBe('DRIVER_ACCEPTED');
+      expect(item.reference_code).toBe(prisma.__bookings[0].referenceCode);
+      // Customer never sees WHO the chauffeur is — only that the platform
+      // stands behind the vehicle and chauffeur.
+      expect(item.driver).toBeNull();
+      expect(item.chauffeur_verification).toMatch(/verified by ShadiDriver/);
+      const wire = JSON.stringify(page);
+      expect(wire).not.toMatch(/startOtpHash|start_otp_hash/);
+      expect(wire).not.toMatch(/idempotencyKey|idempotency_key/);
+      expect(wire).not.toMatch(/driverFk|driver_fk/);
     });
   });
 
@@ -325,10 +423,11 @@ describe('BookingsService (engine)', () => {
       const booking = (await service.submitBooking(validInput)).booking;
       prisma.$queryRaw.mockResolvedValue([{ status: booking.status, id: booking.id }]);
       sms.sendOtp.mockRejectedValue(new SmsProviderError('test-sms', 'gateway down', true));
-      const accepted = await service.acceptBooking(booking.id, 'driver-user-1');
+      const accepted = await service.assignChauffeur(booking.id, 'drv-profile-1', OPS_ADMIN);
       expect(accepted.status).toBe('DRIVER_ACCEPTED');
       // OTP hash was still minted — resend endpoint can redeliver.
-      expect(accepted.startOtpHash).toHaveLength(64);
+      const row = prisma.__bookings.find((b: { id: string }) => b.id === booking.id);
+      expect(row.startOtpHash).toHaveLength(64);
     });
   });
 });

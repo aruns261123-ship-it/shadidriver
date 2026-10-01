@@ -6,7 +6,7 @@ import 'package:shadidriver/features/search/presentation/search_results_screen.d
 import '../../helpers/mock_env.dart';
 
 void main() {
-  testWidgets('SearchResultsScreen displays results count when loaded', (
+  testWidgets('SearchResultsScreen displays eligibility summary when loaded', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -17,15 +17,18 @@ void main() {
     );
 
     // Initial loading
-    expect(find.text('Searching for your royal ride...'), findsOneWidget);
+    expect(find.text('Finding eligible cars…'), findsOneWidget);
 
     // Wait for mock search to complete (600ms delay in mock repo)
     await tester.pump(const Duration(seconds: 1));
     await tester.pump();
     await tester.pump();
 
-    // Verify result count (our mock repo has 7 vehicles by default)
-    expect(find.textContaining('found', skipOffstage: false), findsOneWidget);
+    // Reference summary: "<n> cars eligible for your trip"
+    expect(
+      find.textContaining('eligible for your trip', skipOffstage: false),
+      findsOneWidget,
+    );
   });
 
   testWidgets('SearchResultsScreen shows filters chip', (tester) async {

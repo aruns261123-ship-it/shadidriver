@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'trip_type.dart';
 
 /// Immutable domain model representing a comprehensive vehicle search request.
 @immutable
@@ -9,6 +10,10 @@ class VehicleSearchQuery {
   final String? eventTime;
   final String? occasionId;
   final int? passengerCount;
+
+  /// Direction the customer chose. Persisted into the search request, the
+  /// quote and ultimately the booking; the server prices it.
+  final TripType tripType;
 
   // Filters
   final List<String>? vehicleCategories;
@@ -33,6 +38,7 @@ class VehicleSearchQuery {
     this.eventTime,
     this.occasionId,
     this.passengerCount,
+    this.tripType = TripType.oneWay,
     this.vehicleCategories,
     this.minModelYear,
     this.maxModelYear,
@@ -62,6 +68,7 @@ class VehicleSearchQuery {
     String? eventTime,
     String? occasionId,
     int? passengerCount,
+    TripType? tripType,
     List<String>? vehicleCategories,
     int? minModelYear,
     int? maxModelYear,
@@ -101,6 +108,7 @@ class VehicleSearchQuery {
       eventTime: clearEventTime ? null : (eventTime ?? this.eventTime),
       occasionId: clearOccasionId ? null : (occasionId ?? this.occasionId),
       passengerCount: clearPassengerCount ? null : (passengerCount ?? this.passengerCount),
+      tripType: tripType ?? this.tripType,
       vehicleCategories: clearVehicleCategories
           ? null
           : (vehicleCategories ?? this.vehicleCategories),
@@ -134,6 +142,7 @@ class VehicleSearchQuery {
           eventTime == other.eventTime &&
           occasionId == other.occasionId &&
           passengerCount == other.passengerCount &&
+          tripType == other.tripType &&
           listEquals(vehicleCategories, other.vehicleCategories) &&
           minModelYear == other.minModelYear &&
           maxModelYear == other.maxModelYear &&
@@ -157,6 +166,7 @@ class VehicleSearchQuery {
       eventTime.hashCode ^
       occasionId.hashCode ^
       passengerCount.hashCode ^
+      tripType.hashCode ^
       vehicleCategories.hashCode ^
       minModelYear.hashCode ^
       maxModelYear.hashCode ^

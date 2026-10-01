@@ -19,6 +19,14 @@ export interface SmsProvider {
    * instead of pretending the OTP was sent.
    */
   sendOtp(phoneNumber: string, code: string): Promise<SmsSendResult>;
+
+  /**
+   * Sends a NON-OTP transactional message (booking confirmation, allocation
+   * notice). Indian regulation (TRAI/DLT) requires a separate approved
+   * template for non-OTP traffic: providers throw SmsProviderError naming the
+   * missing template until it is configured — never a silent no-op.
+   */
+  sendTransactional(phoneNumber: string, message: string): Promise<SmsSendResult>;
 }
 
 /** Raised for any SMS delivery failure; never swallows into fake success. */

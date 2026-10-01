@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { VerificationStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import {
@@ -16,6 +16,16 @@ import {
   UpdatePartnerProfileDto,
   UpdateVehicleDto,
 } from './dto/partner.dto';
+import {
+  DOCUMENT_MAX_BYTES,
+  DOCUMENT_MIME_TYPES,
+  IMAGE_MAX_BYTES,
+  IMAGE_MIME_TYPES,
+  STORAGE_PROVIDER,
+  StorageProvider,
+  StoredObject,
+  assertUploadAllowed,
+} from '../common/storage/storage-provider.interface';
 
 /**
  * Partner onboarding and fleet management.
@@ -34,7 +44,10 @@ import {
  */
 @Injectable()
 export class PartnerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
+  ) {}
 
   // ------------------------------------------------------------ onboarding
 
@@ -440,6 +453,138 @@ export class PartnerService {
    * NOT_FOUND — never FORBIDDEN — so a partner cannot enumerate the fleet of
    * anyone else by probing ids.
    */
+  // -------------------------------------------------------------- media
+
+  /**
+   * Stores a REAL uploaded photo for a partner-owned vehicle (multipart body,
+   * not URL text). The file becomes the primary image when `setPrimary` is
+   * requested or the vehicle has none yet; otherwise it joins the gallery.
+   * An APPROVED vehicle goes back to PENDING_SUBMISSION — new photos are
+   * reviewed like any other submission.
+   */
+  async uploadVehiclePhoto(
+    userId: string,
+    vehicleId: string,
+    file: { originalname: string; mimetype: string; size: number; buffer: Buffer },
+    opts: { setPrimary?: boolean; slot?: 'EXTERIOR' | 'INTERIOR' | 'ADDITIONAL' } = {},
+  ) {
+    await this.requireOwnVehicle(userId, vehicleId);
+    assertUploadAllowed(
+      file.mimetype,
+      file.size,
+      IMAGE_MIME_TYPES,
+      IMAGE_MAX_BYTES,
+      'Vehicle photo',
+    );
+
+    let stored: StoredObject;
+    try {
+      stored = await this.storage.put({
+        scope: 'vehicles',
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        bytes: file.buffer,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === 'StorageError') throw err;
+      throw new Error(`[storage] unexpected failure: ${String(err)}`);
+    }
+
+    const vehicle = await this.prisma.vehicle.findUnique({ where: { id: vehicleId } });
+    const gallery = [...(vehicle?.photoUrls ?? [])];
+    const makePrimary = opts.setPrimary === true || !vehicle?.imageUrl;
+    if (makePrimary) {
+      // Previous primary joins the gallery; the new photo leads it.
+      if (vehicle?.imageUrl) gallery.unshift(vehicle.imageUrl);
+    } else {
+      gallery.push(stored.url);
+    }
+
+    const updated = await this.prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: {
+        ...(makePrimary ? { imageUrl: stored.url } : {}),
+        photoUrls: gallery.slice(0, 12),
+        ...(vehicle?.verificationStatus === VerificationStatus.APPROVED
+          ? { verificationStatus: VerificationStatus.PENDING_SUBMISSION }
+          : {}),
+      },
+    });
+
+    return {
+      vehicle_id: vehicleId,
+      photo: {
+        url: stored.url,
+        bytes: stored.bytes,
+        mime_type: stored.mimeType,
+        is_primary: makePrimary,
+        slot: opts.slot ?? 'ADDITIONAL',
+      },
+      primary_image_url: updated.imageUrl,
+      gallery: updated.photoUrls,
+      verification_status: updated.verificationStatus,
+    };
+  }
+
+  /** Removes a photo from the gallery (or demotes the primary) by URL. */
+  async removeVehiclePhoto(userId: string, vehicleId: string, url: string) {
+    const vehicle = await this.requireOwnVehicle(userId, vehicleId);
+    const wasPrimary = vehicle.imageUrl === url;
+    const gallery = vehicle.photoUrls.filter((u) => u !== url);
+    const nextPrimary = wasPrimary ? (gallery.shift() ?? null) : vehicle.imageUrl;
+
+    await this.prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: { imageUrl: nextPrimary, photoUrls: gallery },
+    });
+    // Best-effort blob cleanup — DB state is the source of truth either way.
+    if (url.startsWith('/media/')) {
+      await this.storage.delete(url.slice('/media/'.length));
+    }
+    return {
+      vehicle_id: vehicleId,
+      removed: url,
+      was_primary: wasPrimary,
+      primary_image_url: nextPrimary,
+      gallery,
+    };
+  }
+
+  /**
+   * Stores a REAL uploaded vehicle document (RC, insurance, PUC…). The row
+   * (re)enters review as PENDING_REVIEW exactly like the legacy URL-text path,
+   * but the file now lives in managed storage — arbitrary external URLs are
+   * no longer the production path.
+   */
+  async uploadVehicleDocument(
+    userId: string,
+    vehicleId: string,
+    dto: Omit<AddVehicleDocumentDto, 'storagePath' | 'mimeType'>,
+    file: { originalname: string; mimetype: string; size: number; buffer: Buffer },
+  ) {
+    await this.requireOwnVehicle(userId, vehicleId);
+    assertUploadAllowed(
+      file.mimetype,
+      file.size,
+      DOCUMENT_MIME_TYPES,
+      DOCUMENT_MAX_BYTES,
+      'Vehicle document',
+    );
+
+    const stored = await this.storage.put({
+      scope: 'documents',
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+      bytes: file.buffer,
+    });
+
+    return this.addVehicleDocument(userId, vehicleId, {
+      ...dto,
+      storagePath: stored.key,
+      mimeType: file.mimetype,
+    });
+  }
+
   private async requireOwnVehicle(userId: string, vehicleId: string) {
     const partner = await this.requirePartner(userId);
     const vehicle = await this.prisma.vehicle.findUnique({ where: { id: vehicleId } });

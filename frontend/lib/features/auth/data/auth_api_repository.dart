@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_response.dart';
 import '../../../core/errors/failures.dart';
@@ -194,6 +195,69 @@ class AuthApiRepository implements AuthRepository {
       return Result.success(session);
     } catch (e) {
       return Result.failure(mapDioError(e));
+    }
+  }
+
+  /// REAL Google sign-in: obtains a Google ID token via google_sign_in and
+  /// exchanges it at POST /auth/google, where the SERVER verifies it against
+  /// Google's JWKS (signature, issuer, audience = our OAuth client IDs) and
+  /// issues the same access/refresh session as the OTP flow. No client
+  /// secrets are ever embedded; nothing is faked when unconfigured — the
+  /// server answers NOT_CONFIGURED and the failure surfaces verbatim.
+  @override
+  Future<Result<AuthSession>> signInWithGoogle() async {
+    try {
+      final google = await GoogleSignIn().signInSilently() ??
+          await GoogleSignIn().signIn();
+      if (google == null) {
+        // The user closed the Google sheet — not an error.
+        return const Result.failure(
+          ValidationFailure(
+            'Google sign-in was cancelled.',
+            code: 'GOOGLE_SIGNIN_CANCELLED',
+          ),
+        );
+      }
+      final auth = await google.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        return const Result.failure(
+          UnknownFailure(
+            'Google returned no identity token. Check the OAuth client '
+            'configuration (GOOGLE_ANDROID_CLIENT_ID / GOOGLE_IOS_CLIENT_ID '
+            'must match this app).',
+            'GOOGLE_ID_TOKEN_MISSING',
+          ),
+        );
+      }
+      final response = await _client.post<Map<String, dynamic>>(
+        '$_basePath/google',
+        data: {
+          'idToken': idToken,
+          'deviceId': await _deviceId(),
+        },
+      );
+      final envelope = ApiEnvelope.fromJson(response.data);
+      final data = (envelope.data as Map<String, dynamic>?) ?? const {};
+      final session = await _persistAndBuildSession(data);
+      if (session.userId.isEmpty) {
+        return Result.failure(
+          const UnknownFailure(
+            'Google sign-in succeeded but no identity was returned.',
+            'UNKNOWN_ERROR',
+          ),
+        );
+      }
+      return Result.success(session);
+    } on DioException catch (e) {
+      return Result.failure(mapDioError(e));
+    } catch (e) {
+      return Result.failure(mapDioError(e));
+    } finally {
+      // End the Google session so the next sign-in always re-prompts.
+      try {
+        await GoogleSignIn().signOut();
+      } catch (_) {}
     }
   }
 

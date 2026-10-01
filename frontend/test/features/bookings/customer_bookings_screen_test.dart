@@ -35,8 +35,11 @@ void main() {
       expect(find.text('Baraat Ceremony'), findsOneWidget);
       expect(find.text('BMW 5 Series'), findsOneWidget);
       expect(find.text('Awaiting Confirmation'), findsOneWidget);
+      // Privacy model: the customer card shows the platform assurance, never
+      // a chauffeur identity.
+      expect(find.textContaining('Rajesh Kumar'), findsNothing);
       expect(
-        find.textContaining('Assigned Chauffeur: Rajesh Kumar'),
+        find.textContaining('verified by ShadiDriver'),
         findsOneWidget,
       );
 

@@ -8,6 +8,7 @@ import 'package:shadidriver/core/network/api_client.dart';
 import 'package:shadidriver/core/security/secure_storage_service.dart';
 import 'package:shadidriver/features/bookings/data/booking_api_repository.dart';
 import 'package:shadidriver/features/bookings/data/dto/submit_booking_dto.dart';
+import 'package:shadidriver/features/bookings/domain/entities/booking_status.dart';
 import 'package:shadidriver/features/bookings/domain/entities/booking_submission_request.dart';
 import 'package:shadidriver/features/bookings/domain/policies/booking_location_rules.dart';
 import 'package:shadidriver/features/bookings/domain/policies/service_category_policy.dart';
@@ -322,6 +323,53 @@ void main() {
 
       final result = await repo.submitBooking(validRequest());
       expect(result.failureOrNull!.message, 'Vehicle type not found.');
+    });
+  });
+
+  group('submission response mapping', () {
+    test('maps the customer privacy view (snake_case) the server now sends',
+        () async {
+      final repo = buildRepo({
+        'success': true,
+        'data': {
+          'booking': {
+            'id': 'b-9',
+            'reference_code': 'SD-2026-0148',
+            'status': 'REQUESTED',
+            'submitted_at': '2026-09-30T06:00:00.000Z',
+            'estimated_total_paise': '3955000',
+            'advance_token_paise': '988750',
+            'chauffeur_verification':
+                'Vehicle allocation pending — ShadiDriver operations is arranging your fleet',
+            'driver': null,
+          },
+          'idempotent_replay': false,
+        },
+      });
+
+      final result = await repo.submitBooking(validRequest());
+      expect(result.isSuccess, isTrue);
+      final booking = result.dataOrNull!;
+      expect(booking.bookingId, 'b-9');
+      expect(booking.bookingReference, 'SD-2026-0148');
+      expect(booking.status, BookingStatus.requested);
+      expect(booking.submittedAt, DateTime.utc(2026, 9, 30, 6));
+      expect(booking.estimatedTotalPaise, 3955000);
+      expect(booking.advanceTokenPaise, 988750);
+      expect(booking.isIdempotentReplay, isFalse);
+      // The customer-facing next step is operations review, never a driver offer.
+      expect(booking.nextStepMessage, contains('operations'));
+    });
+
+    test('still accepts the legacy camelCase row (older servers)', () async {
+      final repo = buildRepo(_successBody);
+      final result = await repo.submitBooking(validRequest());
+      expect(result.isSuccess, isTrue);
+      final booking = result.dataOrNull!;
+      expect(booking.bookingReference, 'SD-2026-0101');
+      expect(booking.submittedAt, DateTime.utc(2026, 9, 25, 7));
+      expect(booking.estimatedTotalPaise, 3955000);
+      expect(booking.advanceTokenPaise, 988750);
     });
   });
 }
